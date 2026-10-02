@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261003.02
+// @version      20261003.03
 // @description  配合 bigballofmud-luogu.user.css 使用（样式仍由 Stylus 提供，本脚本只管"行为"）。两件事：① 在顶栏"私信、通知"右边放一个可点的三态配色开关（跟随系统/深色/浅色，选择被记住）；② 深色下运行"对比度守卫"，自动修掉洛谷写死的浅字浅底/深字深底。
 // @author       acerkaio
 // @license      CC BY-NC-SA
@@ -34,6 +34,7 @@
     var CONFIG = {
         showToggle: true,          // 是否在顶栏放配色开关
         contrastGuard: true,       // 是否启用深色下的对比度守卫
+        guardSkipInlineColor: true, // 跳过"洛谷自己写了内联 color"的元素（彩底标签的前景色是它按底色算的）
         guardMinRatio: 6.0,        // 深色下用更高的门槛（原 4.5 只保证"勉强达标"，观感偏灰；
                                    // 6.0 接近 WCAG AAA，能把正文提到接近正文色 —— 用户："这些文字不应该是白的吗"）
         guardTargetRatio: 7.5,     // 修正后至少要达到的对比度（比门槛再高一点，避免反复修）
@@ -262,6 +263,14 @@
     function fixOne(el) {
         var cs = getComputedStyle(el);
         if (cs.visibility === 'hidden' || cs.display === 'none') return false;
+
+        // ★ 洛谷给彩色标签（比赛类型 / 难度 / 来源…）用的是**内联样式**：
+        //      style="background-color: rgb(255,193,22); color: rgb(51,51,51)"
+        //   那是它按底色算出来的前景色（getForeground），语义正确。
+        //   守卫若覆盖它，就会"把彩底上的字改成另一种颜色"（用户："字体颜色有问题"）。
+        //   所以：**元素自己带内联 color 的一律不动**。
+        //   （守卫自己写过的会带 data-sl-fixed，前面已经跳过了。）
+        if (CONFIG.guardSkipInlineColor && el.style && el.style.color) return false;
         if (parseFloat(cs.opacity) < 0.15) return false;
 
         var svg = isSvgText(el);
@@ -285,6 +294,20 @@
         el.setAttribute('data-sl-fixed', '1');
         el.setAttribute('data-sl-prop', prop);        // 还原时要知道当初改的是哪个属性
         return true;
+    }
+
+    // 复位：把之前守卫写过的内联色全部撤掉，让它们按**当前规则**重新判定。
+    // 本轮新增了"跳过内联 color"的规则，但旧版本已经往彩底标签上写过颜色 ——
+    // 不撤掉的话，那些标签即使刷新也还是错的（内联 !important 会一直赢）。
+    function resetGuardMarks() {
+        var fixed = document.querySelectorAll('[data-sl-fixed]');
+        for (var k = 0; k < fixed.length; k++) {
+            try {
+                fixed[k].style.removeProperty(fixed[k].getAttribute('data-sl-prop') || 'color');
+                fixed[k].removeAttribute('data-sl-fixed');
+                fixed[k].removeAttribute('data-sl-prop');
+            } catch (e) { /* 单个失败不影响 */ }
+        }
     }
 
     function runGuard() {
@@ -345,6 +368,7 @@
             setInterval(ensureButton, 1000);       // SPA 会重建顶栏，低频纠偏
         }
 
+        resetGuardMarks();                         // 先撤掉旧版本写过的内联色（含误改的彩底标签）
         scheduleGuard(120);                        // 首屏尽早跑一次，别让文字晚一步才变亮
 
         var mo = new MutationObserver(function () { scheduleGuard(); });
