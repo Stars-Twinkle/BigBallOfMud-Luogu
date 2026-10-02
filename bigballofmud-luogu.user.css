@@ -1095,7 +1095,8 @@ body > .swal2-container .swal2-popup,
                                     border-bottom: 1px solid rgb(var(--lcolor--primary))）
              div.author                 ← 作者 / 徽章 / "回复于 6 年前" / 举报
              div.collapsed-wrapper      ← 回复正文（可折叠）
-   这些内层元素洛谷会给浅色底（author 那一类），深色下就露出一条条浅色。
+   同一套模板还复用在**陶片放逐（管理日志）**上：那张卡片是 .l-card.log，
+   里面的 .author 同样自带浅底（用户第二次反馈："框是白的"）—— 一并按证据并进本组。
    处理：内层一律透明；底色只由外层 .l-card.comment 的玻璃承担（⑥ 段已给它玻璃）。
    那条 inline 的 border-bottom 用的是**令牌**变量，会跟着 ⑰ 段的令牌重映射走，不动它。
    ========================================================================== */
@@ -1103,7 +1104,15 @@ body > .swal2-container .swal2-popup,
 .l-card.comment .row,
 .l-card.comment .author,
 .l-card.comment .collapsed-wrapper,
-.l-card.comment .content {
+.l-card.comment .content,
+/* 陶片放逐（管理日志）：同一套模板，卡片是 .l-card.log
+   用户 DevTools：div.list-wrap.block > div.row-wrap > div.row > div.l-card.log
+                    > div.author（显示为白框，用户："框是白的"）
+                  > div.content.lfe-marked-wrap */
+.l-card.log .row-wrap,
+.l-card.log .row,
+.l-card.log .author,
+.l-card.log .content {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;
