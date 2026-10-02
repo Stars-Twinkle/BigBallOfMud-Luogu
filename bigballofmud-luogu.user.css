@@ -721,6 +721,36 @@ nav.sidebar {
 }
 
 /* ==========================================================================
+   ⑥-c 个人中心头部（横幅 + 资料行 + 标签页/统计）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02，个人中心）：
+       main.lcolor-bg-background.main
+         div.full-container.columba-content-wrap.main
+           div.l-card[style="--l-card--padding: 0;"]        ← 卡片本体（⑥ 段已给玻璃）
+             div.user-header-top[style="background-image: url(…banner…)"]   ← 横幅，**保留它的背景图**
+             div.user-info.mobile-layout
+             div.user-header-bottom        ← 用户指出"这块没适配"：标签页 + 关注/粉丝/提交
+   处理：下半部分与资料行不再自带底/描边（底色交给外层卡片的玻璃），
+        文字统一走主题色；横幅那一层的背景图原样不动（那是用户的横幅图）。
+   -------------------------------------------------------------------------- */
+.user-header-bottom,
+.user-info {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: light-dark(rgba(0, 0, 0, .06), rgba(255, 255, 255, .10)) !important;
+    box-shadow: none !important;
+    color: var(--lg-text);
+}
+
+/* 标签页与统计里的次要文字（"关注 / 粉丝 / 提交"下面的数字标签） */
+.user-header-bottom .caption,
+.user-header-bottom .lfe-caption,
+.user-info .caption {
+    color: var(--lg-text-weak);
+}
+
+
+/* ==========================================================================
    ⑦ 浮层：模态、下拉、气泡、通知——液态玻璃最出效果的地方
    ========================================================================== */
 .modal .background {
