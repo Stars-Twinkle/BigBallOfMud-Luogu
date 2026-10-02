@@ -30,7 +30,7 @@
      伪元素既收不到状态也无法存储 —— 这是 CSS 的能力边界，不是配置问题。
      所以纯样式方案把切换放到 Stylus 面板，并在顶栏放了一个**状态指示圆点**
      （浅色=太阳，深色=月牙），让你一眼看出当前生效的配色。
-     确实想要"页面内可点按钮"，只能用脚本：见 历史版本\bigballofmud-luogu.user.js。
+     确实想要"页面内可点按钮"，只能用脚本：见 history\bigballofmud-luogu.user.js。
 
    【三】液态玻璃强度（改 ② 段数值）
      --lg-blur        顶栏/侧栏/浮层的模糊半径（更"液态"就 30~40px）
@@ -462,7 +462,7 @@
      · 纯 CSS 无法让它可点（改不了状态、存不了状态）；
      · 用户会当成切换按钮去点，点了没反应 —— 这是典型的"假可供性"。
    所以直接去掉。切换入口只有两个：Stylus 面板的「配色模式」下拉（本文件），
-   或 历史版本\bigballofmud-luogu.user.js 里的顶栏真按钮（需要油猴）。
+   或 history\bigballofmud-luogu.user.js 里的顶栏真按钮（需要油猴）。
    -------------------------------------------------------------------------- */
 
 /* ==========================================================================
@@ -590,6 +590,8 @@ nav.sidebar {
    --------------------------------------------------------------------------
    ⚠️ 这份名单是从**最初那版样式**沿用下来的，里面有若干"名字像卡片、
       其实是卡片内部区块"的类名，给它们套玻璃就会变成"多了一个框"：
+        · .ticket-card —— 工单列表里 `div.row > div.wrapper > div.ticket-card`，
+          即"行内区块"，不是卡片（用户反馈："这块多出一个玻璃"）—— 已移除
         · .join-card —— 比赛页侧栏卡片里的"报名区"
           （用户 DevTools：div.sidebar-container… > div.side > div.l-card > div.join-card > p）
           已移除；相同嫌疑的还有 inner-card / float-card / info-card / section-card /
@@ -617,7 +619,6 @@ nav.sidebar {
 .list-card,
 .select-card,
 .intro-card,
-.ticket-card,
 .vip-card,
 .admin-card,
 .filter-card,
@@ -964,7 +965,7 @@ body > .swal2-container .swal2-popup,
    结论：四个部件必须**统一取同一个颜色**。做法是给图标设 color，
    再把"圈 + 两段对号"都显式绑到 currentColor（内圈光环 SA2 自己就用 currentColor 系，跟着走）。
    ⚠️ swal2-success-ring / -line-tip / -line-long 这几个类名不在你给的 DOM 里，
-      来自 SweetAlert2 默认样式表（见 证据/第三方类名.json 里的来源说明）。 */
+      来自 SweetAlert2 默认样式表（见 evidence/第三方类名.json 里的来源说明）。 */
 
 .swal2-container .swal2-popup .swal2-icon.swal2-success,
 .swal2-popup .swal2-icon.swal2-success {
@@ -1000,7 +1001,7 @@ body > .swal2-container .swal2-popup,
    它们默认 background-color: #fff —— 在 SA2 原本的**白底**弹窗上看不出来，
    但在我们的**玻璃底**上就是一坨灰 ✗（这就是"还是有色差"的真相）。
    处理：三块一律透明，让玻璃透上来。
-   （类名同样来自 SweetAlert2 默认样式表，已在 证据/第三方类名.json 注明来源。）
+   （类名同样来自 SweetAlert2 默认样式表，已在 evidence/第三方类名.json 注明来源。）
    -------------------------------------------------------------------------- */
 .swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-circular-line-left,
 .swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-circular-line-right,
