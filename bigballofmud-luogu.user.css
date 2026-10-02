@@ -238,6 +238,7 @@
      因为源图是"黑色 + 透明"，当图片用的话深色模式下会看不见；
      当 mask 用则由 background-color 上色，颜色可以交给 light-dark() → 深浅自动适配。
    想关掉：把 --sl-signature 设成 none，或整节删掉。
+   想改层级：把 z-index 调大就会浮到内容上面（一般不需要）。
    想换图：把 --sl-signature 换成你自己的 data URI / 图片地址（同样只要 alpha 通道）。
    -------------------------------------------------------------------------- */
 :root {
@@ -253,11 +254,21 @@ body::after {
     bottom: var(--sl-signature-edge);
     width: var(--sl-signature-w);
     aspect-ratio: 240 / 215;      /* 与抠像成品一致 */
-    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .26));
+    /* 深色那一档特意比浅色高一点：深色模式里 .theme-page 有一层
+       box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) 的全页压暗罩，_它在水印之上_，
+       会把水印一起压暗，所以要预先补回来。 */
+    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .36));
     -webkit-mask: var(--sl-signature) no-repeat center / contain;
     mask: var(--sl-signature) no-repeat center / contain;
     pointer-events: none;          /* 绝不挡点击 */
-    z-index: 9998;                 /* 低于洛谷的弹窗（那些在 1000 万级以上） */
+    /* ★ 层级：要"画在玻璃底下"，所以用**负 z-index**。
+       为什么这样正好落在"壁纸之上、内容之下"：
+         body 的背景会**传播到画布（canvas）**，是整页最先绘制的一层；
+         负 z-index 的后代在**根层叠上下文**里排在它之后、所有正常内容之前。
+       于是绘制顺序是：画布（背景图）→ 水印 → 内容（卡片 / 玻璃）。
+       玻璃半透明，水印就从玻璃底下透出来 —— 正是要的效果。
+       （之前写 9998 是"压在最上层"，会盖在弹窗和文字上。） */
+    z-index: -1;
 }
 
 
