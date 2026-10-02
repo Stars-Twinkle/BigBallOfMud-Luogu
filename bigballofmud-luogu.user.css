@@ -1,0 +1,2685 @@
+/* ==UserStyle==
+@name         BigBallOfMud Luogu —— 智能的洛谷（液态玻璃 · 深浅双模式 · 纯样式）
+@version      20261003.01
+@namespace    bigballofmud-luogu
+@description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
+              为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
+              纯样式实现，不需要任何脚本。
+@author       acerkaio（新版前端适配）
+@license      CC BY-NC-SA
+@var select colorMode "配色模式" {
+  "跟随系统（推荐）": "light dark",
+  "强制浅色": "light",
+  "强制深色": "dark"
+}
+==/UserStyle== */
+
+/* ==========================================================================
+   安装后先读这一段
+   --------------------------------------------------------------------------
+   【一】怎么切换深浅
+     · 装好后在 Stylus 的「管理样式」里编辑本样式，右侧会有一个
+       「配色模式」下拉框，三选一即可：跟随系统 / 强制浅色 / 强制深色。
+       改完保存，洛谷刷新一下就是新配色。这是纯样式下唯一可点的切换入口。
+     · 不想用下拉也行：把下面 ① 段里 `[[colorMode]]` 那一行删掉，
+       只留 `color-scheme: light dark;`（跟随系统），或改成 light / dark。
+
+   【二】为什么没有"顶栏按钮"
+     样式表只能改样式，不能创建 DOM 元素。而"点一下能改变并记住状态"要求有
+     一个真实元素承载状态（:checked 要 <input>、:target 要 <a>、details 要元素），
+     伪元素既收不到状态也无法存储 —— 这是 CSS 的能力边界，不是配置问题。
+     所以纯样式方案把切换放到 Stylus 面板，并在顶栏放了一个**状态指示圆点**
+     （浅色=太阳，深色=月牙），让你一眼看出当前生效的配色。
+     确实想要"页面内可点按钮"，只能用脚本：见 历史版本\bigballofmud-luogu.user.js。
+
+   【三】液态玻璃强度（改 ② 段数值）
+     --lg-blur        顶栏/侧栏/浮层的模糊半径（更"液态"就 30~40px）
+     --lg-card-blur   卡片模糊半径（列表页卡顿就调小或设 0）
+     --lg-alpha       主卡片玻璃（越小越透；另有 -soft/-pop/-field 三个分级）
+     --lg-nav-alpha   顶栏胶囊 + 左右侧栏的玻璃白度（越小越透、越不像白板）
+     --lg-sat         背景饱和度提升（180% ~ 240%；越高越能看见背景的颜色，而不是靠白色垫底）
+
+   【四】背景图
+     · 新版前端页面（题目/讨论/记录/比赛/主题页…）的背景由洛谷主题商店管理，
+       本样式**不覆盖**它；深色模式下只在其上叠一层压暗，不换图。
+     · 旧首页 `/` 仍是旧前端（luogu3.css + AmazeUI），主题商店管不到它，
+       所以这里单独补图：变量 --sl-bg-image，默认用洛谷官方浅色背景图，
+       深色时叠一层遮罩压暗。想换图改这一个变量即可。
+
+   【五】与主题商店的兼容
+     浅色分支一律"就地消费"主题变量（--theme-card-background / --theme-navi-back…），
+     不重写它们，因此换主题、换背景图、换导航配色，玻璃都会跟着变；
+     深色分支才是本样式给定的暗色值。切换只依赖一个 color-scheme 声明。
+
+   【六】尚未在浏览器逐页核对，建议重点看：首页 / 题目页 / 讨论页 / 记录页 / 侧栏。
+   ========================================================================== */
+
+/* ==========================================================================
+   一、主站通用样式：www.luogu.com.cn
+   --------------------------------------------------------------------------
+   注意：这里**只**作用于主站。
+   ti.luogu.com.cn（有题）与 class.luogu.com.cn（网校）分别是另一套前端
+   （有题用的是 youti-fe 老栈，网校的 DOM 也不同于主站），
+   把主站这套玻璃 + 深色强加过去会把它们的排版和配色整体带崩，所以不收进来。
+   需要覆盖子站的话，要按它们各自的产物单独适配（见 README「已知范围」）。
+   ========================================================================== */
+@-moz-document domain("www.luogu.com.cn") {
+/* --------------------------------------------------------------------------
+   ① 配色模式：三态，两个来源（JS 优先）
+   · 装了 bigballofmud-luogu-switch.user.js → 由它在 <html> 上写 data-sl-theme，
+     顶栏按钮可点、选择被记住（推荐）
+   · 没装脚本 → 用 Stylus 面板的「配色模式」下拉（[[colorMode]]）
+   两种都靠 color-scheme 驱动本文件全部 light-dark()，同时让浏览器原生控件
+   （滚动条、输入框、光标）跟着变浅/变深。
+   属性选择器特异性 (0,2,0) 高于下面的 :root (0,1,0)，所以 JS 一写属性就接管。
+   -------------------------------------------------------------------------- */
+:root[data-sl-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-sl-theme="dark"] {
+    color-scheme: dark;
+}
+
+:root {
+    color-scheme: light dark;
+    color-scheme: [[colorMode]];
+
+    /* ----------------------------------------------------------------------
+       ② 玻璃参数
+       ---------------------------------------------------------------------- */
+    --lg-blur: 24px;
+    --lg-card-blur: 18px;
+    --lg-alpha: 26%;          /* 主卡片玻璃（数值越小越透） */
+    --lg-alpha-soft: 20%;     /* 次级容器：列表 / 表格 / 分页 / 搜索框 */
+    --lg-alpha-pop: 26%;      /* 浮层：模态 / 下拉 / 气泡 / 通知（★ 与卡片 --lg-alpha 同值，避免色差） */
+    --lg-alpha-field: 44%;    /* 表单控件：输入框 / 文本域 / 下拉选择 */
+    --lg-nav-alpha: 42%;      /* 顶栏两个胶囊 + 左右侧栏 */
+    /* ★ 想整体调透/调实，只改上面这五个数即可 —— 全站玻璃都引用它们，
+       不再散落写死的百分比（之前 55% / 72% / 78% 各写各的，改一处不透）。 */
+    --lg-sat: 215%;
+    --lg-radius: 20px;
+    --lg-radius-sm: 12px;
+    --lg-radius-xs: 8px;
+
+    /* 切换深/浅时，所有元素统一用这段短过渡（由脚本加 .sl-theme-switching 触发）。
+       调大更柔和、调小更干脆；脚本会读这个值来对齐时序。 */
+    --sl-switch-duration: .14s;
+
+    /* 顶栏高度与"胶囊上下留白"。
+       ★ 单位刻意用 **px 而不是 rem**：
+       洛谷在**首页**给 <html> 加了 style="font-size: 10px"，但**内页没有**
+       （内页是浏览器默认 16px）。于是同样的 4rem，首页算出来 40px、内页 64px ——
+       实测截图：首页胶囊 46px、私信页胶囊 76px，差了近一倍（用户反馈的
+       "统一首页和其他地方的胶囊高度"就是这个）。
+       用 px 就与根字号无关，所有页面完全一致。
+       胶囊高度 = --lg-topbar-h − 2 × --lg-topbar-gap = 63 − 12 = 51px，由 CSS 算出来。
+       ★ "胶囊内部的上下留白"就是靠这个高度给的：胶囊 51px、内容约 24px，
+         于是内容上下各有约 13px 的余地（横向留白另有 .top-bar > .left/.right 的 padding）。 */
+    --lg-topbar-h: 63px;
+    --lg-topbar-gap: 6px;
+
+    /* 左右侧栏"悬浮胶囊"：离开屏幕边缘的距离，以及圆角。
+       宽度**保持洛谷原本的 240px**，只做内缩 + 圆角（用户要求"大小按照原侧边栏"）。 */
+    --lg-side-gap: 10px;
+    --lg-side-radius: 26px;
+
+    /* ----------------------------------------------------------------------
+       背景图（本节是"用我这张图"的总开关）
+       默认用你原来 BigBallOfMud-Luogu 里那张（实测仍可访问，68KB webp）。
+       想换图：改这个变量。想完全交回洛谷主题商店：删掉下面 ⑭ 整节。
+       备选（实测均可达）：
+         --sl-bg-image: url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg");  官方浅色
+         --sl-bg-image: url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg");  官方深色
+       ---------------------------------------------------------------------- */
+    --sl-bg-image: url("https://rhythm-assets.cn-nb1.rains3.com/objects/7a83566b723fa54bbd104146cfb1d94559ab7962710be389e0c99e97a67e6189/webp");
+
+    /* ----------------------------------------------------------------------
+       ③ 玻璃自有光泽：这些不涉及主题色，直接给浅/深两个颜色
+       注意 light-dark() 只接受**颜色**，所以阴影要拆成"固定几何 + 颜色变量"
+       ---------------------------------------------------------------------- */
+    --lg-highlight: light-dark(rgba(255, 255, 255, .75), rgba(255, 255, 255, .16));
+    --lg-border: light-dark(rgba(255, 255, 255, .55), rgba(255, 255, 255, .13));
+    --lg-sheen: light-dark(rgba(255, 255, 255, .16), rgba(255, 255, 255, .03));
+    --lg-inner: light-dark(rgba(255, 255, 255, .22), rgba(0, 0, 0, .30));
+    --lg-shadow-color: light-dark(rgba(38, 50, 90, .18), rgba(0, 0, 0, .55));
+    --lg-shadow-color-hi: light-dark(rgba(38, 50, 90, .28), rgba(0, 0, 0, .70));
+    --lg-text: light-dark(#1f2329, #eef2f7);
+    --lg-text-weak: light-dark(#5a6472, #d2d9e2);
+    --lg-mask: light-dark(rgba(20, 26, 40, .32), rgba(0, 0, 0, .55));
+    /* 链接悬停渐变：深色下换成更亮的同色系，否则在暗底上不够亮 */
+    --lg-link-1: light-dark(#4f76f0, #9db9ff);
+    --lg-link-2: light-dark(#8b4fe0, #cba6ff);
+    --lg-link-3: light-dark(#e04f8b, #ffa8c8);
+    --lg-block-bg: light-dark(rgba(255, 255, 255, .82), var(--lg-block-dark));
+
+    /* ----------------------------------------------------------------------
+       ③-b 液态玻璃（Liquid Glass）参数
+       ----------------------------------------------------------------------
+       ⚠️ 这两个不是"毛玻璃"参数 —— 毛玻璃只是 blur + saturate（之前的做法），
+          液态玻璃要在它之上再补三样东西：
+            ① 镜面光斑：模拟光源打上去的一团柔和高光（--lg-spec 控制强度）
+            ② 玻璃厚度：上缘亮线 + 下缘微反光 + 内发光（--lg-rim 控制上缘强度）
+            ③ 边缘折射：把**额外**的 blur + brightness 只加在边缘带（中间用 mask 裁掉），
+              近似"背景在玻璃边缘被弯折"的透镜感 —— 这是各家液态玻璃 CSS 复刻的通用手法。
+       想关掉液态感退回毛玻璃：--lg-spec 设 0、--lg-rim 设 .16 即可。
+       ---------------------------------------------------------------------- */
+    /* ----------------------------------------------------------------------
+       ③-c 深色玻璃：**靠通透，不靠不透明**
+       ----------------------------------------------------------------------
+       用户反馈："深色模式的玻璃不像玻璃，像金属"。
+       原因是深色分支原来是一块**近乎不透明的深板**（.88~.96）+ 一条**硬白上缘**
+       + 一条**硬黑下缘** —— 硬边 + 不通透正是"金属"的特征；
+       玻璃应该是**通透 + 软边 + 大范围柔光**。
+       所以：深色底色的不透明度整体降到 .46~.70（能看见背景图的暗部），
+       边缘高光/暗缘/内发光也都换成"深色下更弱"的色值变量。
+       （浅色分支的值一概不动，浅色观感保持原样。）
+       ---------------------------------------------------------------------- */
+    --lg-panel-dark: rgba(18, 21, 27, .55);   /* 卡片 */
+    --lg-nav-dark: rgba(12, 14, 18, .62);     /* 顶栏胶囊 / 两侧栏 */
+    --lg-soft-dark: rgba(18, 21, 27, .46);    /* 次级容器 */
+    --lg-pop-dark: rgba(18, 21, 27, .55);     /* 浮层 —— ★ 与卡片同一组数值（曾用 rgba(16,19,24,.70)，
+                                                 比卡片更暗更实，弹窗与卡片并排会看出色差） */
+    --lg-field-dark: rgba(22, 25, 31, .58);   /* 表单控件 */
+    --lg-block-dark: rgba(16, 19, 24, .66);   /* 代码块 */
+    /* 边与光：深色下都要"软"，硬边就是金属感 */
+    --lg-rim-color: light-dark(rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
+    --lg-spec-color: light-dark(rgba(255, 255, 255, .22), rgba(255, 255, 255, .07));
+    --lg-glow: light-dark(rgba(255, 255, 255, .07), rgba(255, 255, 255, .028));
+    --lg-spec: 22%;          /* 镜面光斑强度（0 = 关）—— 浅色分支用，保留兼容 */
+    /* 暗缘：玻璃的"厚度"不只是亮边 —— 与光同侧亮、背光侧暗，
+       有这一条才像玻璃；只有白边会像一张白纸（用户反馈"不要老一片白"）。 */
+    --lg-shade: light-dark(rgba(15, 23, 42, .085), rgba(0, 0, 0, .16));
+    --lg-rim: 62%;           /* 上缘高光强度（玻璃厚度感） */
+    /* 注：原 --lg-refract（边缘折射提亮）已废弃 —— 它的实现要在固定顶栏里叠一层
+       带 mask 的 backdrop-filter，滚动时每帧重算，导致"一直在抖"。
+       边缘厚度现在完全由 --lg-rim（亮上缘）与 --lg-shade（暗下缘）表达。 */
+}
+
+/* 老浏览器没有 light-dark() 时退化为固定浅色玻璃（深色模式不生效） */
+@supports not (color: light-dark(#fff, #000)) {
+    :root {
+        --lg-highlight: rgba(255, 255, 255, .75);
+        --lg-border: rgba(255, 255, 255, .55);
+        --lg-sheen: rgba(255, 255, 255, .16);
+        --lg-inner: rgba(255, 255, 255, .22);
+        --lg-shadow-color: rgba(38, 50, 90, .18);
+        --lg-shadow-color-hi: rgba(38, 50, 90, .28);
+        --lg-text: #1f2329;
+        --lg-text-weak: #5a6472;
+        --lg-mask: rgba(20, 26, 40, .32);
+        --lg-block-bg: rgba(255, 255, 255, .82);
+        --lg-spec: 22%;
+        --lg-rim: 62%;
+        --lg-refract: 1.16;
+        --lg-shade: rgba(15, 23, 42, .085);
+        --lg-rim-color: rgba(255, 255, 255, .62);
+        --lg-spec-color: rgba(255, 255, 255, .22);
+        --lg-glow: rgba(255, 255, 255, .07);
+        --lg-panel-dark: rgba(18, 21, 27, .55);
+        --lg-nav-dark: rgba(12, 14, 18, .62);
+        --lg-soft-dark: rgba(18, 21, 27, .46);
+        --lg-pop-dark: rgba(18, 21, 27, .55);
+        --lg-field-dark: rgba(22, 25, 31, .58);
+        --lg-block-dark: rgba(16, 19, 24, .66);
+    }
+}
+
+/* ==========================================================================
+   ④ 顶栏：左右两个独立的液态玻璃"岛"，中间不铺玻璃
+   --------------------------------------------------------------------------
+   洛谷原始布局（从 loader 基础样式表里读到的真值）：
+       .top-bar{position:fixed;height:3.5rem;display:flex;padding:.75rem;…}
+       .top-bar .left {flex:1;min-width:0}      ← 左边那块会撑满整行
+       .top-bar .right{flex-shrink:0}           ← 右边只占内容宽
+   要让左边的玻璃**只包住它自己**（而不是一路撑到右边），必须：
+     · 把 .left 的 flex:1 改成 flex:0 1 auto（加 !important 才压得过它的 0,3,0 规则）
+     · 给 .top-bar 加 justify-content:space-between，让两块各自贴边、中间留空
+   顶栏本体则去掉背景/模糊/边框/阴影 —— 中间那条就是"空的"。
+   浅色分支就地消费 --theme-navi-back，主题商店换色照常生效。
+   注：这里的 !important 只用在 flex/背景/边框/尺寸上，**没有**用在 color 上（见 ⑫ 节的不变式）。
+   ========================================================================== */
+.top-bar {
+    /* ★ 顶栏本体**不铺任何东西** —— 只留两个圆角胶囊。
+       曾经在这里铺过一条"中间填充"的淡玻璃：因为顶栏本体是直角矩形，
+       它渲染出来就是一块横贯屏幕的**方块**（用户反复反馈的"方框"就是它）。
+       "中间填充"其实是误解：用户当时说的是"胶囊内部要被自己的玻璃填满"，
+       指的是里面那个 .user-nav 方块，不是顶栏中间。
+       想恢复中间那条带子的话，把下面几条背景/模糊/边框/阴影解开即可 —— 但要记得
+       同时给本体加 border-radius，否则又会变成直角方块。 */
+    background-color: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    justify-content: space-between !important;
+    height: var(--lg-topbar-h) !important;
+    max-height: var(--lg-topbar-h) !important;
+    padding: var(--lg-topbar-gap) 16px !important;
+    gap: .75rem;
+    font-weight: 700;
+}
+
+
+/* 胶囊悬浮动画：轻轻抬起 + 阴影变深 + 光斑漂移（液态感）。
+   注意：悬停也要把"玻璃厚度"那几层 inset 一起写上，否则悬停时厚度会消失。 */
+.top-bar > .left,
+.top-bar > .right {
+    transition: translate .28s cubic-bezier(.4, 0, .2, 1),
+                scale .28s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .28s ease,
+                background-color .28s ease,
+                background-position .6s cubic-bezier(.4, 0, .2, 1);
+}
+
+.top-bar > .left:hover,
+.top-bar > .right:hover {
+    translate: 0 -2px;
+    scale: 1.012;
+    box-shadow:
+        0 16px 42px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset 0 0 26px var(--lg-glow) !important;
+}
+
+.top-bar > .left,
+.top-bar > .right {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    position: relative;                 /* ::before 的边缘折射带要挂在这里 */
+    height: calc(var(--lg-topbar-h) - 2 * var(--lg-topbar-gap));   /* 63px − 12px = 51px */
+    padding: 0 14px;
+    border-radius: 999px !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-navi-back, #fff) var(--lg-nav-alpha), transparent),
+        var(--lg-nav-dark)
+    ) !important;
+    /* 液态玻璃的三层"面"：
+       ① 镜面光斑（左上角一团柔和高光，模拟光源反射）
+       ② 竖向渐亮（顶部略亮，像玻璃弧面）
+       这两层叠在毛玻璃之上 —— 只加背景色是"毛玻璃"，加上它们才像液态玻璃。 */
+    background-image:
+        radial-gradient(88% 58% at 14% -14%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(180deg,
+            rgba(255, 255, 255, .16) 0%,
+            rgba(255, 255, 255, 0) 62%) !important;
+    background-repeat: no-repeat !important;
+    background-size: 190% 150%, 100% 100% !important;
+    background-position: 0% 0%, 0 0 !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    border: 1px solid var(--lg-border) !important;
+    /* 玻璃的"厚度"：上缘亮线 + 下缘微反光 + 内发光 */
+    box-shadow:
+        0 10px 34px var(--lg-shadow-color),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow) !important;
+}
+
+/* --------------------------------------------------------------------------
+   ④-b 边缘"厚度"用阴影做，**不要**再叠伪元素 backdrop-filter
+   --------------------------------------------------------------------------
+   上一版这里放的是一层 ::before：backdrop-filter + mask 把中间掏空、只提亮边缘，
+   想模拟玻璃边缘的折射。视觉上是对的，但它挂在**固定定位**的顶栏里 ——
+   页面一滚动/一重绘，浏览器就得每帧重做一次"带遮罩的背景模糊"，
+   结果就是用户反馈的**"这个一直在抖"**。已移除。
+   现在改用两条 inset 阴影表达同一件事（亮上缘 + 暗下缘），只走合成层、不重算模糊：
+       inset 0 1.5px 0 rgba(255,255,255,var(--lg-rim))   ← 上缘受光
+       inset -1px -1px 0 var(--lg-shade)                 ← 背光侧暗缘
+   教训：**backdrop-filter 本身已经不便宜，再叠 mask 更贵；
+        放在 position: fixed 的元素里就是滚动时每帧重算。**
+   -------------------------------------------------------------------------- */
+
+/* 悬停：光斑缓慢漂移（过渡时长在 ④ 段上面的胶囊动画里统一给了）。 */
+.top-bar > .left:hover,
+.top-bar > .right:hover {
+    background-position: 34% 12%, 0 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   顶栏高度是"被引用的常量"：洛谷在四处写死了 3.5rem ——
+       .main-container{margin-top:3.5rem; min-height:calc(100vh - 3.5rem)}
+       .main-container *{scroll-margin-top:3.5rem}
+       .lside{top:3.5rem}   .rside{top:3.5rem}
+   既然我们把顶栏改高了，这四处必须跟着走，否则正文会被压住、左右侧栏会错位。
+   全部改成引用 --lg-topbar-h，以后调高度只需要改那一个数。
+   （这里用 !important 是因为洛谷这几条带 [data-v] 作用域，特异性 0,2,0 更高；
+     这些都是布局属性，不涉及 color，不违反 ⑫ 节的不变式。）
+   -------------------------------------------------------------------------- */
+.main-container {
+    margin-top: var(--lg-topbar-h) !important;
+    min-height: calc(100vh - var(--lg-topbar-h)) !important;
+}
+
+.main-container * {
+    scroll-margin-top: var(--lg-topbar-h) !important;
+}
+
+/* 左右侧栏的位置（top/bottom/left/right）与圆角统一在 ⑤ 段处理，
+   这里**不要**再写一遍 —— 两处都带 !important 时只能靠源码顺序决胜，很脆弱。 */
+
+/* --------------------------------------------------------------------------
+   顶栏里"除胶囊本身，任何内层元素都不许自带底色"
+   --------------------------------------------------------------------------
+   洛谷在好几处用了同一套模板：background: var(--theme-navi-back, #fff)。
+   ★ 关键：这些元素里有的是**顶栏的直接子元素**（比如那个 <nav>），
+     不在 .left / .right 里面 —— 所以只写 ".left *" / ".right *" 会正好漏掉它，
+     渲染出来就是"两块胶囊之间夹着一个直角青色方块"。这里改成覆盖顶栏下**所有**后代。
+   它们坐在我们的玻璃胶囊**里面**，渲染出来就是"一块比胶囊矮的青色方块"：
+   顶破圆角（"棱角"），而且胶囊加高后它不跟着变（"填充比胶囊矮"）。
+   点名式修法已经漏过一次（先只交了 .user-nav，漏了 nav），所以这里一次性全覆盖，
+   不再依赖具体类名 —— 排除三种必须保留底色的：
+     · .logo-mask  洛谷的 logo 就是"背景色 + mask-image"画出来的，清掉会看不见
+     · *badge*     未读数角标
+     · 我们的按钮  它自己带内联样式
+     · .left / .right  两个胶囊本体（它们就是要保留玻璃的那两块）
+   交互反馈（悬停/选中）另行保留，见下面一条。
+   -------------------------------------------------------------------------- */
+/* 底色：顶栏下所有后代（含顶栏的直接子元素）一律不许自带底色 */
+/* 顶栏内层元素：把"能画出一块矩形"的几条路径**全部**堵上。
+   之前只堵了 background-color / background-image，用户在内页仍看到方框 ——
+   剩下能画出矩形的还有：元素自己的 backdrop-filter（主题的"启用毛玻璃效果"
+   会给导航元素加）、box-shadow、以及伪元素。这里一次堵完。
+   注意：两个胶囊（.left/.right）被排除在外，它们自己的毛玻璃与阴影**照常**。 */
+.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle) {
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle)::before,
+.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle)::after {
+    background: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    border-color: transparent !important;
+}
+
+/* 内边距：这两处用同一套模板 —— padding: 1.25em .75em。
+   不清掉的话，元素本身会变成一个"比胶囊矮一截的方块"（DevTools 实测
+   .user-nav 高 35px，而胶囊 40px），而且里面的图标会被挤在中间显得小。
+   只清这两个（不写 *，免得把图标/角标的点击区一起抹平）。 */
+.top-bar .user-nav,
+.top-bar nav {
+    /* 清零内边距：那个 1.25em 会让它自己撑成一块"比胶囊矮的方块"。
+       留白改由**胶囊高度**统一给（见 --lg-topbar-h），不靠这里的 padding。 */
+    padding: 0 !important;
+}
+
+/* 悬停/选中反馈：用 currentColor 混合，深浅色都合适（洛谷原本是
+   rgba(var(--theme-navi-fore-rgb), 10%)，效果等价）。 */
+.top-bar .link:hover,
+.top-bar .link.active,
+.top-bar .side-toggle:hover,
+.top-bar .side-toggle.active {
+    background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+    border-radius: var(--lg-radius-xs, .5rem);
+}
+
+/* 左边：不再撑满，只包住 logo 与几个入口 */
+.top-bar > .left {
+    flex: 0 1 auto !important;
+    min-width: 0;
+}
+
+/* 右边：原样只占内容宽 */
+.top-bar > .right {
+    flex: 0 0 auto !important;
+}
+
+
+.top-bar .side-toggle {
+    border-radius: var(--lg-radius-xs);
+    transition: background-color .25s ease, box-shadow .25s ease;
+}
+
+.top-bar .logo-link {
+    transition: opacity .25s ease, translate .25s ease;
+}
+
+.top-bar .logo-link:hover {
+    opacity: .78;
+    translate: 0 -1px;
+}
+
+/* --------------------------------------------------------------------------
+   顶栏不再放任何"看起来能点"的装饰元素。
+   曾经放过一个太阳/月亮圆点作为当前配色的指示，但：
+     · 纯 CSS 无法让它可点（改不了状态、存不了状态）；
+     · 用户会当成切换按钮去点，点了没反应 —— 这是典型的"假可供性"。
+   所以直接去掉。切换入口只有两个：Stylus 面板的「配色模式」下拉（本文件），
+   或 历史版本\bigballofmud-luogu.user.js 里的顶栏真按钮（需要油猴）。
+   -------------------------------------------------------------------------- */
+
+/* ==========================================================================
+   ⑤ 左右侧栏：悬浮胶囊
+   --------------------------------------------------------------------------
+   洛谷原始定义（loader 基础样式表）：
+       .lside{position:fixed;top:3.5rem;left:0;bottom:0;width:240px;overflow:hidden auto}
+       .rside{position:fixed;top:3.5rem;right:0;bottom:0;width:240px;…}
+   即"贴着屏幕左/右缘、从顶栏下方一直到屏幕底部"。这里把它做成悬浮胶囊：
+     · 上边从顶栏下方再留 --lg-side-gap
+     · 下边离屏幕底 --lg-side-gap
+     · 左/右离屏幕缘 --lg-side-gap
+     · 四角 --lg-side-radius（宽 240 的竖长面板用 26px 圆角，不用 999px 那种药丸形，
+       否则会把顶栏胶囊的观感带歪）
+   **宽度保持 240px 不变**（"大小按照原侧边栏"）。
+   注意：这里是"内缩 + 圆角"，不是加描边 —— 早前给侧栏加白色描边 + 圆角，
+   浅色下会露出"白缺口"，所以那条经验仍然有效（本段不设 border）。
+   ========================================================================== */
+.lside,
+.rside {
+    top: calc(var(--lg-topbar-h) + var(--lg-side-gap)) !important;
+    bottom: var(--lg-side-gap) !important;
+    border-radius: var(--lg-side-radius) !important;
+    transition: box-shadow .4s ease;
+}
+
+/* ★ 两个要点（都踩过）：
+   1) 内缩必须用 **margin**，不能写 left/right —— 洛谷"收回侧栏"就是把
+      left/right 推成负值滑出屏幕；一旦用 !important 把 left/right 钉住就再也收不回去。
+   2) 偏移要**只在非收回态**生效（:not(.hide)）。收回态的类名是洛谷自己给的：
+          .lside.drawer.hide { left: -240px }
+          .rside.hide        { right: -240px }
+      如果不加这个限定，margin 会让侧栏"少滑出 10px"，
+      屏幕边缘就会露出一条 10px 的小边（用户反馈的"小边"）。
+   另外：**不要**给侧栏设 min-width —— 收窄态的宽度是洛谷定的
+      .lside.bar { width: 64px }（悬停时会展成 180px），
+   我之前加过 min-width:72px，结果"越改越宽"（用户反馈）。 */
+/* ★ 左栏的类名组合是 `lside bar hide`（DevTools 实测）——
+   .hide 在这里表示"非抽屉模式"，它**仍然可见**（收窄成图标条）。
+   真正滑出屏幕的是 `.lside.drawer.hide`。所以左栏的排除条件必须是 :not(.drawer.hide)，
+   写成 :not(.hide) 会把可见的收窄态一起排除掉（那样它就不内缩了）。 */
+.lside:not(.drawer.hide) {
+    margin-left: var(--lg-side-gap);
+}
+
+.rside:not(.hide) {
+    margin-right: var(--lg-side-gap);
+}
+
+/* --------------------------------------------------------------------------
+   侧栏滚动条：隐藏
+   悬浮成圆角胶囊之后，里面那根灰色滚动条会紧贴着圆角长出来，很违和（用户反馈）。
+   这里把滚动条藏掉 —— 滚动能力**保留**（滚轮 / 触摸板 / 键盘照样能滚）。
+   -------------------------------------------------------------------------- */
+.lside,
+.rside {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* 旧 Edge */
+}
+
+.lside::-webkit-scrollbar,
+.rside::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;                /* Chromium / WebKit */
+}
+
+.lside:hover,
+.rside:hover {
+    box-shadow: 0 16px 44px var(--lg-shadow-color-hi) !important;
+}
+
+.lside,
+.rside,
+.user-nav,
+nav.sidebar {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-navi-back, #fff) var(--lg-nav-alpha), transparent),
+        var(--lg-nav-dark)
+    ) !important;
+    /* 液态玻璃面：镜面光斑 + 顶部渐亮。
+       侧栏是滚动容器，所以这里用 background-image 而不是伪元素 ——
+       background-attachment 默认 scroll，光斑会**跟着元素**而不跟着内容滚走。 */
+    background-image:
+        radial-gradient(84% 34% at 10% -8%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 62%),
+        linear-gradient(180deg,
+            rgba(255, 255, 255, .14) 0%,
+            rgba(255, 255, 255, 0) 40%) !important;
+    background-repeat: no-repeat !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    box-shadow:
+        0 10px 34px var(--lg-shadow-color),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow) !important;
+    transition: box-shadow .4s ease;
+}
+
+/* 导航文字色：用 !important 压过洛谷的 nav[data-v-…]{color:var(--theme-navi-fore)}。
+   对父元素设 color 不会改写子元素自己声明的颜色，只影响继承，所以是安全的。 */
+.top-bar,
+.lside,
+.rside,
+.user-nav,
+nav.sidebar {
+    color: light-dark(var(--theme-navi-fore, #333), #e7eaee);
+}
+
+/* 导航项：保留洛谷自己的配色，只补圆角与悬停位移 */
+.nav-group li,
+.nav-group a {
+    border-radius: var(--lg-radius-xs);
+    transition: background-color .25s ease, translate .25s ease, box-shadow .25s ease;
+}
+
+.nav-group li:hover {
+    translate: 2px 0;
+}
+
+/* ==========================================================================
+   ⑥ 页头卡片 + 全站卡片：主体玻璃
+   浅色分支就地消费 --theme-card-background（不重写它，避免自引用死循环），
+   深色分支给暗色值。这样主题商店换卡片色/毛玻璃，浅色模式仍然跟随。
+   ========================================================================== */
+.theme-page .header-card,
+.header-card,
+.l-card,
+.feed-card,
+.inner-card,
+.float-card,
+.contest-card,
+.training-card,
+.training-list-card,
+.member-card,
+.info-card,
+.section-card,
+.upload-card,
+.reply-card,
+.paste-card,
+.notice-card,
+.list-card,
+.select-card,
+.join-card,
+.intro-card,
+.ticket-card,
+.vip-card,
+.admin-card,
+.filter-card,
+.theme-list-card,
+.admin-card-container {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    /* 液态玻璃面：镜面光斑（左上）+ 斜向渐亮（原来的 --lg-sheen 斜纹） */
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) contrast(1.04) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    /* 玻璃厚度：上缘亮线 + 下缘微反光 + 内发光 */
+    box-shadow:
+        0 10px 34px var(--lg-shadow-color),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow) !important;
+    transition: box-shadow .4s ease, translate .4s ease, border-radius .4s ease;
+}
+
+.l-card:hover,
+.feed-card:hover,
+.inner-card:hover,
+.contest-card:hover,
+.training-card:hover,
+.member-card:hover,
+.info-card:hover,
+.section-card:hover,
+.upload-card:hover,
+.reply-card:hover,
+.paste-card:hover,
+.notice-card:hover,
+.list-card:hover,
+.header-card:hover {
+    box-shadow:
+        0 16px 46px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset 0 0 26px var(--lg-glow) !important;
+    translate: 0 -2px;
+}
+
+/* 关掉洛谷自带的毛玻璃伪元素，避免和自己的玻璃层叠成"双份模糊" */
+.theme-page.theme-frosted .l-card::before {
+    background-color: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* 次级容器：列表、表格、分页、目录、搜索框的薄玻璃（不加模糊，省性能） */
+.table-container,
+.table-wrap,
+.page-bar,
+.order-bar,
+.list-header,
+.section-list-container,
+.sidebar-container,
+.toc-wrapper,
+.filter-wrapper,
+.search-box,
+.reply-item {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    border: 1px solid var(--lg-border);
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight);
+    transition: box-shadow .35s ease, translate .35s ease;
+}
+
+.reply-item:hover,
+.list-header:hover {
+    translate: 0 -1px;
+    box-shadow: 0 8px 24px var(--lg-inner), inset 0 1px 0 var(--lg-highlight);
+}
+
+/* --------------------------------------------------------------------------
+   ⑦-0 弹窗与下拉里的"卡片"不参与悬停抬起
+   --------------------------------------------------------------------------
+   它们是**对话框**，不是内容卡片：跟着鼠标上浮既别扭，又会和"居中定位"打架。
+   （配合上面把悬停位移改成 translate 属性 —— 双保险：即使定位用的是 transform，
+     这里也不会去动它。）注意只清 translate/scale，保留阴影，避免"悬停完全没反馈"。
+   -------------------------------------------------------------------------- */
+.modal .l-card:hover,
+.modal .container:hover,
+.dropdown .l-card:hover,
+.dropdown-container .l-card:hover {
+    translate: none;
+    scale: none;
+}
+
+/* ==========================================================================
+   ⑦ 浮层：模态、下拉、气泡、通知——液态玻璃最出效果的地方
+   ========================================================================== */
+.modal .background {
+    background-color: var(--lg-mask) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(120%) !important;
+    backdrop-filter: blur(6px) saturate(120%) !important;
+}
+
+.modal .container,
+.modal .l-card,
+.dropdown,
+.dropdown-operations,
+.dropdown-container,
+.picker-panel,
+.date-picker-dropdown,
+.time-picker-dropdown,
+.l-combo-option,
+.setting-dropdown {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: 0 14px 42px var(--lg-shadow-color-hi), inset 0 1px 0 var(--lg-highlight) !important;
+}
+
+.notification-toast {
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   ⑦-b 弹窗 / 提示：深色 + **同一套液态玻璃配方**
+   --------------------------------------------------------------------------
+   用户反馈（两张截图）：
+     · "设置更新成功" 提示 —— 白卡 + 深字（深色模式下没适配）
+     · "提交成功" 结果框 —— 浅蓝底
+   已实证的一条（loader.base.css 原文）：
+       .notification-toast{background:#fff;color:#333;border-left:3px solid #1976d2;
+                           padding:10px 14px;border-radius:6px;
+                           box-shadow:0 10px 28px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,…)}
+   —— 白底 + 3px 蓝左边框，正是截图里那张卡。
+   这两个具体弹窗的**外层类名我还没取到证**（静态表里只有 toast 这一条可查），
+   所以这里先按"已知的浮层类名"统一处理，配方与卡片完全一致（镜面光斑 + 斜向柔光 +
+   亮上缘 + 暗下缘 + 内发光 + 模糊），保证视觉语言统一；
+   拿到 DevTools 那两行后，把选择器补进这一组即可（不必再改配方）。
+   ========================================================================== */
+.notification-toast,
+.message,
+.message-block,
+.modal .container,
+.modal .l-card,
+.modal-center,
+.premium-modal-content {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    color: var(--lg-text);
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        0 14px 42px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow) !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+}
+
+/* toast 左那条 3px 蓝色竖线：保留语义色，但跟着主题走 */
+.notification-toast {
+    border-left: 3px solid light-dark(#1976d2, #5aa9e6) !important;
+    border-radius: var(--lg-radius-sm) !important;
+}
+
+/* toast 内部的分隔线与标题 */
+.notification-toast .toast-header {
+    border-bottom-color: light-dark(rgba(0, 0, 0, .06), rgba(255, 255, 255, .10)) !important;
+    color: var(--lg-text);
+}
+
+.notification-toast .toast-text,
+.notification-toast .toast-time,
+.notification-toast .toast-source {
+    color: var(--lg-text-weak);
+}
+
+/* 弹窗遮罩：深色下更暗一点 */
+.modal > .background {
+    background-color: var(--lg-mask) !important;
+}
+
+/* 弹窗里的加载指示器（"提交成功"那个转圈）跟着前景色走 */
+.spinner,
+.spinner-container,
+.editor-loading-icon,
+.lfe-marked-loading {
+    /* 不加 !important：⑫ 节不变式禁止压 color（洛谷彩底上的白字是内联的） */
+    color: var(--lg-text);
+}
+
+/* ==========================================================================
+   ⑦-c SweetAlert2 弹窗（"设置更新成功" / "提交成功" …）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02）：
+       <body class="swal2-toast-shown swal2-shown">
+       <div class="swal2-container swal2-top-end  swal2-backdrop-show">   ← 设置更新成功（toast）
+       <div class="swal2-container swal2-center   swal2-backdrop-show">   ← 提交成功（居中弹窗）
+   即洛谷用 **SweetAlert2** 做这类提示。它自带浅色皮肤，深色模式下整块是白的。
+   做法与其它浮层完全一致：外壳用同一套液态玻璃配方（光斑 + 柔光 + 亮上缘 + 暗下缘 +
+   内发光 + 模糊），遮罩用 --lg-mask，图标颜色只改前景、保留语义色（成功绿/警告黄…）。
+   ========================================================================== */
+/* ★ 遮罩只给"居中弹窗"，**不要给 toast**
+   上一版把遮罩 + 背景模糊写在了所有 .swal2-container 上，
+   于是右上角的"设置更新成功"toast 也把整个页面压暗 + 糊掉了（用户："不对啊"）。
+   区分方式只用已实证的两个类名：
+     .swal2-center          ← 居中弹窗（"提交成功"那种）→ 要遮罩
+     :not(.swal2-center)    ← 其余（toast 等）→ 容器完全透明、不模糊 */
+.swal2-container.swal2-center {
+    background-color: var(--lg-mask) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
+}
+
+.swal2-container:not(.swal2-center) {
+    background-color: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* ★ 选择器加固：SweetAlert2 会在运行时**自己注入一段 <style>**（在 Stylus 之后），
+   而且弹窗是挂在 <body> 下的（不在 .theme-page 里）。
+   所以这里同时用三种写法提高权重，确保压得过它自带的浅色皮肤：
+       .swal2-container .swal2-popup   —— 带容器前缀（0,2,0）
+       body > .swal2-container …       —— 明确"直接挂在 body 下"的情形
+       .swal2-popup.swal2-toast        —— toast 形态（右上角那个"设置更新成功"）
+   配合 !important，无论它那段样式何时注入、特异性多高，都压不过。 */
+.swal2-container .swal2-popup,
+body > .swal2-container .swal2-popup,
+.swal2-popup {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    color: var(--lg-text);
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        0 14px 42px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow) !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+}
+
+/* 标题与正文 */
+.swal2-container .swal2-popup .swal2-title,
+.swal2-container .swal2-popup .swal2-html-container,
+.swal2-container .swal2-popup .swal2-content,
+.swal2-popup .swal2-title,
+.swal2-popup .swal2-html-container,
+.swal2-popup .swal2-content {
+    color: var(--lg-text);
+}
+
+/* 图标：成功仍是绿的、警告仍是黄的 —— 只把"白底黑线"那层底去掉 */
+/* ★ 不要覆盖 border-color：SweetAlert2 的成功图标是**两部分**画的 ——
+   圈（.swal2-icon 自身的 border）和对号（内部 span 的 background-color）。
+   我上一版为了让图标变主题绿，写了 border-color: currentColor，
+   结果**圈**换成了我的绿（#6fd44a），**对号**仍是 SA2 自带的浅绿（#a5dc86）——
+   圈和对号不是一个绿，用户看到的"对号色差"就是这么来的（用户："是对号的色差"）。
+   现在两处都交回 SA2 自己的配色，圈与对号天然同色。 */
+.swal2-container .swal2-popup .swal2-icon,
+.swal2-popup .swal2-icon {
+    background-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   成功图标：让所有部件取**同一个 currentColor**
+   --------------------------------------------------------------------------
+   演变过程（两句用户反馈）：
+     · "是对号的色差"   —— 我上一版给图标设了 color，又用 border-color: currentColor 覆盖了**圈**，
+                          而**对号**是内部 span 的 background-color（SA2 自带 #a5dc86）——
+                          两部分取色分叉，圈深对号浅。
+     · "对号还是有色差" —— 我改成"什么都不碰"，但 SA2 的成功图标其实有**四个部件**：
+                            circle 本身的 border、两段对号 span、以及内圈的 .swal2-success-ring。
+                           其中 .swal2-success-ring 是 **30% 透明**的绿 ——
+                           在**白色**弹窗上是"淡绿光环"，在**深色**弹窗上就变成很暗的绿，
+                           与不透明的对号又是两个绿。
+   结论：四个部件必须**统一取同一个颜色**。做法是给图标设 color，
+   再把"圈 + 两段对号"都显式绑到 currentColor（内圈光环 SA2 自己就用 currentColor 系，跟着走）。
+   ⚠️ swal2-success-ring / -line-tip / -line-long 这几个类名不在你给的 DOM 里，
+      来自 SweetAlert2 默认样式表（见 证据/第三方类名.json 里的来源说明）。 */
+
+.swal2-container .swal2-popup .swal2-icon.swal2-success,
+.swal2-popup .swal2-icon.swal2-success {
+    color: light-dark(#52c41a, #6fd44a);
+    border-color: currentColor;
+}
+
+/* 两段对号（内部 span，用 background-color 画） */
+.swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-line-tip,
+.swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-line-long {
+    background-color: currentColor;
+}
+
+/* 内圈光环 */
+.swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-ring {
+    border-color: currentColor;
+}
+.swal2-container .swal2-popup .swal2-icon.swal2-warning,
+.swal2-popup .swal2-icon.swal2-warning { color: light-dark(#f39c11, #ffb545); }
+.swal2-popup .swal2-icon.swal2-error   { color: light-dark(#e74c3c, #ff6b5b); }
+.swal2-popup .swal2-icon.swal2-info    { color: light-dark(#3498db, #5aa9e6); }
+.swal2-container .swal2-popup .swal2-icon.swal2-question,
+.swal2-popup .swal2-icon.swal2-question { color: light-dark(#9d3dcf, #bd76e8); }
+
+/* --------------------------------------------------------------------------
+   成功图标的**动画辅助块**：必须透明
+   --------------------------------------------------------------------------
+   用户第三轮反馈："还是有色差" —— 这次露出来的是图标背后一个**灰色圆盘**。
+   来源：SweetAlert2 的成功图标除了圈和对号，还有三块**白色**图形用于绘制/动画：
+       .swal2-success-circular-line-left   ← 遮住左半圈
+       .swal2-success-circular-line-right  ← 遮住右半圈
+       .swal2-success-fix                  ← 补掉接缝的小方块
+   它们默认 background-color: #fff —— 在 SA2 原本的**白底**弹窗上看不出来，
+   但在我们的**玻璃底**上就是一坨灰 ✗（这就是"还是有色差"的真相）。
+   处理：三块一律透明，让玻璃透上来。
+   （类名同样来自 SweetAlert2 默认样式表，已在 证据/第三方类名.json 注明来源。）
+   -------------------------------------------------------------------------- */
+.swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-circular-line-right,
+.swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-fix {
+    background-color: transparent !important;
+}
+
+/* 加载转圈：用主题主色 */
+.swal2-container .swal2-popup .swal2-loader,
+.swal2-popup .swal2-loader {
+    border-color: var(--lfe-color--primary, #3498db) transparent var(--lfe-color--primary, #3498db) transparent !important;
+}
+
+/* 按钮 */
+.swal2-popup .swal2-actions button {
+    border-radius: var(--lg-radius-xs) !important;
+}
+
+/* ==========================================================================
+   ⑥-b 讨论区：回复卡片（"讨论区回复部分未适配"）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02，discuss/241461）：
+       div.list-wrap.block
+         div.row-wrap > div.row
+           div.l-card.comment   ← 每条回复（它带一条 inline 的
+                                    border-bottom: 1px solid rgb(var(--lcolor--primary))）
+             div.author                 ← 作者 / 徽章 / "回复于 6 年前" / 举报
+             div.collapsed-wrapper      ← 回复正文（可折叠）
+   这些内层元素洛谷会给浅色底（author 那一类），深色下就露出一条条浅色。
+   处理：内层一律透明；底色只由外层 .l-card.comment 的玻璃承担（⑥ 段已给它玻璃）。
+   那条 inline 的 border-bottom 用的是**令牌**变量，会跟着 ⑰ 段的令牌重映射走，不动它。
+   ========================================================================== */
+.l-card.comment .row-wrap,
+.l-card.comment .row,
+.l-card.comment .author,
+.l-card.comment .collapsed-wrapper,
+.l-card.comment .content {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: var(--lg-text);
+}
+
+/* "回复于 xxx / 举报"这类次要文字 */
+.l-card.comment .author .time,
+.l-card.comment .author .report,
+.l-card.comment .author .caption {
+    color: var(--lg-text-weak);
+}
+
+/* 回复正文块 */
+.l-card.comment .collapsed-wrapper {
+    color: var(--lg-text);
+}
+
+
+/* ==========================================================================
+   ⑧ 题面 / 代码块 / 表格：薄玻璃，避免代码区反光影响阅读
+   ========================================================================== */
+.lfe-marked pre,
+.lfe-marked .lfe-code,
+.lfe-code,
+.code-container,
+.io-sample-block {
+    background-color: var(--lg-block-bg) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
+    backdrop-filter: blur(8px) saturate(120%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight) !important;
+}
+
+.lfe-marked table {
+    border-radius: var(--lg-radius-xs);
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   ⑧-b CodeMirror 6 代码编辑器（"提交代码"那个输入框）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02）：
+       div.cm-editor
+         div.cm-scroller
+           div.cm-gutters.cm-gutters-before > div.cm-gutter.cm-lineNumbers
+             div.cm-gutterElement …（行号 1,2,3…；当前行是 .cm-activeLineGutter）
+   CM6 自带一套**浅色**主题，深色模式下整个编辑器仍是白底
+   （用户："深色模式下此处仍为白色，改成跟背景一样的半透明"）。
+   处理：编辑器外壳用与全站一致的半透明玻璃（--lg-block-bg），
+   内部滚动层/内容层/行号栏一律透明，行号栏只留一层极淡的分隔与底色。
+   ⚠️ 语法高亮的 token 颜色是 CM 主题给的**深色**，压到暗底后可能不够亮 ——
+      这部分交给脚本里的对比度守卫（它读最终计算值，只修不达标的前景色），
+      CSS 这边不写死 token 颜色，避免把浅色模式也改掉。
+   ========================================================================== */
+.cm-editor,
+.cm-editor .cm-scroller,
+.cm-editor .cm-content,
+.cm-editor .cm-gutters {
+    background-color: transparent !important;
+    border-color: transparent !important;
+}
+
+.cm-editor {
+    background-color: var(--lg-block-bg) !important;
+    color: var(--lg-text);
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight);
+    overflow: hidden;
+}
+
+/* 行号栏：只留一点点底色和一条竖线，不要它自己的一块灰 */
+.cm-editor .cm-gutters {
+    background-color: color-mix(in srgb, currentColor 5%, transparent) !important;
+    border-right: 1px solid light-dark(rgba(0, 0, 0, .06), rgba(255, 255, 255, .10)) !important;
+}
+
+/* 行号文字：**不能**用 color !important（第 ⑫ 节不变式）——
+   改用提高特异性来压过 CM 主题（.cm-editor .cm-gutters .cm-gutterElement 比它自己的两级更深一层）。 */
+.cm-editor .cm-gutters .cm-gutterElement {
+    color: light-dark(#8a9099, #9aa4b2);
+}
+
+/* 当前行 / 当前行号：淡淡一层，够看出位置就行 */
+.cm-editor .cm-activeLine,
+.cm-editor .cm-activeLineGutter {
+    background-color: color-mix(in srgb, currentColor 7%, transparent) !important;
+}
+
+.cm-editor .cm-cursor,
+.cm-editor .cm-dropCursor {
+    border-left-color: currentColor !important;
+}
+
+.cm-editor .cm-selectionBackground,
+.cm-editor .cm-content ::selection {
+    background-color: color-mix(in srgb, var(--lfe-color--primary, #3498db) 32%, transparent) !important;
+}
+
+/* 编辑器获得焦点时的光圈，跟全站输入控件一致 */
+.cm-editor.cm-focused {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--lfe-color--primary, #5e72e4) 22%, transparent),
+                inset 0 1px 0 var(--lg-highlight) !important;
+}
+
+/* ==========================================================================
+   ⑧-c Casket Markdown 编辑器（比赛说明 / 题面 / 公告 …）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02，"编辑比赛 → 比赛说明"）：
+       div.l-card > div > form > div.l-form-layout.row > div
+         div.casket.cs-main
+           div.cs-header > div.cs-toolbar
+           div.cs-content[style="height: 360px"]
+           div.cs-footer
+   Casket 自带一套**浅色**皮肤：深色模式下编辑区（工具栏、正文、预览、状态栏）
+   整块都是白的。做法与 CM6 一致：
+     · 外壳用全站玻璃（--lg-block-bg），内部各层透明
+     · 工具栏/状态栏只留一层极淡底色作分区
+     · 工具栏按钮/图标改前景色（**不**用 color !important —— 见 ⑫ 节不变式，
+       不达标时由脚本的对比度守卫兜底）
+   内层还有若干我没逐个取证的 cs-* 类名，所以用 .casket 作用域下的属性通配收进来
+   —— 通配被 .casket 限死，不会外溢到别处（这是从 .tag 那次教训学的）。
+   ========================================================================== */
+.casket,
+.casket .cs-header,
+.casket .cs-toolbar,
+.casket .cs-content,
+.casket .cs-footer,
+.casket [class^="cs-"],
+.casket [class*=" cs-"] {
+    background-color: transparent !important;
+    border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .10)) !important;
+    color: var(--lg-text);
+}
+
+.casket {
+    background-color: var(--lg-block-bg) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight), 0 10px 28px var(--lg-shadow-color);
+    overflow: hidden;
+}
+
+/* 工具栏与状态栏：一层淡底，跟正文区分开 */
+.casket .cs-toolbar,
+.casket .cs-footer {
+    background-color: color-mix(in srgb, currentColor 5%, transparent) !important;
+}
+
+/* 工具栏里的按钮/图标：跟着主题走 */
+.casket .cs-toolbar button,
+.casket .cs-toolbar a,
+.casket .cs-toolbar i,
+.casket .cs-toolbar span {
+    color: light-dark(#4a5158, #c9d1db);
+}
+
+.casket .cs-toolbar button:hover {
+    background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+    border-radius: var(--lg-radius-xs, 6px);
+}
+
+/* 编辑区/预览区的滚动条也统一（CM6 那套规则只覆盖 .cm-editor，这里补 Casket 自己的） */
+.casket .cs-content ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background-color: transparent;
+}
+
+/* ==========================================================================
+   ⑧-d 输入输出样例：**删外面的壳子，保留里面的代码框**
+   --------------------------------------------------------------------------
+   结构（用户 DevTools 实证）：
+       div.io-sample[lang]                ← 外壳（要删的就是它）
+         div.io-sample-block              ← "输入 #1 / 复制" 那一行 + 内容
+           p.lfe-caption
+           pre.lfe-code                   ← 代码框（要保留）
+         div.io-sample-block              ← "输出 #1"
+           …
+   我前两版都改错了方向：
+     · 第一版给内层 .io-sample-block 加了卡片 → 多一层；
+     · 第二版把内层（含代码框）全压平 → 用户："删错了，是删外面的壳子，不是代码框"。
+   现在：外壳 .io-sample 与中间层 .io-sample-block 一律**透明无框**，
+   代码框 .lfe-code / pre 保持 ⑧ 段的玻璃卡片。
+   ========================================================================== */
+.io-sample,
+.io-sample .io-sample-block,
+.io-sample .io-sample-block:hover {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* 代码框：显式写一遍 ⑧ 段的玻璃卡片，避免被上面那条连带压掉
+   （同特异性 + 都带 !important 时靠源码顺序，这里在后面就赢了） */
+.io-sample .lfe-code,
+.io-sample pre,
+.io-sample pre.lfe-code {
+    background-color: var(--lg-block-bg) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
+    backdrop-filter: blur(8px) saturate(120%) !important;
+}
+
+/* "输入 #1 / 复制"那一行：没有壳子了，只留一条淡分隔线 */
+.io-sample .lfe-caption {
+    color: var(--lg-text-weak);
+    border-bottom: 1px solid light-dark(rgba(0, 0, 0, .06), rgba(255, 255, 255, .08));
+}
+
+/* ==========================================================================
+   ⑫-i 编辑比赛 · 题目排序（题目编排）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02）：
+       div.l-card > div.l-form-layout.row > div
+         div.problem-order
+           div.wrapper.drag-order           ← 可拖拽的题目行容器
+           div.order-bar                    ← 底部"5/26"进度条
+   这块在深色模式下仍是浅色面板（用户："这个窗口适配深色模式"）。
+   做法与其它面板一致：容器透明 + 内部输入控件走 --lg-field-dark。
+   ⚠️ 通配只作用在 .problem-order 之内，不外溢。
+   ========================================================================== */
+.problem-order,
+.problem-order .wrapper,
+.problem-order .drag-order,
+.problem-order .order-bar,
+.problem-order [class*="l-form-layout"] {
+    background-color: transparent !important;
+    border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .10)) !important;
+    color: var(--lg-text);
+}
+
+.problem-order .order-bar {
+    background-color: color-mix(in srgb, currentColor 5%, transparent) !important;
+    border-radius: var(--lg-radius-xs) !important;
+}
+
+/* 题目行：淡淡一层，拖动时能看出是"一块" */
+.problem-order .wrapper > *,
+.problem-order .drag-order > * {
+    background-color: color-mix(in srgb, currentColor 4%, transparent) !important;
+    border-radius: var(--lg-radius-xs) !important;
+}
+
+/* 分数倍率输入框（div 模拟的也要一起处理） */
+.problem-order input,
+.problem-order .l-input,
+.problem-order [class*="input"],
+.problem-order [class*="score"] {
+    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
+    color: var(--lg-text);
+}
+
+/* 题号 A/B/C… 与"分数倍率"标签 */
+.problem-order .score-input-label,
+.problem-order label {
+    color: var(--lg-text-weak);
+}
+
+/* ==========================================================================
+   ⑧-e 文章/题解里的代码块（"文章广场 / 题解"页）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02）：
+       div.code-container                                   ← 外层（当卡片）
+         pre.pre.line-numbers.hide-numbers.language-cpp     ← 内层
+           code.language-cpp                                ← 代码
+         button.copy-button                                 ← 复制
+   与"输入输出样例"同样的坑：外层和内层都可能自带底色 → **只让外层当卡片**，
+   pre / code 一律透明（否则又是两层叠出来的"多余卡片"）。
+   ========================================================================== */
+.code-container {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        0 8px 22px var(--lg-shadow-color),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    overflow: hidden;
+    color: var(--lg-text);
+}
+
+/* 内层：别再套一层底 */
+.code-container pre,
+.code-container pre.pre,
+.code-container pre.line-numbers,
+.code-container code,
+.code-container code[class*="language-"] {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: inherit;
+}
+
+/* 行号栏（洛谷用 hide-numbers / line-numbers 控制） */
+.code-container pre.line-numbers .line-numbers-rows {
+    border-right: 1px solid light-dark(rgba(0, 0, 0, .06), rgba(255, 255, 255, .08));
+    color: var(--lg-text-weak);
+}
+
+/* 复制按钮：小玻璃片，深色下也不刺眼 */
+.code-container .copy-button {
+    background-color: light-dark(
+        rgba(255, 255, 255, .72),
+        color-mix(in srgb, var(--lg-text) 12%, transparent)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-xs, 6px) !important;
+    /* 不加 color !important（⑫ 节不变式）；.code-container .copy-button 的特异性已够 */
+    color: var(--lg-text);
+    opacity: .85;
+    transition: opacity .2s ease, background-color .2s ease;
+}
+
+.code-container .copy-button:hover {
+    opacity: 1;
+}
+
+/* ==========================================================================
+   ⑨ 按钮与表单：半透明 + 高光，不加模糊（数量多，避免滚动掉帧）
+   ========================================================================== */
+.l-button,
+.lform-size-small,
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight);
+    transition: box-shadow .3s ease, translate .3s ease, border-radius .3s ease;
+}
+
+.l-button:not(:disabled):hover {
+    translate: 0 -2px;
+    border-radius: 99px !important;
+    box-shadow: 0 6px 20px var(--lg-inner), inset 0 1px 0 var(--lg-highlight) !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus,
+select:focus {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--lfe-color--primary, #5e72e4) 22%, transparent) !important;
+}
+
+/* --------------------------------------------------------------------------
+   下拉选择框：洛谷把 .combo-wrapper > .text 写死 `background:#fff`，
+   而它是 <div> 不是 <input>，所以上面的 input 规则管不到 —— 深色下会是一块白板。
+   （考点：不要以为表单控件都是 input，这个组件是 div 模拟的）
+   -------------------------------------------------------------------------- */
+.combo-wrapper > .text,
+.combo-wrapper.disabled > .text {
+    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
+    color: light-dark(#262626, #e7eaee);
+}
+
+/* 占位符文字：洛谷给的 rgba(0,0,0,.4)，在白底上勉强、在深色底上完全看不见 */
+.combo-wrapper > .text .placeholder,
+.combo-wrapper > .text.placeholder,
+.placeholder {
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .50));
+}
+
+/* 禁用的输入控件（洛谷写死 #fafafa 底） */
+input:disabled,
+textarea:disabled,
+.refined-input:disabled {
+    background-color: light-dark(#fafafa, var(--lg-soft-dark)) !important;
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .45));
+}
+
+/* ★ 这里刻意**不含 .tag**：
+   .tag 在题目列表里既是「小标签」也是**行容器**，给它加圆角会把整行变成大胶囊
+   （用户截图：「这个标签悬浮不对啊」）。同理见下面 ⑳ 的动画规则。 */
+.lfe-caption {
+    border-radius: var(--lg-radius) !important;
+    transition: translate .3s ease, box-shadow .3s ease;
+}
+
+a:hover > .lfe-caption {
+    translate: 0 -2px;
+}
+
+/* ==========================================================================
+   ⑩ 零散部件（名字沿用，结构已变）
+   ========================================================================== */
+.test-case-wrap,
+.progress-frame,
+.drop,
+.user-header-top,
+.message {
+    /* 注意：这里**没有** .selected —— 洛谷在题目页选项卡等处也复用这个类名，
+       给它加圆角会连带改掉那些地方的选中态（踩过）。 */
+    border-radius: var(--lg-radius-sm) !important;
+}
+
+.progress-frame {
+    overflow: hidden;
+}
+
+.progress-frame > div {
+    background-image: linear-gradient(to right, rgb(142, 45, 226), rgb(74, 0, 224)) !important;
+}
+
+/* 这里曾经有一条**全局** .selected 规则，给它套了紫色渐变 + 白字。
+   问题是它没有作用域 —— 洛谷在题目页选项卡、导航项等处也用 selected 这个类名，
+   于是那些地方也被套上一个大紫块：既"全覆盖"又撑高了选项卡区域（用户反馈）。
+   洛谷自己对这些选中态都有样式（比如选项卡的蓝色下划线），**不该由我们重画**。
+   所以整条删掉；分页按钮那处单独处理（见下面 .page-bar button.selected）。 */
+
+
+
+/* ==========================================================================
+   ⑩-b 评测记录页：侧栏容器去掉底框 + 测试点方块（真实类名来自 DevTools）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02）：
+       section.tab-content
+         h3.lfe-h3                    测试点信息
+         div.test-case-wrap
+           div.wrapper
+             div.test-case.lcolor-bg-green-3[tabindex]      ← 96×96 的方块
+               div.content > div.info > 4ms/788.00KB
+                             div.status > AC
+                             div.id > #1
+   —— 两个要求都在这一节处理：
+   ① 「这个底框去掉」= .sidebar-container（"评测信息"那一整块）。
+      loader 里它只有 `margin-top:0`，那层底色/描边/圆角是**我 ⑥ 段**当"次级容器"加的，撤掉。
+   ② 「测试点显示变成圆角，加上玻璃效果」= .test-case。
+      注意它带着 .lcolor-bg-* 的**语义色**（AC 绿 / WA 红 …）：
+      底色不能乱改，否则"AC 是绿的"这个语义就丢了。做法是：
+        · 圆角 + 玻璃高光 + 柔和阴影 + 模糊（形状与质感）
+        · 底色用**同一套令牌的半透明版本**（color-mix 到 78%）—— 语义色保留，同时透出背景
+   ========================================================================== */
+.sidebar-container {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* ★ 用的是**和卡片/胶囊完全相同**的液态玻璃配方，而不是"圆角 + 半透明"。
+   上一版我给的是后者，用户回："我说的是液态玻璃" —— 差别就在这五层：
+     ① 镜面光斑（小、偏左上）  ② 斜向柔光（--lg-sheen）
+     ③ 亮上缘 ④ 暗下缘（--lg-shade）  ⑤ 内发光
+   配方参数与 ⑥ 段卡片逐条对齐，保证"同一套玻璃语言"。 */
+.test-case {
+    border-radius: var(--lg-radius-sm) !important;
+    overflow: hidden;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    background-size: 190% 150%, 100% 100% !important;
+    background-position: 0% 0%, 0 0 !important;
+    border: 1px solid var(--lg-border) !important;
+    box-shadow:
+        0 10px 28px var(--lg-shadow-color),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 20px var(--lg-glow) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(var(--lg-sat)) !important;
+    backdrop-filter: blur(14px) saturate(var(--lg-sat)) !important;
+    transition: translate .25s ease, box-shadow .25s ease,
+                background-position .6s cubic-bezier(.4, 0, .2, 1);
+}
+
+/* 悬停：上浮 + 光斑漂移（和顶栏胶囊同一种"液态"动感） */
+.test-case:hover {
+    translate: 0 -2px;
+    background-position: 32% 10%, 0 0 !important;
+    box-shadow:
+        0 14px 34px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 24px var(--lg-glow) !important;
+}
+
+/* 语义色保留、但做成半透明（AC 绿 / 各种结果色）。
+   占比 58%（灰调 48%）—— 曾经降到 40% 想更"透"，结果浅色模式下白字压在
+   过淡的绿上、对比不足（用户："这个测试点的绿色……加一点"）；58% 兼顾"玻璃感"与白字可读。
+   而 --lfe-color--* 深浅两套都由我们重映射过，所以同一个 40% 在两种模式下都清晰。
+   用我们重映射过的 --lfe-color-* 令牌取色，深浅两套自动跟随。
+   ⚠️ 这里**刻意不加 !important**：`.test-case.lcolor-bg-green-3`（0,2,0）
+      本身就压得过洛谷运行时注入的 `.lcolor-bg-green-3`（0,1,0）；
+      而 ⑰ 节有一条硬规矩 —— 颜色工具类的重映射不得使用 !important，
+      否则会连组件"故意设的另一种底色"一起压掉（"蓝字压蓝底"就是这么来的）。 */
+.test-case.lcolor-bg-green-3 { background-color: color-mix(in srgb, var(--lfe-color--green-3, #52c41a) 58%, transparent); }
+.test-case.lcolor-bg-green-2 { background-color: color-mix(in srgb, var(--lfe-color--green-2, #94d66d) 58%, transparent); }
+.test-case.lcolor-bg-red-3   { background-color: color-mix(in srgb, var(--lfe-color--red-3, #e74c3c) 58%, transparent); }
+.test-case.lcolor-bg-yellow-3 { background-color: color-mix(in srgb, var(--lfe-color--yellow-3, #fadb14) 58%, transparent); }
+.test-case.lcolor-bg-orange-3 { background-color: color-mix(in srgb, var(--lfe-color--orange-3, #f39c11) 58%, transparent); }
+.test-case.lcolor-bg-purple-3 { background-color: color-mix(in srgb, var(--lfe-color--purple-3, #9d3dcf) 58%, transparent); }
+.test-case.lcolor-bg-grey-2   { background-color: color-mix(in srgb, var(--lfe-color--grey-2, #e8e8e8) 48%, transparent); }
+.test-case.lcolor-bg-grey-3   { background-color: color-mix(in srgb, var(--lfe-color--grey-3, #bfbfbf) 48%, transparent); }
+
+/* 方块里的数字/状态/编号：跟着方块走，不要压 color !important（见 ⑫ 节不变式） */
+.test-case .content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+/* ==========================================================================
+   ⑪ 滚动条（color-scheme 已让原生滚动条跟随，这里只做外观统一）
+   ========================================================================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 10px;
+    background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 99px;
+    background-color: light-dark(rgba(94, 114, 228, .5), rgba(140, 160, 255, .5));
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: light-dark(#5e72e4, #8ca0ff);
+    background-clip: content-box;
+}
+
+/* ==========================================================================
+   ⑫ 文字基色
+   只作用于 .theme-page（正文容器）。绝不写 #app —— 它特异性 1,0,0 会压掉
+   洛谷的 nav[data-v-…]{color:…}，导致侧栏图标变白看不见（踩过的坑）。
+   ========================================================================== */
+.theme-page {
+    color: var(--lg-text);
+}
+
+/* 页面底色：**保持透明**，让背景图透出来。
+   洛谷自己会给 .theme-page 铺一层不透明底：
+       .theme-page{ background: var(--theme-body-back, #efefef) }
+   它会把 body 上的背景图整个挡住（只有它自己的 ::before 背景层露在上层）。
+   这里把它删掉 —— 透出背景图（深色下由 body 的渐变遮罩 + ::before 的 inset 阴影压暗）。 */
+.theme-page {
+    background-color: transparent !important;
+}
+
+/* --------------------------------------------------------------------------
+   首页那块广告轮播：**直接删掉**
+   --------------------------------------------------------------------------
+   #lg-slider 是 AmazeUI 的 FlexSlider（首页首屏左侧那一大块）。
+   display:none 之后它所在的那一列高度归零，不会留空白；
+   把它原来的搭档（打卡/日历列 .lg-punch）放开到整行，避免空出 2/3 的洞。
+   想恢复广告：删掉本节即可。
+   -------------------------------------------------------------------------- */
+#lg-slider,
+.am-slider {
+    display: none !important;
+}
+
+.lg-punch {
+    width: 100% !important;
+    float: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   ★★ "垫底板"一次堵完（这一节是四轮踩坑的总结）
+   --------------------------------------------------------------------------
+   想"让 body 的背景图透出来"，就必须把中间所有垫底的容器变透明。
+   而这些板是**一层套一层**的，逐个点名必然漏：
+       ① .theme-page      { background: var(--theme-body-back, #efefef) }
+       ② .lg-content      { background: #e9eaec }              ← 旧首页正文层
+       ③ <main>           style="background-color: rgb(239,239,239)"  ← 内联，实际元凶
+       ④ .lg-index-content                                     ← 首页**真正**的容器
+          （我前面只改了 .lg-content，而首页用的是 .lg-index-content，所以一直没命中）
+   证据：用户截图采样 —— 灰板消失前主色 #efefef；改掉 <main> 后剩 12 像素，
+   但正文区仍被一层 #9fc5e6 压着，说明还有别的容器在垫底。
+   所以这里改成"结构式一次覆盖"，不再靠猜具体类名。
+   只动背景（background-color / 旧层的失效 background-image），不碰 color —— 符合 ⑫ 节不变式。
+   -------------------------------------------------------------------------- */
+:is(.lg-index-content, .lg-content, #app-old, #app, .lfe-body, .main-container, main) {
+    background-color: transparent !important;
+}
+
+/* 旧首页那几层：背景图是早已失效的内网地址，一并清掉 */
+:is(.lg-index-content, .lg-content, #app-old) {
+    background-image: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   ★ 真正的"大白板"：<main> 上的**内联**背景
+   --------------------------------------------------------------------------
+   用户 DevTools 实测（这一条推翻了我之前两次的错误猜测）：
+       <main data-v-6828e796 style="flex: 1 1 0%; background-color: rgb(239, 239, 239);">
+   也就是 #efefef 被当成 style 属性直接写在 <main> 上。后果有两个：
+     · 首页正文区是一整块灰白板 —— 被看成"一大块白"（不是 .lg-article，也不是 .theme-page）
+     · 它把 body 上的背景图整个盖住 —— 所以"背景仍没有图片"
+   （我前面采样到 #efefef 时误判成 --theme-body-back / Stylus 没更新，这里更正。）
+   内联样式只能用 !important 压，所以这条必须带 !important。属性名不含 color，
+   不违反 ⑫ 节不变式。选择器写成结构式（#app.lfe-body > .main-container > main），
+   **不用 data-v hash** —— 那个哈希每次构建都会变（见文件开头的不变式）。
+   -------------------------------------------------------------------------- */
+#app.lfe-body > .main-container > main,
+.lfe-body main {
+    background-color: transparent !important;
+}
+
+/* --------------------------------------------------------------------------
+   旧首页的"背景板"：.lg-content
+   --------------------------------------------------------------------------
+   luogu3.css 里写着：
+       .lg-content {
+           background: #e9eaec;                                            ← 一整层不透明灰底
+           background-image: url(http://202.101.104.45:8888/images/bg/s_25.jpg);  ← 早已失效的内网图
+           background-attachment: fixed;
+       }
+   它铺满正文区，把我们在 body 上的背景图整个挡住 —— 页面上只有它自己那块灰板，
+   而顶部（顶栏那一条）是透明的，于是背景图只在最上面露出一条，看着很违和。
+   这里把它删掉：透出背景图。
+   -------------------------------------------------------------------------- */
+.lg-content {
+    background: transparent !important;
+}
+
+/* ==========================================================================
+   ⑭ 背景图（新前端页面）
+   为什么需要这一节：洛谷把背景图放在主题商店里，而**新前端的背景是运行时
+   由 --theme-body-image 驱动的**。如果当前主题没选图，页面就是纯色 ——
+   这正是"背景仍无图片"的第一个原因。
+   第二个原因：主题背景图默认只画在**顶部 400px** 并向下淡出
+   （loader.css：.theme-page::before{height:400px; mask-image:var(--theme-body-mid-mask)}），
+   一往下滚就"看起来没有背景图"。
+   所以这里：① 明确给图；② 铺满整屏并去掉淡出遮罩；③ 深色下用 inset 阴影压暗。
+   想交回主题商店：把本节删掉即可（--theme-body-image 那几行）。
+   ========================================================================== */
+.theme-page {
+    --theme-body-image: var(--sl-bg-image) !important;
+    --theme-body-image-size: cover !important;
+    --theme-body-image-position: center !important;
+    --theme-body-image-repeat: no-repeat !important;
+    /* 去掉"只画顶部 400px 并向下淡出"的设计 */
+    --theme-body-mid-mask: none !important;
+}
+
+/* 铺满整屏：洛谷默认是 position:absolute + height:400px，
+   这里改成 fixed 铺满视口（等价于原样式的 background-attachment: fixed）。 */
+.theme-page::before {
+    position: fixed !important;
+    inset: 0 !important;
+    height: auto !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+}
+
+/* 深色下把主题背景图压暗一层。
+   background-image 是"非颜色"，无法用 light-dark() 切换，所以改用 inset 阴影
+   —— 阴影绘制在背景之上、内容之下，颜色可以被 light-dark() 驱动。 */
+.theme-page::before {
+    box-shadow: inset 0 0 0 200vmax light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .58)) !important;
+}
+
+/* --------------------------------------------------------------------------
+   轮播 / 幻灯片的切换箭头：交回 AmazeUI
+   --------------------------------------------------------------------------
+   AmazeUI 的定义是：
+       .am-slider-default .am-direction-nav a {
+           position: absolute; top: 50%; width: 36px; height: 36px; overflow: hidden }
+       .am-slider-default .am-direction-nav a::before { content: "\f137"; … }
+   而我的链接样式会给 a 加 ::after 渐变下划线、悬停渐变文字 —— 落到这个 36×36、
+   overflow:hidden 的按钮上就是"控件坏掉"。这里明确交回去：不要下划线、不要渐变文字。
+   -------------------------------------------------------------------------- */
+/* ★ 关键：把**定位**也交回去。
+   为什么箭头会"坏掉"（掉进文档流、堆在卡片左下角）：
+   FlexSlider 的箭头是运行时生成的 <a class="am-prev|am-next">Previous</a>（里面是纯文字，
+   没有 img），所以会被我 ⑯ 节那条
+       .l-card a[href]:not(:has(img)) { position: relative; … }
+   命中。它与 AmazeUI 的
+       .am-slider-default .am-direction-nav a { position: absolute; … }
+   特异度**完全相同**（都是 0,3,1），打平时按源码顺序 —— 用户样式注入更晚 → 我赢，
+   于是箭头从"绝对定位在左右两侧"变成"相对定位排在流里"。
+   之前只撤了下划线（::after），定位没交回，所以看起来"还没好"。
+   下面把 AmazeUI 的几何值原样交回（position/top/width/height/margin/左右位置）。
+   !important 只用在这些**布局属性**上，不涉及 color（见 ⑫ 节不变式）。 */
+/* ★ 只作用在**箭头**上（.am-direction-nav a），绝不能写成 .am-slider a ——
+   那会命中轮播里的图片链接 <a><img></a>，把它们绝对定位叠在一起，广告整块消失（踩过）。 */
+.am-slider .am-direction-nav a,
+.am-slider .am-direction-nav a:hover,
+.lg-article .am-direction-nav a,
+.lg-article .am-direction-nav a:hover,
+.am-panel .am-direction-nav a,
+.am-panel .am-direction-nav a:hover {
+    position: absolute !important;
+    top: 50% !important;
+    z-index: 10 !important;
+    display: block !important;
+    width: 36px !important;
+    height: 36px !important;
+    margin: -18px 0 0 !important;
+    background-image: none;
+    text-decoration: none;
+}
+
+.lg-article .am-direction-nav .am-prev,
+.am-panel .am-direction-nav .am-prev,
+.am-slider .am-direction-nav .am-prev {
+    left: 10px !important;
+    right: auto !important;
+}
+
+.lg-article .am-direction-nav .am-next,
+.am-panel .am-direction-nav .am-next,
+.am-slider .am-direction-nav .am-next {
+    right: 10px !important;
+    left: auto !important;
+    text-align: right !important;
+}
+
+/* 我加的 ::after 渐变下划线不要出现在这两个 36×36 的按钮上 */
+.lg-article .am-direction-nav a::after,
+.am-panel .am-direction-nav a::after,
+.am-slider a::after {
+    content: none !important;
+}
+
+/* ==========================================================================
+   ⑲-b （已回滚）无差别压制 .tag 白底 —— 为什么不能这么做
+   --------------------------------------------------------------------------
+   我上一版在这里写了一条"把无颜色类的标签白底压掉"的规则（针对 .tag / .tag-button /
+   .trial-tag / .toggle-tag / .recommend-tag）。出发点是：筛选卡的控件与"选择标签"
+   弹窗里的标签都是白底。结果**更糟**（用户："更差了"）：
+   题目列表里整行/整块也用到了 .tag 这个类名 —— 那条规则加上早先的
+   `.tag { border-radius: var(--lg-radius) !important }`，
+   直接把**行容器**渲染成了横贯整行的大白胶囊。
+   教训：**别拿"类名"当语义用**。.tag 在这套前端里既是"小标签"也是"容器"，
+   只靠类名无法区分；要改必须落到**具体结构**（例如 .problem-list 行内的 .tag），
+   或者由用户给出 DevTools 那一行后精确命中。
+   在拿到确切结构之前，这里保持为空 —— 宁可漏修，也不要弄坏列表。
+   ========================================================================== */
+
+/* ==========================================================================
+   ⑳ 标签 / 徽章的悬浮渐变动画
+   --------------------------------------------------------------------------
+   覆盖两套前端（类名来自语料核对，不是猜的）：
+     · 新前端：.badge / .tag / .tag-button / .trial-tag / .toggle-tag / .recommend-tag
+               、以及运行时生成的 .lcolor-bg-* 调色板工具类
+     · 旧首页：.am-badge、.lg-bg-* （官方比赛/IOI/置顶/个人公开赛/ICPC 这些就是它）
+   做法：给标签铺一层**透明的高光渐变**（平时停在右侧看不到），悬停时把
+   background-position 扫过去 —— 就是"渐变扫过"的动画；同时轻微抬起 + 加深阴影。
+   用 :is() 合并选择器：::is() 需要 Chrome 88+，而本文件已经要求 light-dark()
+   （Chrome 111+），所以这里可以放心用。
+   ========================================================================== */
+:is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
+    .am-badge, [class*="lg-bg-"]) {
+    background-image: linear-gradient(115deg,
+        rgba(255, 255, 255, 0) 30%,
+        rgba(255, 255, 255, .45) 50%,
+        rgba(255, 255, 255, 0) 70%);
+    background-size: 250% 100%;
+    background-position: 130% 0;
+    background-repeat: no-repeat;
+    transition: background-position .55s cubic-bezier(.4, 0, .2, 1),
+                transform .2s ease,
+                box-shadow .2s ease,
+                filter .2s ease;
+}
+
+:is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
+    .am-badge, [class*="lg-bg-"]):hover {
+    background-position: -60% 0;
+    translate: 0 -1px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .16);
+    filter: saturate(1.08);
+}
+
+/* ==========================================================================
+   ⑰ 洛谷运行时生成的"颜色工具类"也要重映射
+   --------------------------------------------------------------------------
+   除了 :root 上的 --lfe-color--*，洛谷还会生成一批**写死字面量**的工具类：
+       .lcolor-bg-green-1 { background-color: rgb(217, 240, 199); }
+       .lcolor--blue-3    { color: rgb(52, 152, 219); }
+   它们用的是 rgb() 字面量而不是变量，所以第 ⑫-c 节的令牌重映射管不到。
+
+   两个关键取舍（都踩过坑）：
+   1) **不能加 !important**。洛谷在彩色标题带上给标题设的是白字（作用域规则的来源），
+      一旦用 !important 压过去，标题就会继承工具类的蓝 → "蓝字压蓝底"看不见。
+   2) 又要压过洛谷运行时注入的同名规则（特异性 0,1,0）。所以用"特异度加倍"写法
+      `.lcolor--blue-3.lcolor--blue-3`（0,2,0）：压得过 (0,1,0)，压不过组件的作用域规则。
+   ========================================================================== */
+.lcolor-bg-lapis-1.lcolor-bg-lapis-1 { background-color: light-dark(#cad5e8, #1e2434); }
+.lcolor-bg-lapis-2.lcolor-bg-lapis-2 { background-color: light-dark(#728dcf, #3b4a72); }
+
+.lcolor-bg-blue-1.lcolor-bg-blue-1 { background-color: light-dark(#e0f7ff, #0f2b3d); }
+.lcolor-bg-blue-2.lcolor-bg-blue-2 { background-color: light-dark(#89d1f5, #2b5f80); }
+
+.lcolor-bg-cyan-1.lcolor-bg-cyan-1 { background-color: light-dark(#b5f5ec, #0d2f2b); }
+.lcolor-bg-cyan-2.lcolor-bg-cyan-2 { background-color: light-dark(#5cdbd3, #1f6b66); }
+
+.lcolor-bg-green-1.lcolor-bg-green-1 { background-color: light-dark(#d9f0c7, #1c2f14); }
+.lcolor-bg-green-2.lcolor-bg-green-2 { background-color: light-dark(#94d66d, #2f5c22); }
+
+.lcolor-bg-lgreen-1.lcolor-bg-lgreen-1 { background-color: light-dark(#dae0d3, #20261a); }
+.lcolor-bg-lgreen-2.lcolor-bg-lgreen-2 { background-color: light-dark(#aac791, #3a4a2c); }
+
+.lcolor-bg-yellow-1.lcolor-bg-yellow-1 { background-color: light-dark(#ffffb8, #33301a); }
+.lcolor-bg-yellow-2.lcolor-bg-yellow-2 { background-color: light-dark(#fffb8f, #6b641f); }
+
+.lcolor-bg-orange-1.lcolor-bg-orange-1 { background-color: light-dark(#ffedb5, #3a2a12); }
+.lcolor-bg-orange-2.lcolor-bg-orange-2 { background-color: light-dark(#ffce63, #6e5320); }
+
+.lcolor-bg-gold-1.lcolor-bg-gold-1 { background-color: light-dark(#fff6ba, #3a3016); }
+.lcolor-bg-gold-2.lcolor-bg-gold-2 { background-color: light-dark(#ffe169, #6e5c1f); }
+
+.lcolor-bg-purple-1.lcolor-bg-purple-1 { background-color: light-dark(#fbedff, #2e1c3a); }
+.lcolor-bg-purple-2.lcolor-bg-purple-2 { background-color: light-dark(#ce8ee8, #5c3a6e); }
+
+.lcolor-bg-pink-1.lcolor-bg-pink-1 { background-color: light-dark(#fff0f0, #3a1d21); }
+.lcolor-bg-pink-2.lcolor-bg-pink-2 { background-color: light-dark(#ff9ea3, #6e3238); }
+
+.lcolor-bg-red-1.lcolor-bg-red-1 { background-color: light-dark(#ffebe6, #3a1e1a); }
+.lcolor-bg-red-2.lcolor-bg-red-2 { background-color: light-dark(#ffa694, #6e3a30); }
+
+/* 为什么不重映射 .lcolor--* 文字色（踩过坑，别再改回来）：
+   洛谷的 .name[data-v-…] 写的是 color:inherit —— 它**故意**把颜色让给父级彩条
+   （彩条上是内联的 getForeground() 白字）。任何针对该元素自身的颜色规则，
+   只要特异度 ≥ (0,2,0) 就会顶掉这个 inherit，标题立刻变成"蓝字压蓝底"。
+   而我的用户样式注入更晚，打平即赢，所以连"值一样"的浅色分支也会造成撞色。
+   结论：文字色交给 bigballofmud-luogu-switch.user.js 的对比度守卫（它读最终计算值，
+   只在真的不达标时才改，且浅色模式完全不动），CSS 这边只管背景色阶。 */
+.lcolor-bg-grey-1.lcolor-bg-grey-1 { background-color: light-dark(#fafafa, #21242a); }
+.lcolor-bg-grey-2.lcolor-bg-grey-2 { background-color: light-dark(#e8e8e8, #2c3037); }
+
+/* ==========================================================================
+   ⑰-b 语义别名的工具类 + 文章页外壳的内联白底
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02，"文章广场 / 题解"页）：
+       <main class="lcolor-bg-background main">                          ← ①
+         <div data-v-fc349d1c style="background-color: rgb(255, 255, 255);">  ← ②
+           <div class="article-content columba-content-wrap wrapper">
+             <div class="lfe-marked-wrap"><div class="lfe-marked"> …
+   ① ⑰ 段只重映射了调色板的各个"组"（grey/blue/green…），
+      **漏了语义别名** —— 而洛谷给这类别名也生成了工具类：
+          .lcolor-bg-background { background-color: rgb(245,245,245) }   ← 不随深浅变
+      深色下它整块是浅灰，正文外壳因此"炸掉"。这里补上别名工具类。
+   ② 那个外壳是**内联** background-color: rgb(255,255,255)，
+      内联只能用 !important 压。但**不要一律透明** ——
+      浅色模式下文章本来就该是白卡片；所以用 light-dark(#fff, --lg-panel-dark)：
+      浅色保持白、深色换成暗玻璃，两种模式都正确。
+   ========================================================================== */
+.lcolor-bg-background.lcolor-bg-background {
+    background-color: light-dark(#f5f5f5, #1b1e24);
+}
+
+
+/* 文章/题解页的正文外壳（内联白底）。结构定位：main.main > div[style*=…] */
+main.main > div[style*="background-color: rgb(255, 255, 255)"],
+main.main > div[style*="background-color: rgb(255,255,255)"],
+main.main > div[style*="background-color:#fff"],
+main.main > div[style*="background-color: #fff"],
+main.main > div[style*="#ffffff"] {
+    background-color: light-dark(#fff, var(--lg-panel-dark)) !important;
+}
+
+/* 外壳里的正文与标题 */
+.article-content {
+    color: var(--lg-text);
+}
+
+/* ==========================================================================
+   ⑱ 切换配色时的"统一短过渡"
+   --------------------------------------------------------------------------
+   本样式给大量元素挂了各自的 transition（背景色 .3~.4s、颜色 .25s、阴影 .4s…），
+   时长不一致。切深浅时上千个元素各按各的节奏跑，就会"糊"好几帧 ——
+   看起来既是"切换很慢"，又像"字体颜色延迟"。
+   做法：脚本在切换那一帧给 <html> 加 .sl-theme-switching，这里把**所有**元素的
+   过渡统一压成 --sl-switch-duration（默认 .14s），切完脚本再移除，
+   各元素恢复自己原本的过渡（悬停、下划线划入等效果不受影响）。
+   注意这里用的是"统一短过渡"而不是"关掉过渡"：关掉会显得生硬。
+   ========================================================================== */
+html.sl-theme-switching,
+html.sl-theme-switching *,
+html.sl-theme-switching *::before,
+html.sl-theme-switching *::after {
+    transition-property: background-color, background-image, border-color, box-shadow,
+                         color, fill, stroke, opacity, outline-color !important;
+    transition-duration: var(--sl-switch-duration, .14s) !important;
+    transition-timing-function: ease-out !important;
+    transition-delay: 0s !important;
+}
+
+/* ==========================================================================
+   ⑯ 超链接悬停：渐变色 + 下划线划入
+   --------------------------------------------------------------------------
+   两个效果：
+     · 下划线：一条渐变色细线，从中间向两侧划入（宽度 0 → 100%）
+     · 文字：悬停时也变成同款渐变（background-clip: text）
+   作用范围（重要）：**绝不能写成全局 `a`**。洛谷有大量"整块卡片就是一个 <a>"
+   以及"包着头像的 <a>"，全局加下划线和 position:relative 会把它们一起点亮，
+   这是原版 BigBallOfMud-Luogu 的旧病。这里只挑"纯文本链接"。
+   另外：带 :has() 的选择器一旦不被支持会**整条规则被静默丢弃**，
+   所以绝不能和普通选择器写在同一个规则里（否则会把安全的那些一起带走）。
+   需要 :has() 的那几条单独成规则，写在下面。
+   ========================================================================== */
+.lfe-marked a,
+.solution-article a,
+.solution-list a,
+.l-card .title a,
+.feed-card .title a,
+.list-card .title a,
+.reply-item .meta a,
+.lg-article a:not(.center),
+.am-panel-bd a:not(.center),
+.feed-card a:not(.center),
+.feed-card-body a:not(.center),
+.feed-card-content a:not(.center),
+.inquiry-feed a:not(.center) {
+    position: relative;
+    text-decoration: none;
+    background-image: none;
+    transition: color .25s ease;
+}
+
+/* 下划线：渐变色细线，从中间向两侧划入
+   用伪元素而不是 background-size，是为了和"文字渐变"（占用元素自身 background）
+   共存 —— 同一个元素的 background-clip 是全局生效的，两层背景没法各裁各的。 */
+.lfe-marked a::after,
+.solution-article a::after,
+.solution-list a::after,
+.l-card .title a::after,
+.feed-card .title a::after,
+.list-card .title a::after,
+.reply-item .meta a::after,
+.lg-article a:not(.center)::after,
+.am-panel-bd a:not(.center)::after,
+.feed-card a:not(.center)::after,
+.feed-card-body a:not(.center)::after,
+.feed-card-content a:not(.center)::after,
+.inquiry-feed a:not(.center)::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -.16em;
+    width: 0;
+    height: 2px;
+    border-radius: 2px;
+    background-image: linear-gradient(90deg, var(--lg-link-1), var(--lg-link-2) 45%, var(--lg-link-3));
+    background-clip: border-box;
+    opacity: 0;
+    pointer-events: none;
+    transition: width .3s cubic-bezier(.4, 0, .2, 1),
+                left .3s cubic-bezier(.4, 0, .2, 1),
+                opacity .2s ease;
+}
+
+.lfe-marked a:hover::after,
+.solution-article a:hover::after,
+.solution-list a:hover::after,
+.l-card .title a:hover::after,
+.feed-card .title a:hover::after,
+.list-card .title a:hover::after,
+.reply-item .meta a:hover::after,
+.lg-article a:not(.center):hover::after,
+.am-panel-bd a:not(.center):hover::after,
+.feed-card a:not(.center):hover::after,
+.feed-card-body a:not(.center):hover::after,
+.feed-card-content a:not(.center):hover::after,
+.inquiry-feed a:not(.center):hover::after {
+    left: 0;
+    width: 100%;
+    opacity: 1;
+}
+
+.lfe-marked a:active::after,
+.lg-article a:not(.center):active::after,
+.am-panel-bd a:not(.center):active::after,
+.feed-card a:not(.center):active::after,
+.feed-card-body a:not(.center):active::after,
+.inquiry-feed a:not(.center):active::after {
+    opacity: .55;
+}
+
+/* 文字渐变：必须用 @supports 兜住 —— 不支持 background-clip:text 的浏览器上，
+   `color: transparent` 会让链接彻底看不见，这是"为了好看把内容弄丢"的典型事故。 */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .lfe-marked a:hover,
+    .solution-article a:hover,
+    .solution-list a:hover,
+    .l-card .title a:hover,
+    .feed-card .title a:hover,
+    .list-card .title a:hover,
+    .reply-item .meta a:hover,
+    .lg-article a:not(.center):hover,
+    .am-panel-bd a:not(.center):hover,
+        .feed-card a:not(.center):hover,
+        .feed-card-body a:not(.center):hover,
+        .feed-card-content a:not(.center):hover,
+        .inquiry-feed a:not(.center):hover {
+        background-image: linear-gradient(90deg, var(--lg-link-1), var(--lg-link-2) 45%, var(--lg-link-3));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+    }
+}
+
+/* 卡片类链接（可能含图片，如头像/封面）：单独一条规则。
+   万一浏览器不支持 :has()，丢的只是这一条，上面的正文链接效果不受影响。 */
+.l-card a[href]:not(:has(img)),
+.feed-card a[href]:not(:has(img)),
+.list-card a[href]:not(:has(img)) {
+    position: relative;
+    text-decoration: none;
+}
+
+.l-card a[href]:not(:has(img))::after,
+.feed-card a[href]:not(:has(img))::after,
+.list-card a[href]:not(:has(img))::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -.16em;
+    width: 0;
+    height: 2px;
+    border-radius: 2px;
+    background-image: linear-gradient(90deg, var(--lg-link-1), var(--lg-link-2) 45%, var(--lg-link-3));
+    opacity: 0;
+    pointer-events: none;
+    transition: width .3s cubic-bezier(.4, 0, .2, 1),
+                left .3s cubic-bezier(.4, 0, .2, 1),
+                opacity .2s ease;
+}
+
+.l-card a[href]:not(:has(img)):hover::after,
+.feed-card a[href]:not(:has(img)):hover::after,
+.list-card a[href]:not(:has(img)):hover::after {
+    left: 0;
+    width: 100%;
+    opacity: 1;
+}
+
+.lfe-caption,
+.lfe-marked blockquote,
+.meta,
+.hint,
+.field-hint {
+    color: var(--lg-text-weak);
+}
+
+/* --------------------------------------------------------------------------
+   ⑫-c 设计令牌整表重映射（这一块是"对比度不足"的总根因，重点）
+   实测发现：洛谷的 --lfe-color--* 不是写在静态样式表里的，而是运行时由 JS
+   往 <head> 注入一段：
+       :root { --lcolor--blue-1: 224, 247, 255; --lfe-color--blue-1: #e0f7ff; ... }
+   调色板取自 bundle 里的调色表（12 组 × 5 阶）：
+       grey:   #fafafa #e8e8e8 #bfbfbf #595959 #262626
+       blue:   #e0f7ff #89d1f5 #3498db #14558f #052242
+       green:  #d9f0c7 #94d66d #52c41a #22700a #072401
+       ...
+   这些值**不随深浅切换**，所以深色下用 grey-4(#595959) 写的次要文字、用
+   blue-1(#e0f7ff) 画的胶囊底，全都是"浅色主题的值硬贴在暗底上"，必然看不清。
+   这里整表重映射：浅色分支**照抄洛谷原值**（保证浅色模式零变化），
+   深色分支换成暗底上可读的对应色。两个值都由我们显式给出，
+   不存在"读原值又写原值"的自引用问题；!important 用来压过运行时注入的那段。
+   -------------------------------------------------------------------------- */
+:root {
+    /* grey：1=最浅底 5=最深字 */
+    --lfe-color--grey-1: light-dark(#fafafa, #21242a) !important;
+    --lfe-color--grey-2: light-dark(#e8e8e8, #2c3037) !important;
+    --lfe-color--grey-3: light-dark(#bfbfbf, #9aa4b2) !important;
+    --lfe-color--grey-4: light-dark(#595959, #d2d9e2) !important;
+    --lfe-color--grey-5: light-dark(#262626, #eef2f7) !important;
+
+    --lfe-color--lapis-1: light-dark(#cad5e8, #1e2434) !important;
+    --lfe-color--lapis-2: light-dark(#728dcf, #3b4a72) !important;
+    --lfe-color--lapis-3: light-dark(#2949b4, #7b93e0) !important;
+    --lfe-color--lapis-4: light-dark(#0e1d69, #aebddf) !important;
+    --lfe-color--lapis-5: light-dark(#02051c, #dde3f0) !important;
+
+    --lfe-color--blue-1: light-dark(#e0f7ff, #0f2b3d) !important;
+    --lfe-color--blue-2: light-dark(#89d1f5, #2b5f80) !important;
+    --lfe-color--blue-3: light-dark(#3498db, #5aa9e6) !important;
+    --lfe-color--blue-4: light-dark(#14558f, #9fc9e8) !important;
+    --lfe-color--blue-5: light-dark(#052242, #cfe6f5) !important;
+
+    --lfe-color--cyan-1: light-dark(#b5f5ec, #0d2f2b) !important;
+    --lfe-color--cyan-2: light-dark(#5cdbd3, #1f6b66) !important;
+    --lfe-color--cyan-3: light-dark(#13c2c2, #3dd6d6) !important;
+    --lfe-color--cyan-4: light-dark(#006d75, #8fd8dc) !important;
+    --lfe-color--cyan-5: light-dark(#002329, #cfeef0) !important;
+
+    --lfe-color--green-1: light-dark(#d9f0c7, #1c2f14) !important;
+    --lfe-color--green-2: light-dark(#94d66d, #2f5c22) !important;
+    --lfe-color--green-3: light-dark(#52c41a, #6fd44a) !important;
+    --lfe-color--green-4: light-dark(#22700a, #a8dc8f) !important;
+    --lfe-color--green-5: light-dark(#072401, #d6f0c8) !important;
+
+    --lfe-color--lgreen-1: light-dark(#dae0d3, #20261a) !important;
+    --lfe-color--lgreen-2: light-dark(#aac791, #3a4a2c) !important;
+    --lfe-color--lgreen-3: light-dark(#70ad47, #93c76b) !important;
+    --lfe-color--lgreen-4: light-dark(#34611e, #b3cba2) !important;
+    --lfe-color--lgreen-5: light-dark(#091405, #d5e0cd) !important;
+
+    --lfe-color--yellow-1: light-dark(#ffffb8, #33301a) !important;
+    --lfe-color--yellow-2: light-dark(#fffb8f, #6b641f) !important;
+    --lfe-color--yellow-3: light-dark(#fadb14, #ffd93d) !important;
+    --lfe-color--yellow-4: light-dark(#ad8b00, #e8d27a) !important;
+    --lfe-color--yellow-5: light-dark(#614700, #f0e0a8) !important;
+
+    --lfe-color--orange-1: light-dark(#ffedb5, #3a2a12) !important;
+    --lfe-color--orange-2: light-dark(#ffce63, #6e5320) !important;
+    --lfe-color--orange-3: light-dark(#f39c11, #ffb545) !important;
+    --lfe-color--orange-4: light-dark(#a65b00, #e8b071) !important;
+    --lfe-color--orange-5: light-dark(#592b00, #f0d0a8) !important;
+
+    --lfe-color--gold-1: light-dark(#fff6ba, #3a3016) !important;
+    --lfe-color--gold-2: light-dark(#ffe169, #6e5c1f) !important;
+    --lfe-color--gold-3: light-dark(#ffc116, #ffd24d) !important;
+    --lfe-color--gold-4: light-dark(#b37700, #e8c76e) !important;
+    --lfe-color--gold-5: light-dark(#663d00, #f0dcae) !important;
+
+    --lfe-color--purple-1: light-dark(#fbedff, #2e1c3a) !important;
+    --lfe-color--purple-2: light-dark(#ce8ee8, #5c3a6e) !important;
+    --lfe-color--purple-3: light-dark(#9d3dcf, #bd76e8) !important;
+    --lfe-color--purple-4: light-dark(#561982, #cfa6e8) !important;
+    --lfe-color--purple-5: light-dark(#1f0736, #e3d2f0) !important;
+
+    --lfe-color--pink-1: light-dark(#fff0f0, #3a1d21) !important;
+    --lfe-color--pink-2: light-dark(#ff9ea3, #6e3238) !important;
+    --lfe-color--pink-3: light-dark(#fe4c61, #ff7a8a) !important;
+    --lfe-color--pink-4: light-dark(#b3243e, #e88a9c) !important;
+    --lfe-color--pink-5: light-dark(#660e24, #f0c8ce) !important;
+
+    --lfe-color--red-1: light-dark(#ffebe6, #3a1e1a) !important;
+    --lfe-color--red-2: light-dark(#ffa694, #6e3a30) !important;
+    --lfe-color--red-3: light-dark(#e74c3c, #ff6b5b) !important;
+    --lfe-color--red-4: light-dark(#9c1d19, #e88a85) !important;
+    --lfe-color--red-5: light-dark(#4f080a, #f0c8c6) !important;
+
+    /* 别名（洛谷在调色板之外还挂了一批语义别名） */
+    --lfe-color--primary: light-dark(#3498db, #5aa9e6) !important;
+    --lfe-color--primary-bg: light-dark(#e0f7ff, #0f2b3d) !important;
+    --lfe-color--success: light-dark(#52c41a, #6fd44a) !important;
+    --lfe-color--warning: light-dark(#ffc116, #ffd24d) !important;
+    --lfe-color--error: light-dark(#e74c3c, #ff6b5b) !important;
+    --lfe-color--link: light-dark(#3498db, #5aa9e6) !important;
+    --lfe-color--disabled: light-dark(#bfbfbf, #8b93a0) !important;
+    --lfe-color--clicked: light-dark(#2949b4, #7b93e0) !important;
+    --lfe-color--background: light-dark(#f5f5f5, #1b1e24) !important;
+    --lfe-color--black-1: light-dark(#262626, #e7eaee) !important;
+}
+
+/* --------------------------------------------------------------------------
+   ⑫-d 分页条的页码按钮
+   洛谷的 LPaginationBar 用的是**裸 <button>**（不是 .l-button 组件），
+   这些按钮在白底上写页码，而深色下正文文字色被我改成了浅色 →
+   变成"白底白字"，页码整排看不见。这里把按钮底色/边框/文字一起处理。
+   （注意只针对 .page-bar 里的 button，不动其它按钮，避免把蓝色实心按钮刷掉）
+   -------------------------------------------------------------------------- */
+.page-bar button {
+    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    border: 1px solid light-dark(#bfbfbf, rgba(255, 255, 255, .16)) !important;
+    border-radius: var(--lg-radius-xs) !important;
+    color: var(--lg-text);
+    transition: background-color .25s ease, border-color .25s ease, translate .25s ease;
+}
+
+.page-bar button:hover {
+    border-color: light-dark(#3498db, #5aa9e6) !important;
+    translate: 0 -1px;
+}
+
+.page-bar button.selected {
+    color: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   ⑫-h 题库筛选区的下拉按钮与搜索框（用户 DevTools 实证，2026-10-02）
+   --------------------------------------------------------------------------
+   实测结构（面包屑）：
+       section
+         div.block.filter-tags.no-wrap
+           div.search-row
+             div.refined-input.search-text      ← 搜索框容器（div 模拟的）
+               input.search-text                ← 真正的 <input>
+             div.search-option.no-wrap
+   那个"算法/来源/时间/状态"下拉是 **<button>**，它的白底是**内联写死的**：
+       style="… border-color: var(--lfe-color--grey-3); background-color: rgb(255, 255, 255);"
+   两个采样值完全对得上：
+       · 盒子 #ffffff          ← 就是这条内联
+       · 边框 #9aa4b2          ← 我们重映射的 --lfe-color--grey-3 深色值
+   内联样式只能用 !important 压；作用域限定在筛选区，不碰页面其它 button。
+   -------------------------------------------------------------------------- */
+.search-row button,
+.filter-tags button,
+.search-option button,
+.search-row .refined-input,
+.search-row .refined-input.search-text,
+.search-row input.search-text,
+.filter-tags input.search-text {
+    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
+    /* ★ 这里**不能**写 color !important —— 见 ⑫ 节不变式：
+       洛谷给彩底标签的白字是内联的，一压就会"蓝字压蓝底"。
+       （这一条是校验脚本当场抓出来的，它的断言名就叫"全文没有任何 color 声明使用 !important"。） */
+    color: light-dark(#262626, #e7eaee);
+}
+
+.search-row input.search-text::placeholder,
+.search-row .refined-input input::placeholder {
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .55));
+}
+
+/* 下拉里的图标（放大镜 / 箭头）跟着文字色，别在暗底上留一坨浅灰 */
+.search-row button svg,
+.search-row .refined-input svg {
+    color: light-dark(#595959, #c9d1db);
+}
+
+/* --------------------------------------------------------------------------
+   ⑫-e 筛选卡里的输入类控件
+   .filter-card 是题库/比赛筛选卡的真实类名。里面除了 <input>，还有几个
+   div 模拟的控件（.text / .search-text / .tag-button），洛谷都给它们写死了白底。
+   -------------------------------------------------------------------------- */
+.filter-card input,
+.filter-card select,
+.filter-card .text,
+.filter-card .search-text,
+.filter-card .tag-select-area,
+.filter-card .tag-button {
+    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
+    color: light-dark(#262626, #e7eaee);
+}
+
+.filter-card ::placeholder {
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .50));
+}
+
+/* --------------------------------------------------------------------------
+   （已移除）筛选卡"类名包含"式兜底网
+   --------------------------------------------------------------------------
+   这里曾经用 :is(input, [class*="text"], [class*="search"], …) 猜着压白底。
+   拿到用户 DevTools 的真实结构后，已换成下面 ⑫-h 的**精确选择器**：
+   猜类名这套在本题材上风险太大 —— 同一轮里 .tag 的宽泛规则就把题目列表
+   弄成了大白胶囊（见 ⑲-b）。教训：能拿到 DOM 就别猜。
+   -------------------------------------------------------------------------- */
+
+/* 筛选卡里那排胶囊：<ul class="luogu"> 的浅蓝底 + <li> 文字
+   （实测 ul.luogu 用的是 --lfe-color--blue-1 / --lfe-color--primary，
+     令牌重映射后会自动变暗，这里再兜一层边框与圆角） */
+.filter-card .category ul {
+    border-radius: var(--lg-radius-xs);
+}
+
+.filter-card .category ul > li {
+    transition: background-color .25s ease, color .25s ease;
+}
+
+/* --------------------------------------------------------------------------
+   ⑫-f 洛谷"写死颜色"的文字，深色下要逐条扳回来
+   实测依据（loader.css）：
+     .lfe-h1..h6 { color:#262626 }        ← 卡片标题变"深字深底"的元凶
+     .lfe-caption { color:gray }
+     .wrap>.name / .wrap>.indicator { color:#333 }
+     .filter-card .filter .filter-label { color:rgba(0,0,0,.85) }
+     .filter-result-count / .number { color:rgba(0,0,0,.45) / .75 }
+   **但有一点绝不能做：color 不能加 !important。** 洛谷给彩底标签/徽章的白字是
+   getForeground() 算出来的**内联样式**；内联只会被样式表的 !important 压掉，加了就等于
+   把该白的字压成深色（"NOIP 普及组 / 2002 / 普及-"这类标签就是这么被弄黑的）。
+   去掉 !important 之后：内联白字保持白，而洛谷写死的深色（普通规则）我靠"注入更晚 +
+   .theme-page 前缀"照样能改；深色模式下的漏网之鱼交给 JS 对比度守卫。
+   下面这些规则因此**一律不加 !important**（背景/边框/阴影等不受此限，它们不参与继承）。
+   只改"文字色"，不动任何语义色块（徽章、难度色等）。
+   -------------------------------------------------------------------------- */
+/* 用特异度加倍而不是 !important：压得过洛谷的 .lfe-hN{color:#262626}（0,1,0），
+   又压不过组件作用域规则 —— 彩色标题带上的白字要保住（踩过"撞色"的坑）。 */
+.lfe-h1.lfe-h1,
+.lfe-h2.lfe-h2,
+.lfe-h3.lfe-h3,
+.lfe-h4.lfe-h4,
+.lfe-h5.lfe-h5,
+.lfe-h6.lfe-h6 {
+    color: light-dark(#262626, #eef2f7);
+}
+
+.lfe-caption.lfe-caption {
+    color: light-dark(gray, #ccd3dc);
+}
+
+.theme-page .wrap > .name,
+.theme-page .wrap > .indicator {
+    color: light-dark(#333, #eef2f7);
+}
+
+/* 洛谷原规则还有一条悬停/选中态：.wrap:hover>.name{color:var(--link-indicator-color,#333)}。
+   上面那条 !important 会把它一起压掉（"左侧导航当前项"的指示色就没了），
+   所以这里按同样语义补一条镜像规则。 */
+.theme-page .wrap:hover > .name,
+.theme-page .wrap:hover > .indicator,
+.theme-page .wrap.active > .name,
+.theme-page .wrap.active > .indicator {
+    color: light-dark(var(--link-indicator-color, #333), #eef2f7);
+}
+
+.theme-page .filter-label {
+    color: light-dark(rgba(0, 0, 0, .85), #e8edf3);
+}
+
+.theme-page .filter-result-count {
+    color: light-dark(rgba(0, 0, 0, .45), #c9d1db);
+}
+
+.theme-page .filter-result-count .number {
+    color: light-dark(rgba(0, 0, 0, .75), #e7eaee);
+}
+
+/* 面包屑/二级列表里那些 rgba(0,0,0,.5) 的元信息文字。
+   注意深色值不能给太暗：这些字本身很小，压得太暗就等于看不见了
+   （上一版给 #b3bcc7 就偏暗，被反馈"对比度不足"）。 */
+.theme-page .time,
+.theme-page .caption,
+.theme-page .select-header-tiny {
+    color: light-dark(rgba(0, 0, 0, .5), #c9d1db);
+}
+
+/* --------------------------------------------------------------------------
+   ⑫-g 评测/记录页里成批写死的深色文字（实测来源）：
+     .td-runtime{color:rgba(0,0,0,.55)}
+     .stat>.field{color:#333}
+     .result .count{color:rgba(0,0,0,.45)}  /  .result .count>.number{color:rgba(0,0,0,.75)}
+     .item-title{color:#404040}  /  .section-item{color:rgba(0,0,0,.75)}
+     .user-stat-data .stat-text{color:rgba(0,0,0,.75)}
+     .caption{color:rgba(0,0,0,.25)}   ← 最浅的一条，深色下几乎不可见
+   注意：.number / .count / .time / .caption 都是**很通用的类名**，
+   必须带上原本的上下文（.result .count 之类）来限定。
+   曾经写成裸 `.number`，结果把分页条的页码也刷成了浅色 → 白底白字整排看不见。
+   -------------------------------------------------------------------------- */
+.theme-page .td-runtime,
+.theme-page .td-score {
+    color: light-dark(rgba(0, 0, 0, .55), #c9d1db);
+}
+
+.theme-page .stat > .field,
+.theme-page .stat-text {
+    color: light-dark(rgba(0, 0, 0, .75), #e8edf3);
+}
+
+.theme-page .result .count {
+    color: light-dark(rgba(0, 0, 0, .45), #c9d1db);
+}
+
+.theme-page .result .count > .number,
+.theme-page .filter-result-count .number {
+    color: light-dark(rgba(0, 0, 0, .75), #e7eaee);
+}
+
+.theme-page .item-title {
+    color: light-dark(#404040, #e8edf3);
+}
+
+.theme-page .section-item {
+    color: light-dark(rgba(0, 0, 0, .75), #e8edf3);
+}
+
+/* 链接悬停效果统一由上面 ⑯ 那段负责（渐变文字 + 下划线划入）。
+   这里原本还有一条 `.lfe-marked a:hover { color: …红 }`，
+   它在 ⑯ 之后、同特异性，会把 ⑯ 的 `color: transparent` 覆盖掉，
+   所以必须删掉 —— 悬停变色不要写两处。 */
+}
+
+/* ==========================================================================
+   二、仅主站：旧首页
+   旧首页（`/`）仍是旧前端（luogu3.css + AmazeUI），没有 .theme-page，
+   主题商店管不到它，所以要单独补背景图。
+   这里**故意不再用 `body:not(:has(.theme-page))`**：
+   带 :has() 的选择器一旦不被支持，整条规则会被静默丢弃（背景就没了），
+   排查起来毫无线索。现在直接给 body 上背景 —— 新前端页面有 .theme-page
+   的不透明底色盖住它，不会出现两张图。
+   深色模式下不换图，而是叠一层渐变遮罩（纯颜色，可被 light-dark 驱动）。
+   ========================================================================== */
+@-moz-document domain("www.luogu.com.cn") {
+body {
+    background-color: light-dark(#eef1f7, #14161a) !important;
+    background-image:
+        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .62)),
+                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .62))),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
+    color: var(--lg-text);
+}
+
+/* 旧首页标记（lg-article / am-panel / highcharts 由 luogu3.css + AmazeUI 渲染） */
+.lg-article {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    border: 1px solid var(--lg-border);
+    border-radius: var(--lg-radius) !important;
+    /* 液态玻璃面（与 ⑥ 段的新前端卡片同一套做法） */
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    box-shadow:
+        0 10px 34px var(--lg-shadow-color),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset 0 0 22px var(--lg-glow);
+    transition: box-shadow .4s ease, translate .4s ease;
+    color: light-dark(#262626, #e7eaee);
+}
+
+.lg-article:hover {
+    box-shadow:
+        0 16px 46px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 -1px 0 var(--lg-rim-color),
+        inset 0 0 26px var(--lg-glow);
+    translate: 0 -2px;
+}
+
+/* --------------------------------------------------------------------------
+   把首页的卡片"切开"成一块块的玻璃
+   --------------------------------------------------------------------------
+   根因（luogu3.css 原文）：
+       .lg-article { background: rgba(255,255,255,.7); padding: 16px }
+   —— 只有 padding，**没有 margin**。所以相邻两张 .lg-article 上下完全贴死，
+   我给它们加的玻璃（浅色分支是 72% 白）挨在一起就被看成"一整块白"，
+   而不是两块独立的玻璃（用户反馈："把这一大块白和公告切开，变成两个玻璃块"）。
+   这里补一个纵向间距即可；首屏大卡本身仍然是一块玻璃，
+   "本站公告"是一张独立的 .lg-article —— 于是正好两块。
+   -------------------------------------------------------------------------- */
+.lg-article {
+    margin-bottom: 16px;
+}
+
+/* 最后一行不要多出尾巴 */
+.am-g:last-child > [class*="am-u-"] > .lg-article:last-child,
+.am-g:last-child > .lg-article:last-child {
+    margin-bottom: 0;
+}
+
+/* 区块标题（"近期比赛""最近讨论""本站公告"…）在 luogu3.css 里是写死的深色 */
+.lg-article h1,
+.lg-article h2,
+.lg-article h3,
+.lg-article h4,
+.lg-article h5,
+.lg-article h6 {
+    color: light-dark(#262626, #e7eaee);
+}
+
+/* 链接：浅色下保持洛谷原来的蓝，深色下换成亮蓝，否则在深色面板上几乎看不见 */
+/* 只作用于面板**正文**里的链接。
+   注意不能写成 .am-panel a —— 那会连彩色面板头部（.am-panel-hd，底色 #0e90d2）
+   里的标题链接一起染色，等于把标题染成它自己的底色 → 看不见（踩过）。 */
+.lg-article a,
+.am-panel-bd a {
+    color: light-dark(#0e90d2, #7cb7ff);
+}
+
+/* --------------------------------------------------------------------------
+   旧首页的 Amaze UI 面板（"近期比赛""最近讨论"的小卡片）
+   amazeui.min.css 给 .am-panel 写死白底，所以深色下是"白卡片 + 深字"，
+   这就是截图里那一片白卡片的来源。
+   · 面板整体：深色下换成暗底，并自带浅色文字（内层会继承）
+   · 彩色标题栏（am-panel-success / -danger / -primary）：**保留它的配色**，
+     因为 Amaze 给它们单独写了深色标题字，在浅色标题栏上依然清晰；
+   · 默认标题栏（浅灰 #f5f5f5）没有自己的文字色，深色下必须一起压暗，
+     否则会出现"浅灰底 + 浅色字"。用 :not() 只挑默认那几种。
+   -------------------------------------------------------------------------- */
+.am-panel {
+    background-color: light-dark(#fff, var(--lg-panel-dark)) !important;
+    border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .12)) !important;
+    color: light-dark(#262626, #e7eaee);
+}
+
+.am-panel:not(.am-panel-success):not(.am-panel-danger):not(.am-panel-primary):not(.am-panel-secondary):not(.am-panel-warning) > .am-panel-hd {
+    background-color: light-dark(#f5f5f5, rgba(255, 255, 255, .07)) !important;
+    border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .12)) !important;
+}
+
+/* 面板正文里的次要文字（回复数、时间等） */
+.am-panel .lg-small,
+.am-panel .am-panel-bd {
+    color: light-dark(#5a6472, #a9b1bb);
+}
+
+/* 面板标题在彩色标题栏上保持 Amaze 自己的深色字，不要覆盖 */
+.am-panel:not(.am-panel-success):not(.am-panel-danger):not(.am-panel-primary) > .am-panel-hd > .am-panel-title,
+.am-panel:not(.am-panel-success):not(.am-panel-danger):not(.am-panel-primary) > .am-panel-hd > .am-panel-title > a {
+    color: light-dark(#262626, #e7eaee);
+}
+
+.am-panel.lg-index-contest {
+    border-radius: var(--lg-radius-sm);
+    box-shadow: 0 8px 30px var(--lg-shadow-color);
+    transition: box-shadow .3s ease;
+}
+
+.am-panel.lg-index-contest:hover {
+    box-shadow: 0 14px 42px var(--lg-shadow-color-hi);
+}
+
+/* --------------------------------------------------------------------------
+   犇犇 / 讨论评论区（Amaze UI 的 .am-comment-*）
+   实测来源（amazeui.min.css + luogu3.css）：
+     .am-comment-main { border:1px solid #dedede; border-radius:0 }   ← 注意 border-radius:0
+     .am-comment-hd   { background:#f8f8f8; border-bottom:1px solid #eee }
+     .am-comment-bd   { background:#ffffff }                          ← 白卡片就是这一条
+   两个坑：
+   1) Amaze 的 `border-radius:0` 和我的规则**特异性相同**，靠加载顺序它赢了 ——
+      所以圆角必须带 !important，否则卡片就是方的（"有棱有角"）。
+   2) .am-comment-main 的 :before/:after 是左侧那个气泡小三角，
+      深色下会变成一块突兀的尖角。你原来那份 BigBallOfMud-Luogu 就是直接 display:none 掉的，
+      这里恢复同样做法。
+   -------------------------------------------------------------------------- */
+.am-comment-main {
+    border-color: light-dark(#dedede, rgba(255, 255, 255, .16)) !important;
+    background-color: light-dark(#f8f8f8, var(--lg-panel-dark)) !important;
+    color: light-dark(#262626, #e7eaee);
+    border-radius: var(--lg-radius-sm) !important;
+    transition: box-shadow .4s ease;
+}
+
+/* 气泡小三角：直接隐藏（保留会让卡片"有棱有角"） */
+.am-comment-main::before,
+.am-comment-main::after {
+    display: none !important;
+}
+
+.am-comment-main:hover {
+    opacity: 1;
+    box-shadow: 0 14px 42px var(--lg-shadow-color-hi);
+}
+
+/* 头/身各自跟着外框的圆角走，避免出现"外圆内方"的直角 */
+.am-comment-hd {
+    background-color: light-dark(#f8f8f8, rgba(255, 255, 255, .05)) !important;
+    border-bottom-color: light-dark(#eee, rgba(255, 255, 255, .12)) !important;
+    border-radius: calc(var(--lg-radius-sm) - 1px) calc(var(--lg-radius-sm) - 1px) 0 0 !important;
+}
+
+.am-comment-bd {
+    background-color: light-dark(#ffffff, var(--lg-panel-dark)) !important;
+    color: light-dark(#262626, #e7eaee);
+    border-radius: 0 0 calc(var(--lg-radius-sm) - 1px) calc(var(--lg-radius-sm) - 1px) !important;
+}
+
+/* 评论里的作者名/时间/举报回复等元信息 */
+.am-comment-main .am-comment-meta,
+.am-comment-main .am-comment-actions,
+.am-comment-main .am-comment-actions a,
+.am-comment-main .lg-small {
+    color: light-dark(#5a6472, #ccd3dc);
+}
+
+/* --------------------------------------------------------------------------
+   首页打卡面板（.lg-punch）：文字在浅色下是深色，深色背景下会糊成一片
+   -------------------------------------------------------------------------- */
+.lg-punch,
+.lg-punch *,
+.lg-punch-panel,
+.lg-punch-panel * {
+    color: light-dark(#262626, #e7eaee);
+}
+
+.lg-punch .lg-punch-small,
+.lg-punch-panel .lg-punch-small {
+    color: light-dark(#5a6472, #d2d9e2);
+}
+
+.am-btn.am-btn-sm,
+.am-form-field {
+    border-radius: var(--lg-radius-sm) !important;
+}
+
+.lg-content-table-left {
+    border-radius: var(--lg-radius);
+    box-shadow: 0 8px 30px var(--lg-shadow-color);
+}
+
+/* Highcharts 的类名由图表库在运行时注入到 SVG 上 */
+path.highcharts-area {
+    fill: #5e72e426;
+}
+
+path.highcharts-point.highcharts-color-0 {
+    fill: #5e98e48f;
+}
+
+rect.highcharts-point.highcharts-color-1 {
+    fill: #ffffff8f;
+    stroke: #d49ee6ad;
+}
+
+.am-slider {
+    border-radius: var(--lg-radius);
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   ⑲ 彩色面板头部里的标题：整体交回 AmazeUI（这条必须放在文件最后）
+   --------------------------------------------------------------------------
+   从抓下来的旧首页 HTML 看到的真实结构：
+       <section class="am-panel lg-index-contest am-panel-primary">
+         <header class="am-panel-hd">            ← 底色 #0e90d2，白字
+           <h3 class="am-panel-title">
+             <a href="/contest/330736">比赛名</a>  ← 标题在这里
+             <span class="am-badge lg-bg-green">Rated</span>
+           </h3>
+         </header>
+         <div class="am-panel-bd">…</div>
+       </section>
+
+   而 AmazeUI 自己写的是：
+       .am-panel-title   { color: inherit }
+       .am-panel-title>a { color: inherit }
+       .am-panel-primary>.am-panel-hd { color:#fff; background-color:#0e90d2 }
+   即"标题继承头部颜色（白字）"。
+
+   问题：我的 `.lg-article h1..h6` 和 `.lg-article a` 与上面两条**特异度完全相同**
+   （都是 0,1,1），打平时按源码顺序 —— 用户样式注入更晚，于是我赢：
+   标题链接被染成 #0e90d2，**正是头部底色本身** → 标题"消失"。
+   （同一个坑踩了两次：第一次只改了 .am-panel a，漏掉了同样命中的 .lg-article a。）
+
+   这里用更高特异度 + 位于文件最后，把颜色/渐变文字/下划线一并交回 AmazeUI。
+   ========================================================================== */
+.lg-article .am-panel-hd h1,
+.lg-article .am-panel-hd h2,
+.lg-article .am-panel-hd h3,
+.lg-article .am-panel-hd h4,
+.lg-article .am-panel-hd h5,
+.lg-article .am-panel-hd h6,
+.lg-article .am-panel-hd .am-panel-title,
+.lg-article .am-panel-hd .am-panel-title > a {
+    color: inherit;
+}
+
+/* 悬停效果**保留**（和全站其它链接一致：渐变文字 + 下划线划入）。
+   这条必须放在上面那条之后、且特异度更高（0,4,1 > 0,3,1），
+   否则会被 "color: inherit" 吃掉。用 @supports 兜住：
+   不支持 background-clip:text 的浏览器上 color:transparent 会让字消失。 */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .lg-article .am-panel-hd .am-panel-title > a:hover {
+        color: transparent;
+        background-image: linear-gradient(90deg, var(--lg-link-1), var(--lg-link-2) 45%, var(--lg-link-3));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+}
+/* 下划线由 ⑯ 节给 .lg-article a:not(.center) 的 ::after 提供，这里不再屏蔽它。*/
+}
