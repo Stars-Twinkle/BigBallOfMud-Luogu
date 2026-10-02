@@ -2032,6 +2032,41 @@ footer a:hover {
 }
 
 /* ==========================================================================
+   ⑯-b 卡片 / 列表里的「一级文字」必须是白的
+   --------------------------------------------------------------------------
+   用户反馈（2026-10-02，工单列表）："这种一级文字就应该是白的，现在发灰"。
+   这些标题的灰色不是我们写的 —— ⑯ 只给了链接过渡与下划线，没定静态色；
+   灰来自洛谷自己的颜色（以及 ⑰ 段的令牌重映射值），比 --lg-text 暗一档。
+   ★ 但**层次不能一起拉白**（上一轮把守卫门槛提到 6.0，结果"所有正文都写成白色"，
+     包括"综合问题 - 一般咨询"这类次要行 —— 那是另一个方向的错）。
+     所以这里只点名"标题"这一层，次要信息（.info / .meta / caption）**不动**。
+   实证来源：工单列表 div.list-wrap.block > div.row-wrap > div.row > div.wrapper > div.ticket-card
+             （内含 div.row.space-between 标题行 + div.row.space-between.info 次要行）。
+   ========================================================================== */
+.l-card .title,
+.l-card .title a,
+.feed-card .title,
+.feed-card .title a,
+.list-card .title,
+.list-card .title a,
+.ticket-card .row.space-between:not(.info),
+.ticket-card .row.space-between:not(.info) a,
+.log .row.space-between:not(.info) {
+    color: var(--lg-text);
+}
+
+/* 次要行维持灰：显式声明，免得被上面的规则或继承带白 */
+.ticket-card .row.info,
+.ticket-card .row.info a,
+.l-card .caption,
+.l-card .meta,
+.list-card .caption,
+.list-card .meta {
+    color: var(--lg-text-weak);
+}
+
+
+/* ==========================================================================
    ⑰ 洛谷运行时生成的"颜色工具类"也要重映射
    --------------------------------------------------------------------------
    除了 :root 上的 --lfe-color--*，洛谷还会生成一批**写死字面量**的工具类：

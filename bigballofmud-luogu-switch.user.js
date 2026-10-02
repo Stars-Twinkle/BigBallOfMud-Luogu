@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261003.03
+// @version      20261003.04
 // @description  配合 bigballofmud-luogu.user.css 使用（样式仍由 Stylus 提供，本脚本只管"行为"）。两件事：① 在顶栏"私信、通知"右边放一个可点的三态配色开关（跟随系统/深色/浅色，选择被记住）；② 深色下运行"对比度守卫"，自动修掉洛谷写死的浅字浅底/深字深底。
 // @author       acerkaio
 // @license      CC BY-NC-SA
@@ -35,9 +35,13 @@
         showToggle: true,          // 是否在顶栏放配色开关
         contrastGuard: true,       // 是否启用深色下的对比度守卫
         guardSkipInlineColor: true, // 跳过"洛谷自己写了内联 color"的元素（彩底标签的前景色是它按底色算的）
-        guardMinRatio: 6.0,        // 深色下用更高的门槛（原 4.5 只保证"勉强达标"，观感偏灰；
-                                   // 6.0 接近 WCAG AAA，能把正文提到接近正文色 —— 用户："这些文字不应该是白的吗"）
-        guardTargetRatio: 7.5,     // 修正后至少要达到的对比度（比门槛再高一点，避免反复修）
+        // ⚠️ 这两个值是**一对跷跷板**，调过头就出事（两个方向的用户反馈都来过）：
+        //   · 4.5 / 不设 target：偏灰的次要文字会被放过 → "这些文字不应该是白的吗"
+        //   · 6.0 / 7.5        ：连次要文字一起拉到接近纯白，**层次全没了** → "所有正文都写成白色"
+        //   结论：**层次由样式负责**（--lg-text 给正文、--lg-text-weak 给次要），
+        //   守卫只修"真的读不清"的，所以门槛回到 WCAG AA，修正目标也克制一点。
+        guardMinRatio: 4.5,        // WCAG AA 正文标准：低于它才动手
+        guardTargetRatio: 6.0,     // 修正到"清楚可读"即可，不追求纯白
         guardMaxNodes: 4000,       // 单次扫描上限（防御性：页面异常大时别卡）
         mutationDelay: 600,        // 页面变化后重跑守卫的防抖（私信这类页面变化频繁）
         switchFallbackMs: 150,     // 读不到 CSS 变量时，切换过渡的兜底时长
