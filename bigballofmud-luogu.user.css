@@ -122,6 +122,7 @@
     /* 左右侧栏"悬浮胶囊"：离开屏幕边缘的距离，以及圆角。
        宽度**保持洛谷原本的 240px**，只做内缩 + 圆角（用户要求"大小按照原侧边栏"）。 */
     --lg-side-gap: 10px;
+    --lg-footer-gap: 10px;      /* 页脚玻璃块的左右（与上下）内缩，想更宽就调小 */
     --lg-side-radius: 26px;
 
     /* ----------------------------------------------------------------------
@@ -1657,6 +1658,55 @@ a:hover > .lfe-caption {
     justify-content: center;
     gap: 2px;
 }
+
+/* ==========================================================================
+   ⑩-c 页脚：也做成液态玻璃块
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02，个人中心）：
+       body > div#app.lfe-body > div.main-container.lside-nav
+         main.lcolor-bg-background.main
+         footer.lcolor-bg-background          ← 就是这块
+   之前它只吃到 ⑰-b 的令牌重映射（一块平底色），现在换成与卡片同一套玻璃配方。
+   ★ 左右边界：用 --lg-footer-gap 控制（默认与侧栏的 --lg-side-gap 同值），
+     margin-inline 让它与上方内容的内缩一致，不会贴着视口边、也不会盖到固定的左/右侧栏。
+     想更宽就调小（0 = 与容器等宽），想更窄就调大。
+   ========================================================================== */
+footer.lcolor-bg-background,
+footer {
+    margin-inline: var(--lg-footer-gap) !important;
+    margin-block: var(--lg-footer-gap) !important;
+    border-radius: var(--lg-radius) !important;
+    border: none !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    /* 与 ⑥ 段卡片完全一致的液态玻璃面 */
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* 页脚里的链接：跟全站文字语言统一（别用默认蓝） */
+footer a {
+    color: var(--lg-text-weak);
+    transition: color var(--sl-switch-duration) ease;
+}
+
+footer a:hover {
+    color: var(--lg-text);
+}
+
 
 /* ==========================================================================
    ⑪ 滚动条（color-scheme 已让原生滚动条跟随，这里只做外观统一）
