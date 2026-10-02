@@ -1380,6 +1380,34 @@ body > .swal2-container .swal2-popup,
 }
 
 /* ==========================================================================
+   ⑨-b .refined-input 这套搜索框（工单列表 / 通知 等页面）
+   --------------------------------------------------------------------------
+   用户 DevTools 实证（2026-10-02，工单列表）：
+       div.l-card > div.header.row > div.right.row
+         div.refined-input.text[placeholder="工单标题或题目编号"]
+           input.text[type=text]
+           div.east
+   我之前只覆盖了题库筛选那套（.search-row / .search-text），
+   工单页用的是 .refined-input + input.text —— 深色下仍是浅底（用户："搜索框颜色不对"）。
+   这里把这一套补上；.text 是通用类名，但配上 input / .refined-input 前缀后作用域很窄。
+   -------------------------------------------------------------------------- */
+.refined-input,
+.refined-input.text,
+.refined-input input,
+.refined-input input.text,
+input.text {
+    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
+    color: var(--lg-text);
+}
+
+.refined-input input::placeholder,
+input.text::placeholder {
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .55));
+}
+
+
+/* ==========================================================================
    ⑨ 按钮与表单：半透明 + 高光，不加模糊（数量多，避免滚动掉帧）
    ========================================================================== */
 .l-button,
