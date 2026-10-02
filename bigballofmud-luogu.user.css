@@ -754,14 +754,17 @@ nav.sidebar {
                            padding:10px 14px;border-radius:6px;
                            box-shadow:0 10px 28px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,…)}
    —— 白底 + 3px 蓝左边框，正是截图里那张卡。
-   这两个具体弹窗的**外层类名我还没取到证**（静态表里只有 toast 这一条可查），
+   ⚠️ 这里**不要**再放 .message / .message-block —— 它们看着像"消息弹窗"，
+      实际是**私信页的每条聊天消息**：加进这组配方后，私信的每条消息、
+      以及消息里的文字都会被套上玻璃卡（用户反馈："私信的这两处多卡片了"）。
+      已移除。判断依据：DevTools 面包屑 div.wrapper > div.main > div.block >
+      div.history > div.stack > div.message-block.left。
+   这两个具体弹窗的**外层类名我已用 DevTools 实证**（见下面的 SweetAlert2 段落），
    所以这里先按"已知的浮层类名"统一处理，配方与卡片完全一致（镜面光斑 + 斜向柔光 +
    亮上缘 + 暗下缘 + 内发光 + 模糊），保证视觉语言统一；
    拿到 DevTools 那两行后，把选择器补进这一组即可（不必再改配方）。
    ========================================================================== */
 .notification-toast,
-.message,
-.message-block,
 .modal .container,
 .modal .l-card,
 .modal-center,
@@ -1409,9 +1412,8 @@ a:hover > .lfe-caption {
 .test-case-wrap,
 .progress-frame,
 .drop,
-.user-header-top,
-.message {
-    /* 注意：这里**没有** .selected —— 洛谷在题目页选项卡等处也复用这个类名，
+.user-header-top {
+    /* 注意 1：这里**没有** .selected —— 洛谷在题目页选项卡等处也复用这个类名，
        给它加圆角会连带改掉那些地方的选中态（踩过）。 */
     border-radius: var(--lg-radius-sm) !important;
 }
