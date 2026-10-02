@@ -428,7 +428,11 @@ body::after {
    点名式修法已经漏过一次（先只交了 .user-nav，漏了 nav），所以这里一次性全覆盖，
    不再依赖具体类名 —— 排除三种必须保留底色的：
      · .logo-mask  洛谷的 logo 就是"背景色 + mask-image"画出来的，清掉会看不见
-     · *badge*     未读数角标
+     · *badge*     未读数角标（带 badge 类名的那一类）
+     · sup         ★ 顶栏里那几个**红点**（私信 / 通知未读）是**没有类名**的 <sup>，
+                   只有一条内联 background-color: rgb(231,76,60) —— 光靠 [class*="badge"]
+                   豁免不到它，红点就被洗掉了（用户：「把红点写回来」）。
+                   所以额外按**元素名**豁免 sup（结构选择器，不编类名）。
      · 我们的按钮  它自己带内联样式
      · .left / .right  两个胶囊本体（它们就是要保留玻璃的那两块）
    交互反馈（悬停/选中）另行保留，见下面一条。
@@ -439,7 +443,7 @@ body::after {
    剩下能画出矩形的还有：元素自己的 backdrop-filter（主题的"启用毛玻璃效果"
    会给导航元素加）、box-shadow、以及伪元素。这里一次堵完。
    注意：两个胶囊（.left/.right）被排除在外，它们自己的毛玻璃与阴影**照常**。 */
-.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle) {
+.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle):not(sup) {
     background-color: transparent !important;
     background-image: none !important;
     -webkit-backdrop-filter: none !important;
@@ -448,8 +452,8 @@ body::after {
     border-color: transparent !important;
 }
 
-.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle)::before,
-.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle)::after {
+.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle):not(sup)::before,
+.top-bar *:not(.left):not(.right):not(.logo-mask):not([class*="badge"]):not(.sl-theme-toggle):not(sup)::after {
     background: none !important;
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
