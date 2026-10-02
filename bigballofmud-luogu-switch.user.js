@@ -34,7 +34,9 @@
     var CONFIG = {
         showToggle: true,          // 是否在顶栏放配色开关
         contrastGuard: true,       // 是否启用深色下的对比度守卫
-        guardMinRatio: 4.5,        // WCAG AA 正文标准（低于 4.5 会修成「勉强达标」的灰）
+        guardMinRatio: 6.0,        // 深色下用更高的门槛（原 4.5 只保证"勉强达标"，观感偏灰；
+                                   // 6.0 接近 WCAG AAA，能把正文提到接近正文色 —— 用户："这些文字不应该是白的吗"）
+        guardTargetRatio: 7.5,     // 修正后至少要达到的对比度（比门槛再高一点，避免反复修）
         guardMaxNodes: 4000,       // 单次扫描上限（防御性：页面异常大时别卡）
         mutationDelay: 600,        // 页面变化后重跑守卫的防抖（私信这类页面变化频繁）
         switchFallbackMs: 150,     // 读不到 CSS 变量时，切换过渡的兜底时长
@@ -275,7 +277,7 @@
         var target = null;
         for (var i = 1; i <= 10 && !target; i++) {
             var cand = bgLum < 0.5 ? towardWhite(fg, i / 10) : towardBlack(fg, i / 10);
-            if (contrastRatio(cand, bg) >= CONFIG.guardMinRatio + 0.5) target = cand;
+            if (contrastRatio(cand, bg) >= (CONFIG.guardTargetRatio || CONFIG.guardMinRatio + 0.5)) target = cand;
         }
         if (!target) target = bgLum < 0.5 ? { r: 238, g: 242, b: 247, a: 1 } : { r: 31, g: 35, b: 41, a: 1 };
 
