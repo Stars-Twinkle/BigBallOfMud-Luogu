@@ -2003,32 +2003,28 @@ footer a:hover {
      · 新前端：.badge / .tag / .tag-button / .trial-tag / .toggle-tag / .recommend-tag
                、以及运行时生成的 .lcolor-bg-* 调色板工具类
      · 旧首页：.am-badge、.lg-bg-* （官方比赛/IOI/置顶/个人公开赛/ICPC 这些就是它）
-   做法：给标签铺一层**透明的高光渐变**（平时停在右侧看不到），悬停时把
-   background-position 扫过去 —— 就是"渐变扫过"的动画；同时轻微抬起 + 加深阴影。
+   做法（已改版）：**不用扫光**了。用户明确要求："将 Tag 改为这种悬浮的特效，不是扫光"。
+   现在悬停时标签整体**浮起来**：向上位移 2px + 放大到 1.04 + 阴影加深 + 微微提亮。
+   浮起用 translate / scale **属性**（不是 transform）—— 这是本项目的不变式：
+   transform 会覆盖洛谷用 transform 做的居中/位移（弹窗"一直往右下跑"就是这么来的）。
    用 :is() 合并选择器：::is() 需要 Chrome 88+，而本文件已经要求 light-dark()
    （Chrome 111+），所以这里可以放心用。
    ========================================================================== */
 :is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]) {
-    background-image: linear-gradient(115deg,
-        rgba(255, 255, 255, 0) 30%,
-        rgba(255, 255, 255, .45) 50%,
-        rgba(255, 255, 255, 0) 70%);
-    background-size: 250% 100%;
-    background-position: 130% 0;
-    background-repeat: no-repeat;
-    transition: background-position .55s cubic-bezier(.4, 0, .2, 1),
-                transform .2s ease,
-                box-shadow .2s ease,
-                filter .2s ease;
+    /* 只过渡"浮起"用得到的属性 —— 不再有 background-position */
+    transition: translate .18s cubic-bezier(.4, 0, .2, 1),
+                scale .18s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .18s ease,
+                filter .18s ease;
 }
 
 :is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]):hover {
-    background-position: -60% 0;
-    translate: 0 -1px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, .16);
-    filter: saturate(1.08);
+    translate: 0 -2px;
+    scale: 1.04;
+    box-shadow: 0 6px 16px var(--lg-shadow-color-hi);
+    filter: brightness(1.06) saturate(1.06);
 }
 
 /* ==========================================================================
