@@ -122,7 +122,11 @@
     /* 左右侧栏"悬浮胶囊"：离开屏幕边缘的距离，以及圆角。
        宽度**保持洛谷原本的 240px**，只做内缩 + 圆角（用户要求"大小按照原侧边栏"）。 */
     --lg-side-gap: 10px;
-    --lg-footer-gap: 10px;      /* 页脚玻璃块的左右（与上下）内缩，想更宽就调小 */
+    /* 页脚玻璃块的边界。左右要**和上面的卡片平齐**（默认 32px，
+       依据：用户裁图里页脚左边缘比卡片左边缘多出约 45 裁图像素 ≈ 22 CSS px，
+       原值 10px 补上这个差就是 32px）；上下留一点空就够，用 16px。 */
+    --lg-footer-gap: 32px;        /* 左右内缩 */
+    --lg-footer-gap-block: 16px;  /* 上下内缩 */
     --lg-side-radius: 26px;
 
     /* ----------------------------------------------------------------------
@@ -1667,14 +1671,16 @@ a:hover > .lfe-caption {
          main.lcolor-bg-background.main
          footer.lcolor-bg-background          ← 就是这块
    之前它只吃到 ⑰-b 的令牌重映射（一块平底色），现在换成与卡片同一套玻璃配方。
-   ★ 左右边界：用 --lg-footer-gap 控制（默认与侧栏的 --lg-side-gap 同值），
-     margin-inline 让它与上方内容的内缩一致，不会贴着视口边、也不会盖到固定的左/右侧栏。
-     想更宽就调小（0 = 与容器等宽），想更窄就调大。
+   ★ 左右边界：用 --lg-footer-gap（默认 32px）。
+     为什么是 32 而不是 10：页脚是 main 的**兄弟节点**，它没有 main 里那层容器内缩
+     （卡片被 .full-container 之类的内边距包着），所以直接给 10px 会比卡片更宽 ——
+     用户裁图里正好多出约 45 裁图像素（≈ 22 CSS px），10 + 22 = 32。
+     想更宽就调小，想更窄就调大；上下另外用 --lg-footer-gap-block（默认 16px）。
    ========================================================================== */
 footer.lcolor-bg-background,
 footer {
     margin-inline: var(--lg-footer-gap) !important;
-    margin-block: var(--lg-footer-gap) !important;
+    margin-block: var(--lg-footer-gap-block) !important;
     border-radius: var(--lg-radius) !important;
     border: none !important;
     background-color: light-dark(
