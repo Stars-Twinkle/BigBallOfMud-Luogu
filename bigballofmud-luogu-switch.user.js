@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261003.04
+// @version      20261003.05
 // @description  配合 bigballofmud-luogu.user.css 使用（样式仍由 Stylus 提供，本脚本只管"行为"）。两件事：① 在顶栏"私信、通知"右边放一个可点的三态配色开关（跟随系统/深色/浅色，选择被记住）；② 深色下运行"对比度守卫"，自动修掉洛谷写死的浅字浅底/深字深底。
 // @author       acerkaio
 // @license      CC BY-NC-SA
@@ -34,7 +34,12 @@
     var CONFIG = {
         showToggle: true,          // 是否在顶栏放配色开关
         contrastGuard: true,       // 是否启用深色下的对比度守卫
-        guardSkipInlineColor: true, // 跳过"洛谷自己写了内联 color"的元素（彩底标签的前景色是它按底色算的）
+        guardSkipInlineColor: true, // 跳过"洛谷自己写了内联 color"的元素
+        // 跳过"彩色徽章 / 标签"整棵子树：它们的底色是语义色（黄=IOI、红=官方比赛…），
+        // 前景由洛谷按底色配好（白字或深字）。守卫按"对比度"去量这些彩底毫无意义，
+        // 只会把白字改成深字（用户："这东西是黑的显然不对"）。
+        //   旧首页：.am-badge + .lg-bg-*      新前端：[class*="lcolor-bg-"]
+        guardSkipColorChip: true,
         // ⚠️ 这两个值是**一对跷跷板**，调过头就出事（两个方向的用户反馈都来过）：
         //   · 4.5 / 不设 target：偏灰的次要文字会被放过 → "这些文字不应该是白的吗"
         //   · 6.0 / 7.5        ：连次要文字一起拉到接近纯白，**层次全没了** → "所有正文都写成白色"
@@ -275,6 +280,11 @@
         //   所以：**元素自己带内联 color 的一律不动**。
         //   （守卫自己写过的会带 data-sl-fixed，前面已经跳过了。）
         if (CONFIG.guardSkipInlineColor && el.style && el.style.color) return false;
+
+        // ★ 彩色徽章 / 标签整棵子树一律不动（见上面 guardSkipColorChip 的说明）。
+        //   用 closest 一次覆盖"徽章本身 + 它内部的文字节点"。
+        if (CONFIG.guardSkipColorChip &&
+            el.closest('.am-badge, [class*="lg-bg-"], [class*="lcolor-bg-"]')) return false;
         if (parseFloat(cs.opacity) < 0.15) return false;
 
         var svg = isSvgText(el);
