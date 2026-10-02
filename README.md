@@ -28,7 +28,7 @@
 1. 装 [Stylus](https://add0n.com/stylus.html) 扩展
 2. 打开 Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接粘进样式正文里
    （Stylus 会自动识别 `==UserStyle==` 头；若你的版本没有"从 URL 安装"，用方式 B）：
-   `https://raw.githubusercontent.com/<你的用户名>/<仓库名>/main/bigballofmud-luogu.user.css`
+   `https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu.user.css`
 
 **方式 B：手动粘贴**
 
