@@ -207,7 +207,15 @@
 
 /* 老浏览器没有 light-dark() 时退化为固定浅色玻璃（深色模式不生效） */
 @supports not (color: light-dark(#fff, #000)) {
-    :root {
+    /* 让 body 的背景**稳定传播到画布**：html 一旦自带底色，body 的背景就不再传播，
+      而负 z-index 的水印只能落在"画布背景"之上 —— 那它就会被压到新出现的底色下面。
+      置空 html 的底色即可恢复传播（视觉不变：body 那张壁纸会代理到画布）。 */
+   html {
+       background-color: transparent !important;
+       background-image: none !important;
+   }
+
+   :root {
         --lg-highlight: rgba(255, 255, 255, .75);
         --lg-border: rgba(255, 255, 255, .55);
         --lg-sheen: rgba(255, 255, 255, .16);
