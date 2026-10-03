@@ -2555,11 +2555,11 @@ footer a:hover {
        · 时间/分类侧：div.meta > div.metas > div.label（本轮反馈的那个）
    同时把容器（.meta / .metas / 里面的 div）一并点上，保证"没有自己颜色"的子节点靠继承也是白的。
    如果这两处最终仍不生效，说明洛谷用的是**内联** color（那就需要一行 Styles 面板的证据）。 */
-.banner-content .meta .author .label,
-.banner-content .meta .author .user .label,
+.banner-content .meta .author .label:not([class*="lcolor"]),
+.banner-content .meta .author .user .label:not([class*="lcolor"]),
 .banner-content .meta .author .user,
-.banner-content .meta .author a,
-.banner-content .meta .metas .label,
+.banner-content .meta .author a:not([class*="lcolor"]),
+.banner-content .meta .metas .label:not([class*="lcolor"]),
 .banner-content .meta .metas div.label,
 .banner-content .meta .metas > div > .label,
 .banner-content .meta .metas > div,
@@ -2619,11 +2619,19 @@ footer a:hover {
    压在暗玻璃上就"看不见"了。这里把这一族（含 span 与 .right）统一到主题正文色。
    ★ 不用 !important：这条规则比洛谷的类规则更深，靠特异性取胜（守项目不变式）。
    ========================================================================== */
+/* ★ 只给"没有自带颜色类"的文字上色。
+   带 lcolor--* 的元素必须放行 —— 用户："评测信息原本的颜色需要保留，现在被覆盖了"。
+   实证 DOM（评测记录）：div.l-card > div.l-flex-info-row
+       > span.lcolor--green-3「Accepted」 / span.lcolor--green-3「100」
+   这些颜色是洛谷的**语义色**（绿色的 Accepted、红色的 Unaccepted…），
+   上一版这里写成 .l-flex-info-row span（特异性 0,1,1），把 .lcolor--green-3（0,1,0）压过了，
+   于是绿色被刷成主题正文色。加 :not([class*="lcolor"]) 之后各归各位。
+   容器本身仍设 --lg-text：那是"继承"的来源，任何自带 color 的子元素都会覆盖它，不会打架。 */
 .l-flex-info-row,
-.l-flex-info-row > span,
-.l-flex-info-row span,
-.l-flex-info-row .right,
-.l-card > .l-flex-info-row > span {
+.l-flex-info-row > span:not([class*="lcolor"]),
+.l-flex-info-row span:not([class*="lcolor"]),
+.l-flex-info-row .right:not([class*="lcolor"]),
+.l-card > .l-flex-info-row > span:not([class*="lcolor"]) {
     color: var(--lg-text);
 }
 
