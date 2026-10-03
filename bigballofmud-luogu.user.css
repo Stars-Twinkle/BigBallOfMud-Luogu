@@ -1743,7 +1743,13 @@ body > .swal2-container .swal2-popup,
    --------------------------------------------------------------------------
    用户要求（2026-10-03）：把"提交评测 / 搜索 / ＋关注"这类**实心蓝矩形按钮**
    改成第一张图那个样子（"编辑比赛"按钮：胶囊形 + 半透明玻璃面 + 浅色描边 + 强调色文字/图标）。
-   ★ 类名来源：新前端的基类 .l-button 是有实证的（证据语料 27 次命中）；
+   ★ 类名来源（两处实证）：
+     · .l-button            —— 证据语料 27 次命中；
+     · button.solid         —— 用户 DevTools（评测记录页的"搜索"按钮：
+                               button.solid.lform-size-middle）——
+       注意：**实心按钮上并没有 l-button**！我一开始只匹配 [class*=l-button]，
+       结果那个按钮完全没被命中（用户："无用"）。所以这里必须把 button.solid 也列上。
+       .solid 是通用词，所以前面加了 button 限定，避免误伤普通元素。
      但它的**变体后缀**在语料里查不到（那些构建产物不在语料目录里），
      所以这里用属性包含 [class*="l-button"] 覆盖全部变体，而不是去猜 l-button--primary 之类。
      旧前端的 .am-btn-primary 是语料实证过的（29 次），一并处理。
@@ -1752,7 +1758,7 @@ body > .swal2-container .swal2-popup,
      注意：项目不变式只禁止 **color** 用 !important，background 不在其中。
    ★ 深色适配：玻璃底走 light-dark()，描边与内高光取主题变量，文字用语义色 --lfe-color--primary。
    ========================================================================== */
-:is([class*="l-button"], .am-btn-primary, .am-btn-primary:hover) {
+:is([class*="l-button"], button.solid, .am-btn-primary, .am-btn-primary:hover) {
     background-color: light-dark(
         color-mix(in srgb, #ffffff 34%, transparent),
         var(--lg-panel-dark)
@@ -1774,7 +1780,7 @@ body > .swal2-container .swal2-popup,
     transition: translate .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 
-:is([class*="l-button"], .am-btn-primary):hover {
+:is([class*="l-button"], button.solid, .am-btn-primary):hover {
     translate: 0 -1px;
     border-color: var(--lfe-color--primary, #3498db) !important;
     box-shadow:
@@ -1783,7 +1789,7 @@ body > .swal2-container .swal2-popup,
 }
 
 /* 按钮里的图标跟着文字色走（图一里图标与文字同色） */
-:is([class*="l-button"], .am-btn-primary) :is(svg, i) {
+:is([class*="l-button"], button.solid, .am-btn-primary) :is(svg, i) {
     color: inherit;
     fill: currentColor;
 }
