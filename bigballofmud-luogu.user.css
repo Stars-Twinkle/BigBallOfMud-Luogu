@@ -302,7 +302,11 @@ html::after {
     bottom: var(--sl-signature-edge);
     width: var(--sl-signature-w);
     aspect-ratio: 240 / 215;
-    background-color: light-dark(rgba(31, 35, 41, .34), rgba(238, 242, 247, .34));
+    /* ★ 第二十轮定论：用户 DevTools 证明这个伪元素**一直在渲染**
+       （html.no-js::after，尺寸 118 × 105.71）—— 问题不是层级、也不是 mask，
+       而是不透明度太低（.34 叠在页脚玻璃上几乎看不见）。这里提到 .55。
+       想再调就改这两个数：浅色那个是深灰字，深色那个是浅灰字。 */
+    background-color: light-dark(rgba(31, 35, 41, .55), rgba(238, 242, 247, .55));
     -webkit-mask: var(--sl-signature) no-repeat center / contain;
     mask: var(--sl-signature) no-repeat center / contain;
     pointer-events: none;
