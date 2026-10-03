@@ -870,6 +870,34 @@ nav.sidebar {
 }
 
 /* ==========================================================================
+   ⑥-d 嵌在卡片里的"次级容器"不再铺第二层玻璃
+   --------------------------------------------------------------------------
+   用户先后指出两处："分页条底下多了层玻璃"（.page-bar）、
+   "这也多一层"（题单广场的 .list-header，DevTools 面包屑：
+       div.l-card.burger.training-list-card > div.header > div.list-header）。
+   根因是同一个：⑩ 段的「次级容器：薄玻璃」组把它们也列进去了，
+   而它们本来就**嵌在 .l-card 里** —— 卡片自己已经是玻璃，再铺一层就是"多一层"。
+   ★ 这里一次性把这一整族都收掉（不只是修眼前这一个），判定条件是
+     "它落在 .l-card 内部"，所以独立使用（不在卡片里）的那些仍然保留薄玻璃。
+   ========================================================================== */
+.l-card :is(.list-header,
+            .page-bar,
+            .table-container,
+            .table-wrap,
+            .order-bar,
+            .section-list-container,
+            .toc-wrapper,
+            .filter-wrapper,
+            .search-box) {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+
+/* ==========================================================================
    ⑦-a 浮层里已经有卡片时，外层容器不再铺玻璃（否则是"两层玻璃"）
    --------------------------------------------------------------------------
    用户反馈（2026-10-02，个人主页的头像卡片弹窗）："这些弹窗后面为什么还有层玻璃"。
