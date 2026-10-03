@@ -870,6 +870,32 @@ nav.sidebar {
 }
 
 /* ==========================================================================
+   ⑥-f 装着"逐项卡片"的外层 .l-card 不再铺玻璃
+   --------------------------------------------------------------------------
+   用户第三轮反馈（比赛列表）："这还有外层啊"。
+   实证结构（DevTools 选中 div.l-card.list-card，547 × 1474）：
+       div.l-card.list-card                     ← 整页那张卡（外层的"地"）
+         div.list > div.list-scroll
+           div.list-wrap.block.border          ← ⑥-e 已清
+             div.row-wrap > div.row
+               div.wrapper
+                 div.contest-card              ← 每个比赛（要保留的玻璃）
+   ⑥-e 只清到 .list-wrap 那一层，外面这张 .l-card 还铺着玻璃，所以"还有外层"。
+   ★ 判定条件写成"这张 .l-card 里装着逐项卡片"，覆盖用户先后提过的三处：
+       .contest-card（比赛列表）· .ticket-card（工单列表）· .l-card.log（陶片放逐）
+     没有逐项卡片的普通列表**不受影响**（那张 .l-card 仍是唯一的玻璃容器）。
+   ========================================================================== */
+.l-card:has(:is(.contest-card, .ticket-card, .l-card.log)) {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+
+/* ==========================================================================
    ⑥-e 比赛列表：外层列表容器不铺底，玻璃只留给每个比赛
    --------------------------------------------------------------------------
    用户要求（2026-10-03，比赛列表）：
