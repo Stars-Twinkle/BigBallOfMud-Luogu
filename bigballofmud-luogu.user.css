@@ -1489,7 +1489,18 @@ body > .swal2-container .swal2-popup,
 
 .lfe-marked table {
     border-radius: var(--lg-radius-xs);
-    overflow: hidden;
+    /* ★ 这里原来只有 overflow: hidden（为了圆角不溢出色块），代价是**超宽表格被直接剪掉**、
+       而且不出现滚动条（用户："渲染表格时没有滑动条导致宽表格被截断"）。
+       改成 GitHub 同款做法：让表格自己横向滚动 ——
+         display: block 把表格变成一个可滚动的块盒（内部的 tbody/tr/td 仍按表格布局渲染），
+         width: max-content + max-width: 100% 让它在需要时才横向滚动，不撑破卡片。
+       圆角一并保留。 */
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ==========================================================================
