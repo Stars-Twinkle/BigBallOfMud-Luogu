@@ -2400,7 +2400,29 @@ footer a:hover {
    (2) 实证 DOM：div.actions.left-mode.hasDrawer.hidden / div.actions（点赞 · 收藏 · 不推荐）
        与卡片同一套液态玻璃，内层按钮保持透明。
    ========================================================================== */
-/* (1) 作者标签：比 发布时间 / 分类 深一层，特异性要跟上 */
+/* (1) 作者标签 + 发布时间 / 分类 标签：把特异性堆够。
+   ★ 用户第十四轮："发布时间和分类还是黑的"。⑯-c 那条 `.banner-content :is(.label, .meta, .metas)`
+     只有 0,2,0，被洛谷更深的规则压过。这里把两侧都写到 0,4,0 上下（仍不用 !important，守不变式）：
+       · 作者侧：div.meta > div.author > div.user > div.label
+       · 时间/分类侧：div.meta > div.metas > div.label（本轮反馈的那个）
+   同时把容器（.meta / .metas / 里面的 div）一并点上，保证"没有自己颜色"的子节点靠继承也是白的。
+   如果这两处最终仍不生效，说明洛谷用的是**内联** color（那就需要一行 Styles 面板的证据）。 */
+.banner-content .meta .author .label,
+.banner-content .meta .author .user .label,
+.banner-content .meta .author .user,
+.banner-content .meta .author a,
+.banner-content .meta .metas .label,
+.banner-content .meta .metas div.label,
+.banner-content .meta .metas > div > .label,
+.banner-content .meta .metas > div,
+.banner-content .meta .metas,
+.banner-content .meta,
+.banner-content .metas .label,
+.banner-content .metas > div > .label,
+.banner-content .metas > div,
+.banner-content .metas {
+    color: var(--lg-text);
+}
 .banner-content .meta .author .label,
 .banner-content .meta .author .user .label,
 .banner-content .meta .author .user,
