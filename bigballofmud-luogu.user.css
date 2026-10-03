@@ -2567,6 +2567,51 @@ html.sl-theme-switching *::after {
     color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .55));
 }
 
+/* ==========================================================================
+   ⑨-c 表单 / 搜索框统一换成液态玻璃面
+   --------------------------------------------------------------------------
+   用户要求：「把这种输入框覆盖液态玻璃，注意深色适配」。
+   前两处已经各自处理过，但用都是**一色平底**（light-dark(#fff, --lg-field-dark)）：
+     · ⑨-b  .refined-input / input.text          （工单列表、通知页）
+     · ⑫-h  .search-row / .filter-tags 那套       （题库筛选区，含内联白底的 button）
+   这里把这两族**合并**成一组，统一铺卡片的液态玻璃面（略实一档，用 --lg-alpha-field）。
+   ★ 位置：放在 ⑫-h **之后**。两处规则同样带 !important、特异性也相同，
+     靠源码顺序决胜 —— 写在后面才能盖住前面那两条平底声明。
+   深色适配：底色走 --lg-field-dark，光斑/亮上缘/暗下缘/内发光都取主题变量，
+             文字走 --lg-text，placeholder 由下面原有规则负责。
+   ========================================================================== */
+:is(.refined-input,
+    .refined-input.text,
+    .refined-input input,
+    .refined-input input.text,
+    input.text,
+    .search-row .refined-input,
+    .search-row .refined-input.search-text,
+    .search-row input.search-text,
+    .filter-tags input.search-text,
+    .search-row button,
+    .filter-tags button,
+    .search-option button) {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
+    color: var(--lg-text);
+}
+
+
 /* 下拉里的图标（放大镜 / 箭头）跟着文字色，别在暗底上留一坨浅灰 */
 .search-row button svg,
 .search-row .refined-input svg {
