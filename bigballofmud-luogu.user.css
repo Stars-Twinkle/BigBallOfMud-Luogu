@@ -131,7 +131,7 @@
        原因：页脚是整条横带，背后往往是背景图最亮最花的部分，同样的 alpha 看上去会比卡片更透 ——
        用户：「底部的那个玻璃在某些页面显着更透明」。 */
     --lg-footer-alpha: 24%;
-    --lg-footer-dark: rgba(18, 21, 27, .52);
+    --lg-footer-dark: rgba(18, 21, 27, .48);
     --lg-side-radius: 26px;
 
     /* ----------------------------------------------------------------------
@@ -189,13 +189,13 @@
        边缘高光/暗缘/内发光也都换成"深色下更弱"的色值变量。
        （浅色分支的值一概不动，浅色观感保持原样。）
        ---------------------------------------------------------------------- */
-    --lg-panel-dark: rgba(18, 21, 27, .44);   /* 卡片 */
-    --lg-nav-dark: rgba(12, 14, 18, .52);     /* 顶栏胶囊 / 两侧栏 */
-    --lg-soft-dark: rgba(18, 21, 27, .36);    /* 次级容器 */
-    --lg-pop-dark: rgba(18, 21, 27, .44);     /* 浮层 —— ★ 与卡片同一组数值（曾用 rgba(16,19,24,.70)，
+    --lg-panel-dark: rgba(18, 21, 27, .40);   /* 卡片 */
+    --lg-nav-dark: rgba(12, 14, 18, .47);     /* 顶栏胶囊 / 两侧栏 */
+    --lg-soft-dark: rgba(18, 21, 27, .32);    /* 次级容器 */
+    --lg-pop-dark: rgba(18, 21, 27, .40);     /* 浮层 —— ★ 与卡片同一组数值（曾用 rgba(16,19,24,.70)，
                                                  比卡片更暗更实，弹窗与卡片并排会看出色差） */
-    --lg-field-dark: rgba(22, 25, 31, .48);   /* 表单控件 */
-    --lg-block-dark: rgba(16, 19, 24, .56);   /* 代码块 */
+    --lg-field-dark: rgba(22, 25, 31, .43);   /* 表单控件 */
+    --lg-block-dark: rgba(16, 19, 24, .50);   /* 代码块 */
     /* 边与光：深色下都要"软"，硬边就是金属感 */
     --lg-rim-color: light-dark(rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
     --lg-spec-color: light-dark(rgba(255, 255, 255, .22), rgba(255, 255, 255, .07));
@@ -230,12 +230,12 @@
         --lg-rim-color: rgba(255, 255, 255, .62);
         --lg-spec-color: rgba(255, 255, 255, .22);
         --lg-glow: rgba(255, 255, 255, .07);
-        --lg-panel-dark: rgba(18, 21, 27, .44);
-        --lg-nav-dark: rgba(12, 14, 18, .52);
-        --lg-soft-dark: rgba(18, 21, 27, .36);
-        --lg-pop-dark: rgba(18, 21, 27, .44);
-        --lg-field-dark: rgba(22, 25, 31, .48);
-        --lg-block-dark: rgba(16, 19, 24, .56);
+        --lg-panel-dark: rgba(18, 21, 27, .40);
+        --lg-nav-dark: rgba(12, 14, 18, .47);
+        --lg-soft-dark: rgba(18, 21, 27, .32);
+        --lg-pop-dark: rgba(18, 21, 27, .40);
+        --lg-field-dark: rgba(22, 25, 31, .43);
+        --lg-block-dark: rgba(16, 19, 24, .50);
     }
 }
 
@@ -2043,6 +2043,32 @@ footer a:hover {
     box-shadow: 0 6px 16px var(--lg-shadow-color-hi);
     filter: brightness(1.06) saturate(1.06);
 }
+
+/* ==========================================================================
+   ⑳-b 头像悬停动画（全站所有头像）
+   --------------------------------------------------------------------------
+   用户的类名来自证据语料（不是我猜的）：
+     · .avatar            新前端（多个 MOD*.css 里都有）
+     · .author-avatar     新前端作者头像
+     · .am-comment-avatar 旧首页 / AmazeUI（犇犇、讨论区）
+     · .lg-avatar-big     旧首页大头像
+   做法：悬停时放大到 1.08 + 一圈浅色描边 + 一点提亮，并用 translate/scale **属性**
+   （不是 transform —— 本项目不变式：transform 会覆盖洛谷自己的位移/居中）。
+   描边用 box-shadow 画，不占布局，所以鼠标扫过一排头像时不会"抖"。
+   ========================================================================== */
+:is(.avatar, .author-avatar, .am-comment-avatar, .lg-avatar-big) {
+    transition: scale .18s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .18s ease,
+                filter .18s ease;
+}
+
+:is(.avatar, .author-avatar, .am-comment-avatar, .lg-avatar-big):hover {
+    scale: 1.08;
+    box-shadow: 0 6px 18px var(--lg-shadow-color-hi),
+                0 0 0 2px light-dark(rgba(255, 255, 255, .72), rgba(255, 255, 255, .30));
+    filter: brightness(1.06) saturate(1.06);
+}
+
 
 /* ==========================================================================
    ⑯-b 卡片 / 列表里的「一级文字」必须是白的
