@@ -282,7 +282,7 @@ html {
        ★ 代价：background-image 不能用 light-dark() 切色，所以用一张**中灰**版本
          （128,128,128 + 46% 不透明度），浅色与深色背景下都看得见。 */
 
-    --sl-signature-z: -1;
+    --sl-signature-z: 1;         /* 1 = 可见（默认）；-1 = 内容之下（SPA 页会被盖住） */
 }
 
 /* ── 签名水印：html::after + mask 上色（第十九轮）──
@@ -315,17 +315,17 @@ html::after {
     -webkit-mask-mode: alpha;
     mask-mode: alpha;
     pointer-events: none;
-    /* ★ 层级：-1 = 背景图之上、内容之下（用户要的"在内容块下"）。
-       第二十二轮修正：之前一度以为 -1 在 SPA 页面"始终看不到"，于是退到 1（浮在内容之上）。
-       后来查明真正原因是 mask 的取色模式 —— 黑色画笔在 luminance 下亮度为 0，整块被遮掉，
-       与层级毫无关系。画笔换成白色后，-1 完全正常。 */
-    z-index: -1;
+    /* ★ 层级由 --sl-signature-z 控制（默认 1 = 看得见）：
+         1   浮在内容之上，但 pointer-events: none，不影响交互 → 默认
+        -1   "背景图之上、内容之下"（更理想），但在 SPA 页面会被加载后写入的壁纸层盖住
+             （实测：body::after 短暂可见后消失；html::after 完全不可见）。
+             想改用它，记得同时保留文件开头那条 html 置空底色的规则。 */
+    z-index: var(--sl-signature-z);
 }
 
-/* ── 原来的 body::after 方案已撤除（第十八轮）──
-   它靠 position: fixed + z-index 把签名放到"内容之下"，但实测刷新瞬间可见、随后被
-   动态写入的壁纸盖住（试过 -1 与 1 两档）。现在改为写进 body 的背景栈（见 ② 段的
-   --sl-signature-bg 与文件末尾的 body 规则），属于画布层，无法被内容覆盖。 */
+/* 备注：签名前后试过 body::after、body 背景栈、html::after 三种挂载，最终用 html::after。
+   前两种的失败原因不同（body::after 被动态壁纸盖住；body 背景栈在两种模式下都看不到），
+   细节见上面的层级注释，这里不再重复展开。 */
 
 
 /* ==========================================================================
@@ -1867,11 +1867,12 @@ input.text::placeholder {
 /* ==========================================================================
    ⑨ 按钮与表单：半透明 + 高光，不加模糊（数量多，避免滚动掉帧）
    ========================================================================== */
-.l-button,
 .lform-size-small,
 input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
+    /* 注：.l-button 不在这里 —— 它由 ⑨-a 的"玻璃胶囊"规则统一接管。
+       以前两处都写，胶囊规则在下面覆盖了这里，属于自相矛盾的重复定义。 */
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
         var(--lg-field-dark)
@@ -1882,11 +1883,7 @@ select {
     transition: box-shadow .3s ease, translate .3s ease, border-radius .3s ease;
 }
 
-.l-button:not(:disabled):hover {
-    translate: 0 -2px;
-    border-radius: 99px !important;
-    box-shadow: 0 6px 20px var(--lg-inner), inset 0 1px 0 var(--lg-highlight) !important;
-}
+/* 注：这里的 .l-button 悬停也已移除 —— ⑨-a 有自己的 hover（抬起 + 描边变强调色）。 */
 
 input:not([type="checkbox"]):not([type="radio"]):focus,
 textarea:focus,
@@ -2096,8 +2093,11 @@ footer {
     margin-block: var(--lg-footer-gap-block) !important;
     border-radius: var(--lg-radius) !important;
     border: none !important;
+    /* ★ 底色用**固定**的白色基准，不再引用洛谷的 --theme-card-background：
+       那个令牌在不同页面/不同主题里取值不同，于是页脚玻璃的"看起来的透明度"会随页面变
+       （用户："底栏的玻璃不同页面透明度不一样"）。固定基准后，同一模式下各页一致。 */
     background-color: light-dark(
-        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-footer-alpha, var(--lg-alpha)), transparent),
+        color-mix(in srgb, #ffffff var(--lg-footer-alpha, var(--lg-alpha)), transparent),
         var(--lg-footer-dark, var(--lg-panel-dark))
     ) !important;
     /* 与 ⑥ 段卡片同一套液态玻璃面（底色用略实一档的 footer 变量） */
@@ -2114,6 +2114,20 @@ footer {
     backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
     -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
     color: var(--lg-text);
+}
+
+/* 页脚如果被塞在卡片里（个别页面这样），它自己不再铺一层玻璃 ——
+   否则卡片玻璃 + 页脚玻璃叠起来会比其它页面更实，正是"不同页面不一样"的另一半原因。 */
+.l-card footer,
+.l-card > footer,
+.l-card .l-card footer {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    margin-inline: 0 !important;
+    border-radius: 0 !important;
 }
 
 /* 页脚里的链接：跟全站文字语言统一（别用默认蓝） */
@@ -2322,18 +2336,9 @@ footer a:hover {
     mask-image: none !important;
 }
 
-/* ── 深色压暗层：从 .theme-page::before 移到了 body 的背景里 ──
-   ★ 用户反复反馈"签名只有首页有"。根因就是原来这条：
-       .theme-page::before { box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) }
-     它属于**内容**，绘制在负 z-index 的签名水印**之上** —— 58% 的黑把水印洗得几乎看不见
-     （首页是旧前端，没有 .theme-page，所以那边一直正常）。
-   现在把这层压暗**搬到 body 的背景渐变里**（见文件末尾 body 规则）：
-     · body 的背景会传播到画布，绘制在最底层 → 压暗照旧；
-     · 而签名水印位于画布之上 → 不再被它压暗。
-   这里保留一条 transparent 规则，避免 .theme-page::before 上还留着旧阴影。 */
-.theme-page::before {
-    box-shadow: none !important;
-}
+/* 深色压暗层现在写在 body 的背景渐变里（见文件末尾 body 规则）。
+   原来这里有一条 .theme-page::before { box-shadow: none } 兜底，
+   但压暗层已彻底搬走、没有任何规则再给它上阴影，所以那条兜底是冗余的，已删除。 */
 
 /* --------------------------------------------------------------------------
    轮播 / 幻灯片的切换箭头：交回 AmazeUI
