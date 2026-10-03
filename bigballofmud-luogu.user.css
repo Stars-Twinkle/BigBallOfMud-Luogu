@@ -913,9 +913,7 @@ nav.sidebar {
              光斑与亮缘/暗缘/内发光全用主题变量。
    ========================================================================== */
 /* ① 控件本体（关着的时候那个框）：与输入框同一套玻璃，用略实一档 */
-:is(.combo-wrapper,
-    .combo,
-    .select-type,
+:is(.select-type,
     .select-button,
     .op-select,
     .feed-selector,
@@ -967,7 +965,18 @@ nav.sidebar {
     color: var(--lg-text);
 }
 
-/* ③ 面板内部的条目 / 控件内部的分段：一律透明（底色只由上面两层承担） */
+/* ③ .combo-wrapper / .combo 只当壳：真正的玻璃在 .text 上（见 ⑫-f 那条），
+   这里显式清掉外层底色，避免"壳 + .text"两层玻璃叠在一起 */
+.combo-wrapper,
+.combo {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ④ 面板内部的条目 / 控件内部的分段：一律透明（底色只由上面两层承担） */
 :is(.combo-wrapper, .am-dropdown-content, .am-dropdown, .filter-options,
     .v-popper--theme-dropdown, .am-selected-list) :is(.text, .option, .item, li) {
     background-color: transparent !important;
@@ -1641,12 +1650,29 @@ select:focus {
    下拉选择框：洛谷把 .combo-wrapper > .text 写死 `background:#fff`，
    而它是 <div> 不是 <input>，所以上面的 input 规则管不到 —— 深色下会是一块白板。
    （考点：不要以为表单控件都是 input，这个组件是 div 模拟的）
+   ★ 视觉上的"那个框"就是 .text（里面是 .placeholder + .arrow + .ruler），
+     所以**玻璃铺在 .text 上**，外层 .combo-wrapper 只当壳（见 ⑦-d 的透明规则）。
+     曾把玻璃铺在外层，结果被这条更靠后的规则盖住，看起来"没生效"。
    -------------------------------------------------------------------------- */
 .combo-wrapper > .text,
 .combo-wrapper.disabled > .text {
-    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
     border-color: light-dark(#bfbfbf, rgba(255, 255, 255, .18)) !important;
-    color: light-dark(#262626, #e7eaee);
+    color: var(--lg-text);
 }
 
 /* 占位符文字：洛谷给的 rgba(0,0,0,.4)，在白底上勉强、在深色底上完全看不见 */
