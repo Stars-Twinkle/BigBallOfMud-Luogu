@@ -290,7 +290,7 @@ body::after {
     /* 深色那一档要比浅色高**很多**：SPA 页面上 .theme-page 有一层
        box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) 的整页压暗罩，_它在水印之上_，
        会把水印几乎洗掉 —— 这就是"除了首页都不显示"的原因（首页是旧前端，没有 .theme-page）。 */
-    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .52));
+    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .34));
     -webkit-mask: var(--sl-signature) no-repeat center / contain;
     mask: var(--sl-signature) no-repeat center / contain;
     pointer-events: none;          /* 绝不挡点击 */
@@ -2288,11 +2288,17 @@ footer a:hover {
     mask-image: none !important;
 }
 
-/* 深色下把主题背景图压暗一层。
-   background-image 是"非颜色"，无法用 light-dark() 切换，所以改用 inset 阴影
-   —— 阴影绘制在背景之上、内容之下，颜色可以被 light-dark() 驱动。 */
+/* ── 深色压暗层：从 .theme-page::before 移到了 body 的背景里 ──
+   ★ 用户反复反馈"签名只有首页有"。根因就是原来这条：
+       .theme-page::before { box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) }
+     它属于**内容**，绘制在负 z-index 的签名水印**之上** —— 58% 的黑把水印洗得几乎看不见
+     （首页是旧前端，没有 .theme-page，所以那边一直正常）。
+   现在把这层压暗**搬到 body 的背景渐变里**（见文件末尾 body 规则）：
+     · body 的背景会传播到画布，绘制在最底层 → 压暗照旧；
+     · 而签名水印位于画布之上 → 不再被它压暗。
+   这里保留一条 transparent 规则，避免 .theme-page::before 上还留着旧阴影。 */
 .theme-page::before {
-    box-shadow: inset 0 0 0 200vmax light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .58)) !important;
+    box-shadow: none !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -3281,8 +3287,11 @@ html.sl-theme-switching *::after {
 body {
     background-color: light-dark(#eef1f7, #14161a) !important;
     background-image:
-        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .62)),
-                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .62))),
+        /* 深色档从 .62 提到 .84：这里补回了原来 .theme-page::before 那层 58% 压暗
+           （1-(1-.62)(1-.58) ≈ .84），页面暗度不变，但压暗层现在位于**画布**上，
+           所以不会再盖住负 z-index 的签名水印。 */
+        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
+                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
         var(--sl-bg-image) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
