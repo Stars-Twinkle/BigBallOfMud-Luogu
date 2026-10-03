@@ -868,6 +868,31 @@ nav.sidebar {
 }
 
 /* ==========================================================================
+   ⑦-a 浮层里已经有卡片时，外层容器不再铺玻璃（否则是"两层玻璃"）
+   --------------------------------------------------------------------------
+   用户反馈（2026-10-02，个人主页的头像卡片弹窗）："这些弹窗后面为什么还有层玻璃"。
+   实证结构：
+       div.dropdown.shown            ← ⑦ 段给它铺了一层玻璃
+         div.l-card.float-card       ← ⑥ 段**又**给它铺了一层
+   于是弹窗后面透出第二层玻璃。
+   修法：只在"浮层里真的含 .l-card"时把外层清成透明 —— 不能一律去掉，
+   因为纯菜单类的下拉（没有内层卡片）是靠外层那层底才看得清的。
+   用 :has() 判定；本文件已经依赖 light-dark()（Chrome 111+），没有额外代价。
+   ========================================================================== */
+.dropdown:has(.l-card),
+.dropdown-container:has(.l-card),
+.dropdown-operations:has(.l-card),
+.modal:has(.l-card) {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: transparent !important;
+}
+
+
+/* ==========================================================================
    ⑦-b 弹窗 / 提示：深色 + **同一套液态玻璃配方**
    --------------------------------------------------------------------------
    用户反馈（两张截图）：
