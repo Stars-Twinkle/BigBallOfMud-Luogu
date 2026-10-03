@@ -910,18 +910,26 @@ nav.sidebar {
     color: var(--lg-text);
 }
 
-/* 里面那层（contest-card）改成透明 —— 一块比赛只有一层玻璃。
-   ★ 拆成两条：项目不变式要求"带 :has() 的选择器不能和不带的写在同一规则里"，
-     否则不支持 :has() 的浏览器会把**整条**丢掉（本轮校验脚本当场拦下）。 */
-.wrapper:has(.contest-card) > .contest-card {
+/* 里面那层（contest-card 及其里面的 .row）也全部取消 —— 一块比赛只有一层玻璃。
+   ★ 用户第五轮："把内层取消啊"。上一版只写了 `.contest-card`（特异性 0,1,0），
+     与 ⑥ 段卡片组**同特异性**，只能靠源码顺序取胜 —— 太脆弱，内层照样透出来。
+     这里改成 `.wrapper:has(.contest-card) :is(...)`（0,2,0）稳赢，
+     并且把里面的 .contest-card / .row / .title-row / .info-row / .left-status 一起清掉。
+   ★ 两条规则分开写：不变式要求"带 :has() 的选择器不能和不带的写在同一规则里"。 */
+.wrapper:has(.contest-card) :is(.contest-card, .row, .title-row, .info-row, .left-status) {
     background-color: transparent !important;
     background-image: none !important;
+    border-color: transparent !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
 
-.contest-card {
+/* 没有 .wrapper 包裹的场景（别的页面复用 .contest-card）也一并透明 */
+.contest-card,
+.contest-card > .row,
+.contest-card .title-row,
+.contest-card .info-row {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
