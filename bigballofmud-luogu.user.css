@@ -2127,11 +2127,12 @@ footer {
     margin-block: var(--lg-footer-gap-block) !important;
     border-radius: var(--lg-radius) !important;
     border: none !important;
-    /* ★ 底色用**固定**的白色基准，不再引用洛谷的 --theme-card-background：
-       那个令牌在不同页面/不同主题里取值不同，于是页脚玻璃的"看起来的透明度"会随页面变
-       （用户："底栏的玻璃不同页面透明度不一样"）。固定基准后，同一模式下各页一致。 */
+    /* 底色基准与卡片/面板**保持同一个令牌**（--theme-card-background）：
+       曾经为了修"不同页面透明度不一样"把这里改成固定 #ffffff，
+       但那样反而让页脚与卡片/面板的基准色不一致 —— 用户随后反馈"样式仍然不统一"。
+       真正有用的那条是下面"卡片内嵌页脚不再叠玻璃"，已保留。 */
     background-color: light-dark(
-        color-mix(in srgb, #ffffff var(--lg-footer-alpha, var(--lg-alpha)), transparent),
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-footer-alpha, var(--lg-alpha)), transparent),
         var(--lg-footer-dark, var(--lg-panel-dark))
     ) !important;
     /* 与 ⑥ 段卡片同一套液态玻璃面（底色用略实一档的 footer 变量） */
@@ -2588,6 +2589,21 @@ footer a:hover {
 .article-content .actions.left-mode.hasDrawer {
     display: none !important;
 }
+/* ==========================================================================
+   ⑯-f 两套前端的玻璃一致性（核对用）
+   --------------------------------------------------------------------------
+   结论（第二十五轮审计）：**参数层已经完全统一** ——
+     · 两个 @-moz-document 块里，45 个 --lg-* 变量取值完全一致（脚本逐项比对过）；
+     · 旧前端 .am-panel 与新前端 .l-card 的配方逐字相同
+       （同一个 radial 高光 / linear 缎面 / rim+shade+glow 内阴影 / blur+saturate）。
+   所以"看起来不一样"只可能来自三件事，都不在变量里：
+     ① 两套前端把玻璃挂在**不同元素**上（旧前端 .lg- 与 .am- 系列，新前端 .lfe- 与 .l-card 系列）；
+     ② 玻璃后面那层壁纸的明暗不同（backdrop-filter 采样的就是它）；
+     ③ 主题状态不同（一边深色一边浅色）。
+   排查顺序建议按 ③ → ② → ①：先确认两页 <html> 上的 data-sl-theme / color-scheme 是否一致。
+   ========================================================================== */
+
+
 /* ==========================================================================
    ⑯-e 个人页侧栏卡片的信息行（用户："个人主页的对比度炸了"）
    --------------------------------------------------------------------------
