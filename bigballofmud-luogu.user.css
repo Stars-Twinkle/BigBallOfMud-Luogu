@@ -1001,7 +1001,7 @@ nav.sidebar {
     box-shadow: none !important;
 }
 
-.l-card:has(:is(.contest-card, .ticket-card, .l-card.log)) {
+.l-card:has(:is(.contest-card, .ticket-card, .notice-card, .l-card.log)) {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;
