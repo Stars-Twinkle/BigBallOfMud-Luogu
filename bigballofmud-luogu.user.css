@@ -2416,8 +2416,13 @@ footer a:hover {
      给底栏加了玻璃、还特意排除了抽屉。现在对调回来。
    ★ 自动隐藏必须保留：这条规则**只动背景与模糊**，绝不写 opacity / visibility /
      display / translate / transform，显隐完全交给洛谷的 .hidden 类。 */
-.article-content .actions.hasDrawer,
-.article-content .actions.left-mode.hasDrawer {
+/* ★ 第十二轮修正：必须排除 .hidden ——
+     抽屉平时就带着 hidden（DOM：actions left-mode hasDrawer hidden），那是它**收起**的状态；
+     展开（悬停）时洛谷会把 hidden 去掉。上一版不带 :not(.hidden)，等于强行给它一块底，
+     于是它"永远显示、不会自动隐藏"（用户第十二轮：他不会自动隐藏）。
+     加上 :not(.hidden) 后：收起态完全不碰，展开态才上玻璃。 */
+.article-content .actions.hasDrawer:not(.hidden),
+.article-content .actions.left-mode.hasDrawer:not(.hidden) {
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
         var(--lg-soft-dark)
@@ -2438,9 +2443,9 @@ footer a:hover {
 }
 
 /* 抽屉里的条目 / 图标不再各带底色（只清底，不碰布局与显隐） */
-.article-content .actions.hasDrawer > div,
-.article-content .actions.hasDrawer button,
-.article-content .actions.hasDrawer .action {
+.article-content .actions.hasDrawer:not(.hidden) > div,
+.article-content .actions.hasDrawer:not(.hidden) button,
+.article-content .actions.hasDrawer:not(.hidden) .action {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
