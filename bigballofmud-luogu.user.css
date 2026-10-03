@@ -1788,6 +1788,17 @@ body > .swal2-container .swal2-popup,
         0 8px 24px var(--lg-shadow-color-hi) !important;
 }
 
+/* ★ 文字必须是蓝的（用户："将其变为蓝字，不然看不清"）。
+   上面那条用的是 :is([class*="l-button"], button.solid, …) —— :is() 取参数里**最高**的特异性，
+   而 button.solid 只有 (0,1,1)，与洛谷自己的 button.solid 规则打平，只靠源码顺序取胜，太脆弱。
+   这里补两条确定性更高的：把 lform-size-* 一起点上（(0,2,1)），稳赢。
+   颜色仍取语义色 --lfe-color--primary（浅 #3498db / 深 #5aa9e6，两档都是蓝）。 */
+button.solid,
+button.solid.lform-size-middle,
+button.solid.lform-size-small {
+    color: var(--lfe-color--primary, #3498db);
+}
+
 /* 按钮里的图标跟着文字色走（图一里图标与文字同色） */
 :is([class*="l-button"], button.solid, .am-btn-primary) :is(svg, i) {
     color: inherit;
