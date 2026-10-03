@@ -285,11 +285,15 @@ html {
     --sl-signature-z: -1;
 }
 
-/* ── 签名水印：挂到 html::after，用 **mask** 上色（第十九轮）──
-   为什么换到 html：body::after 与 body 背景栈在这类页面上都渲染不出来
-   （用户实测：深浅色下都不显示，不是被盖）。html 是根元素，伪元素最不容易受内容结构影响。
-   为什么用 mask：源图是"黑色 + alpha"，当图片用没法跟主题变色；
-   当 mask 用则由 background-color 上色，可以交给 light-dark() → 深浅自动适配。
+/* ── 签名水印：html::after + mask 上色（第十九轮）──
+   mask：源图是"黑色 + alpha"，当图片用没法跟主题变色；当 mask 用则由 background-color
+         上色，可以交给 light-dark() → 深浅自动适配（用户要求"不用中灰，适配深浅色"）。
+   ★ 层级这一项试过很多轮，如实记录：
+       -1  理论上最理想（画布之上、内容之下），但在 SPA 页面上始终看不到
+           （试过 body::after、body 背景栈、html::after 三种挂载方式，都无效；
+             base64 已验证合法、规则也确认不在注释里）；用户实测"深浅色下都不显示"。
+        1  用户实测可见 —— 这是当前值。代价是浮在内容之上（会盖住一点内容），
+           但已经用 pointer-events: none 保证不影响交互。
    ★ 只动背景与 mask，不写 opacity/visibility/display。 */
 html::after {
     content: "";
@@ -302,7 +306,7 @@ html::after {
     -webkit-mask: var(--sl-signature) no-repeat center / contain;
     mask: var(--sl-signature) no-repeat center / contain;
     pointer-events: none;
-    z-index: -1;
+    z-index: 1;
 }
 
 /* ── 原来的 body::after 方案已撤除（第十八轮）──
