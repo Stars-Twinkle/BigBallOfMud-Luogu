@@ -1510,6 +1510,97 @@ body > .swal2-container .swal2-popup,
 }
 
 /* ==========================================================================
+   ⑧-d 洛谷 IDE（/problem/Pxxxx#ide）：整个外壳的深浅适配
+   --------------------------------------------------------------------------
+   用户要求（2026-10-03）："适配洛谷IDE的深浅色模式"。
+   实证 DOM（用户 DevTools，题目页 #ide）：
+       div.panel-layout.layout-horizontal.ide-container
+         div.panel.panel-a[style="flex: 0 0 50%"]      ← 左：题目/说明
+           div.problem > h1.lfe-h1 / p.lfe-caption / h2.lfe-h2 / div.lfe-marked-wrap
+         div.panel-divider
+         div.panel.panel-b                             ← 右：编辑器
+           div.ide-toolbar（代码 / 自测 / 语言选择）
+           textarea.ide-textarea.lfe-code              ← 原生输入框（输入/输出那两块）
+           div.cm-editor.cm-focused                    ← CodeMirror 6
+             div.cm-scroller > div.cm-gutters.cm-gutters-before
+                              > div.cm-content.cm-lineWrapping > div.cm-line
+   为什么原来没生效：⑧-b 那套写的是通用的 div.cm-editor（0,1,1），
+   而 CM6 会往编辑器上挂**生成的强调类**（.cm-editor.c1.c2…）并按主题写规则，
+   特异性比它高 —— 所以"提交代码"那个编辑器是好的，IDE 里这个仍是亮色。
+   这里用 .ide-container 前缀把特异性提到 0,3,x，压过 CM 主题，且**不用 !important 改颜色**。
+   ========================================================================== */
+/* ① 外壳与两栏：一律透明（壁纸/玻璃由外层承担），边框交给主题变量 */
+.ide-container,
+.panel-layout.layout-horizontal,
+.ide-container .panel,
+.ide-container .panel-a,
+.ide-container .panel-b {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: var(--lg-border) !important;
+    color: var(--lg-text);
+}
+
+/* 两栏之间的分隔条：跟着主题走 */
+.ide-container .panel-divider {
+    background-color: var(--lg-border) !important;
+    background-image: none !important;
+}
+
+/* ② 工具条（代码 / 自测 / 语言选择）：薄玻璃条 */
+.ide-container .ide-toolbar {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    background-image: linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* ③ 原生输入框（输入 / 输出那两块）：与全站输入框同一档玻璃，深浅各自一档 */
+textarea.ide-textarea,
+.ide-container textarea.lfe-code {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight) !important;
+    color: var(--lg-text);
+    font-family: var(--sl-mono-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+}
+
+/* ④ IDE 里的 CodeMirror：用 .ide-container 前缀把特异性提到 0,3,x，压过 CM 主题 */
+.ide-container .cm-editor,
+.ide-container .cm-editor .cm-scroller,
+.ide-container .cm-editor .cm-content,
+.ide-container .cm-editor .cm-line {
+    background-color: transparent !important;
+    color: var(--lg-text);
+}
+
+.ide-container .cm-editor .cm-gutters {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    border-right: 1px solid var(--lg-border) !important;
+    color: var(--lg-text-weak);
+}
+
+.ide-container .cm-editor .cm-activeLine,
+.ide-container .cm-editor .cm-activeLineGutter {
+    background-color: color-mix(in srgb, var(--lfe-color--primary, #3498db) 12%, transparent) !important;
+}
+
+
+/* ==========================================================================
    ⑧-b CodeMirror 6 代码编辑器（"提交代码"那个输入框）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02）：
