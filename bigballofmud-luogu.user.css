@@ -870,6 +870,32 @@ nav.sidebar {
 }
 
 /* ==========================================================================
+   ⑥-e 比赛列表：外层列表容器不铺底，玻璃只留给每个比赛
+   --------------------------------------------------------------------------
+   用户要求（2026-10-03，比赛列表）：
+     "这也多，但是我的要求是把地下那层去掉，每个比赛占一个玻璃块"。
+   实证结构（DevTools）：
+       div.list-wrap.block.border        ← 外层：洛谷的 .border 给了底 + 描边
+         div.row-wrap > div.row
+           div.wrapper
+             div.left-status
+             div.contest-card          ← 每个比赛（⑥ 段已给它玻璃）
+               div.row.space-between.title-row / .info-row
+   所以"多出来的一层"就是外层这个 .border 容器。
+   ★ 判定用 :has(.contest-card)：只对这种"装比赛的列表"生效，
+     其它页面同样用 .list-wrap / .row 的列表不受影响。
+   ========================================================================== */
+:is(.list-wrap, .row-wrap, .row, .wrapper):has(.contest-card) {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+
+/* ==========================================================================
    ⑥-d 嵌在卡片里的"次级容器"不再铺第二层玻璃
    --------------------------------------------------------------------------
    用户先后指出两处："分页条底下多了层玻璃"（.page-bar）、
