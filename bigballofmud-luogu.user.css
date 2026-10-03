@@ -885,6 +885,57 @@ nav.sidebar {
        .contest-card（比赛列表）· .ticket-card（工单列表）· .l-card.log（陶片放逐）
      没有逐项卡片的普通列表**不受影响**（那张 .l-card 仍是唯一的玻璃容器）。
    ========================================================================== */
+/* 比赛行本体：整行一块玻璃（含左侧状态列）+ 内边距 */
+.wrapper:has(.contest-card) {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    border-radius: var(--lg-radius) !important;
+    /* 四周留白：信息不贴着玻璃边 */
+    padding: 10px 14px !important;
+    margin-block: 6px !important;
+    color: var(--lg-text);
+}
+
+/* 里面那层（contest-card）改成透明 —— 一块比赛只有一层玻璃。
+   ★ 拆成两条：项目不变式要求"带 :has() 的选择器不能和不带的写在同一规则里"，
+     否则不支持 :has() 的浏览器会把**整条**丢掉（本轮校验脚本当场拦下）。 */
+.wrapper:has(.contest-card) > .contest-card {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.contest-card {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 状态列跟着整行走 */
+.wrapper:has(.contest-card) > .left-status {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
 .l-card:has(:is(.contest-card, .ticket-card, .l-card.log)) {
     background-color: transparent !important;
     background-image: none !important;
@@ -910,8 +961,13 @@ nav.sidebar {
    所以"多出来的一层"就是外层这个 .border 容器。
    ★ 判定用 :has(.contest-card)：只对这种"装比赛的列表"生效，
      其它页面同样用 .list-wrap / .row 的列表不受影响。
+   ★ 第四轮修正（用户："你需要把这个状态也框进去……四周还要留出白"）：
+     玻璃要铺在 **.wrapper** 上 —— 它才是"一场比赛"这一整行（含左侧 .left-status 状态列）；
+     之前铺在 .contest-card 上，状态列就被留在框外了。
+     .contest-card 随之改成透明（避免两层），并由 .wrapper 统一给内边距，
+     让信息不贴着玻璃边。
    ========================================================================== */
-:is(.list-wrap, .row-wrap, .row, .wrapper):has(.contest-card) {
+:is(.list-wrap, .row-wrap, .row):has(.contest-card) {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;
@@ -2244,16 +2300,20 @@ footer a:hover {
    用 :is() 合并选择器：::is() 需要 Chrome 88+，而本文件已经要求 light-dark()
    （Chrome 111+），所以这里可以放心用。
    ========================================================================== */
-:is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
+:is(.badge, .tag, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]) {
-    /* 只过渡"浮起"用得到的属性 —— 不再有 background-position */
+    /* ★ 第五轮补充：新前端的彩色标签类名是 **.tag**（比赛页 DevTools 实证：
+       span.tag 带内联背景色）。之前刻意排除它是因为早先误把它当行容器加了底色
+       （"巨大的白胶囊"）—— 但**只加悬停动画、不加任何底色**是安全的，
+       用户反馈"除了首页其他的标签悬浮未生效"就是少了它。
+       只过渡"浮起"用得到的属性 —— 不再有 background-position */
     transition: translate .18s cubic-bezier(.4, 0, .2, 1),
                 scale .18s cubic-bezier(.4, 0, .2, 1),
                 box-shadow .18s ease,
                 filter .18s ease;
 }
 
-:is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
+:is(.badge, .tag, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]):hover {
     translate: 0 -2px;
     scale: 1.04;
