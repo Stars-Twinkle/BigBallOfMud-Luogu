@@ -1529,15 +1529,39 @@ body > .swal2-container .swal2-popup,
    特异性比它高 —— 所以"提交代码"那个编辑器是好的，IDE 里这个仍是亮色。
    这里用 .ide-container 前缀把特异性提到 0,3,x，压过 CM 主题，且**不用 !important 改颜色**。
    ========================================================================== */
-/* ① 外壳与两栏：一律透明（壁纸/玻璃由外层承担），边框交给主题变量 */
+/* ① 外壳（最外层容器）透明即可；但**两栏本身必须有可读的面**。
+   ★ 第一版把两栏也设成 transparent，浅色模式下文字/代码直接压在亮壁纸上 → 看不清
+     （用户："浅色模式不能全透明啊，看不清"）。
+   现在：浅色给一档**较实**的白玻璃（62%），深色给深玻璃（--lg-panel-dark），
+   两档都加 blur —— 既保留液态玻璃的观感，又保证正文与代码可读。 */
 .ide-container,
-.panel-layout.layout-horizontal,
-.ide-container .panel,
-.ide-container .panel-a,
-.ide-container .panel-b {
+.panel-layout.layout-horizontal {
     background-color: transparent !important;
     background-image: none !important;
     border-color: var(--lg-border) !important;
+    color: var(--lg-text);
+}
+
+.ide-container .panel,
+.ide-container .panel-a,
+.ide-container .panel-b {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 62%, transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border-color: var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
     color: var(--lg-text);
 }
 
@@ -1576,8 +1600,18 @@ textarea.ide-textarea,
     font-family: var(--sl-mono-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 
-/* ④ IDE 里的 CodeMirror：用 .ide-container 前缀把特异性提到 0,3,x，压过 CM 主题 */
-.ide-container .cm-editor,
+/* ④ 编辑器本体：在"两栏玻璃"之上再实一档（代码需要更高对比度）。
+   浅色 78% 白 / 深色 --lg-block-dark（.50）；内部行/内容仍透明，让底色透上来。 */
+.ide-container .cm-editor {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 78%, transparent),
+        var(--lg-block-dark)
+    ) !important;
+    border-radius: var(--lg-radius-sm) !important;
+}
+
+/* ④-b IDE 里的 CodeMirror：用 .ide-container 前缀把特异性提到 0,3,x，压过 CM 主题 */
+.ide-container .cm-editor .cm-scroller,
 .ide-container .cm-editor .cm-scroller,
 .ide-container .cm-editor .cm-content,
 .ide-container .cm-editor .cm-line {
