@@ -2046,7 +2046,10 @@ a:hover > .lfe-caption {
    配方参数与 ⑥ 段卡片逐条对齐，保证"同一套玻璃语言"。 */
 .test-case {
     border-radius: var(--lg-radius-sm) !important;
-    overflow: hidden;
+    /* ★ 这里原来有一句 overflow: hidden（加高光时顺手写的），它把**里面的图标/文字**剪掉了
+       （用户："该处的图标略微被圆角截断"）。其实完全不需要：
+       元素自己的 background-image 本来就按 border-radius 裁剪，
+       overflow: hidden 只会波及子元素。已删除。 */
     background-image:
         radial-gradient(86% 54% at 13% -16%,
             var(--lg-spec-color) 0%,
