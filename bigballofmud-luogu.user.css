@@ -2355,23 +2355,31 @@ footer a:hover {
    所以这里：① 明确给图；② 铺满整屏并去掉淡出遮罩；③ 深色下用 inset 阴影压暗。
    想交回主题商店：把本节删掉即可（--theme-body-image 那几行）。
    ========================================================================== */
+/* ★ 第二十六轮修正：内容层**不再画壁纸**。
+   之前这里是 --theme-body-image: var(--sl-bg-image) + .theme-page::before 铺满整屏 ——
+   于是新前端在**内容层**又画了一层"未压暗"的整屏壁纸，盖在已压暗的画布（html）之上，
+   结果新前端比旧首页亮一档。用户的原话："明暗不是反的，只是一个更暗"（首页更暗）。
+   现在壁纸只由画布承担（见文件开头的 html 规则），这里一律不画：
+     · --theme-body-image: none  → 洛谷那边也不再往内容层塞图；
+     · ::before 只保留"不挡点击"，背景与遮罩都清掉。 */
 .theme-page {
-    --theme-body-image: var(--sl-bg-image) !important;
+    --theme-body-image: none !important;
     --theme-body-image-size: cover !important;
     --theme-body-image-position: center !important;
     --theme-body-image-repeat: no-repeat !important;
-    /* 去掉"只画顶部 400px 并向下淡出"的设计 */
     --theme-body-mid-mask: none !important;
 }
 
-/* 铺满整屏：洛谷默认是 position:absolute + height:400px，
-   这里改成 fixed 铺满视口（等价于原样式的 background-attachment: fixed）。 */
 .theme-page::before {
+    background-image: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
     position: fixed !important;
     inset: 0 !important;
     height: auto !important;
     -webkit-mask-image: none !important;
     mask-image: none !important;
+    pointer-events: none !important;
 }
 
 /* 深色压暗层现在写在 body 的背景渐变里（见文件末尾 body 规则）。

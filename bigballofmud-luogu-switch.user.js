@@ -85,6 +85,12 @@
     }
 
     function applyMode(mode) {
+        // ★ root 是 document-start 那一刻取的，那时 <html> 可能还没建好（null）。
+        //   一旦是 null，这里以前直接 return —— 结果"这一页永远没有 data-sl-theme"，
+        //   页面按**系统**配色渲染，而切换按钮显示的却是**用户选的**模式，
+        //   于是出现"按钮状态一样、两页明暗却相反"（用户："模式是一样的"但渲染不同）。
+        //   现在每次调用都补取一次，取到就落属性。
+        if (!root) root = document.documentElement;
         if (!root) return;
         if (mode === 'auto') root.removeAttribute('data-sl-theme');
         else root.setAttribute('data-sl-theme', mode);
@@ -95,6 +101,7 @@
     }
 
     function isDarkNow() {
+        if (!root) root = document.documentElement;
         var m = root && root.getAttribute('data-sl-theme');
         if (m === 'dark') return true;
         if (m === 'light') return false;
@@ -105,6 +112,8 @@
     // 这样"时长"只写在样式里一处，脚本跟着走，不会两边不一致。
     function switchDurationMs() {
         try {
+            if (!root) root = document.documentElement;
+            if (!root) return CONFIG.switchFallbackMs;
             var v = (getComputedStyle(root).getPropertyValue('--sl-switch-duration') || '').trim();
             var n = parseFloat(v);
             if (!isNaN(n)) return v.indexOf('ms') >= 0 ? n : n * 1000;   // 支持 140ms / .14s
@@ -365,15 +374,26 @@
        ====================================================================== */
     // document-start 阶段 <html> 可能还没建好，等它出现就立刻写属性（深色用户不闪白）
     function whenRoot(fn) {
-        if (document.documentElement) { fn(); return; }
+        if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
-            if (document.documentElement) { mo.disconnect(); fn(); }
+            if (document.documentElement) {
+                mo.disconnect();
+                root = document.documentElement;   // ★ 关键：这里必须写回 root，否则后面 applyMode 拿不到元素
+                fn();
+            }
         });
         mo.observe(document, { childList: true, subtree: true });
     }
 
     whenRoot(function () {
         applyMode(getMode());
+        // ★ 保险：SPA 可能重建 <html> 的属性、或首屏时序异常时漏写，这里再落一次（幂等）。
+        var reapply = function () { applyMode(getMode()); };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', reapply, { once: true });
+        else reapply();
+        // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
+        try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
+
         if (!isMain) return;                       // 子站（有题/网校）另一套前端，不介入
 
         if (CONFIG.showToggle) {
