@@ -2218,6 +2218,17 @@ footer a:hover {
     background-color: transparent !important;
 }
 
+/* ★ 只设 background-color 是不够的：这些容器上还挂着**背景图**
+   （洛谷把主题壁纸画在内容元素上，而不是画布上）。
+   背景图不属于"颜色"，透明的 background-color 挡不住它 ——
+   它会整片盖住负 z-index 的签名水印，于是"签名只有首页有"
+   （首页是旧前端，壁纸画在 body 上，也就是画布层，所以那边一直正常）。
+   这里把内容层的背景图一并去掉：壁纸改由 body 提供（body 的背景会传播到画布），
+   视觉上完全一样，但签名就能落在"画布之上、内容之下"了。 */
+:is(.lg-index-content, .lg-content, #app-old, #app, .lfe-body, .main-container, main, .theme-page) {
+    background-image: none !important;
+}
+
 /* 旧首页那几层：背景图是早已失效的内网地址，一并清掉 */
 :is(.lg-index-content, .lg-content, #app-old) {
     background-image: none !important;
