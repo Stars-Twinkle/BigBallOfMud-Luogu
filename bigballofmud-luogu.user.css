@@ -2409,49 +2409,16 @@ footer a:hover {
     color: var(--lg-text);
 }
 
-/* (2) 侧边抽屉（收藏 / 点赞 / 不推荐 / 编辑）：液态玻璃。
-   ★ 用户第十一轮澄清：「没让你改底栏，把这个改成玻璃并保留自动隐藏」。
-     这个竖条抽屉的 DOM 是 div.actions.left-mode.hasDrawer（靠 .hidden 自动显隐），
-     而**底部那条操作栏**是另一个不带 hasDrawer 的 .actions —— 上一轮我做反了：
-     给底栏加了玻璃、还特意排除了抽屉。现在对调回来。
-   ★ 自动隐藏必须保留：这条规则**只动背景与模糊**，绝不写 opacity / visibility /
-     display / translate / transform，显隐完全交给洛谷的 .hidden 类。 */
-/* ★ 第十二轮修正：必须排除 .hidden ——
-     抽屉平时就带着 hidden（DOM：actions left-mode hasDrawer hidden），那是它**收起**的状态；
-     展开（悬停）时洛谷会把 hidden 去掉。上一版不带 :not(.hidden)，等于强行给它一块底，
-     于是它"永远显示、不会自动隐藏"（用户第十二轮：他不会自动隐藏）。
-     加上 :not(.hidden) 后：收起态完全不碰，展开态才上玻璃。 */
-.article-content .actions.hasDrawer:not(.hidden),
-.article-content .actions.left-mode.hasDrawer:not(.hidden) {
-    background-color: light-dark(
-        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
-        var(--lg-soft-dark)
-    ) !important;
-    background-image:
-        radial-gradient(86% 54% at 13% -16%,
-            var(--lg-spec-color) 0%,
-            rgba(255, 255, 255, 0) 58%),
-        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
-    box-shadow:
-        inset 0 1.5px 0 var(--lg-rim-color),
-        inset -1px -1px 0 var(--lg-shade),
-        inset 0 0 18px var(--lg-glow) !important;
-    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
-    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
-    border-radius: var(--lg-radius-sm) !important;
-    color: var(--lg-text);
+/* (2) 侧边抽屉（收藏 / 点赞 / 不推荐 / 编辑）：**直接隐藏**。
+   ★ 用户多次要求「删了、不显示」。这个竖条抽屉的 DOM 是
+     div.actions.left-mode.hasDrawer（靠 .hidden 自动显隐），
+     它有自己的显隐逻辑，改玻璃会互相打架，索性整个不显示。
+   ★ 只作用于带 hasDrawer 的那一个 —— 底部那条不带 hasDrawer 的 .actions 不受影响。
+   ★ 前两轮曾尝试"带 :not(.hidden) 的玻璃"，已全部删除。 */
+.article-content .actions.hasDrawer,
+.article-content .actions.left-mode.hasDrawer {
+    display: none !important;
 }
-
-/* 抽屉里的条目 / 图标不再各带底色（只清底，不碰布局与显隐） */
-.article-content .actions.hasDrawer:not(.hidden) > div,
-.article-content .actions.hasDrawer:not(.hidden) button,
-.article-content .actions.hasDrawer:not(.hidden) .action {
-    background-color: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    border-color: transparent !important;
-}
-
 /* ==========================================================================
    ⑯-b 卡片 / 列表里的「一级文字」必须是白的
    --------------------------------------------------------------------------
