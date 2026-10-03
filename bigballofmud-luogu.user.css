@@ -893,6 +893,90 @@ nav.sidebar {
 
 
 /* ==========================================================================
+   ⑦-d 全部下拉 / 选择器统一成液态玻璃（"还有这种下拉框，全部查找替换"）
+   --------------------------------------------------------------------------
+   用户截图给的是题目列表的「筛选条件 · 难度范围」，DevTools 实证结构：
+       div.combo-wrapper.shown.form-item.block-item.combo
+         div.text.lform-size-middle > span.placeholder「题目难度范围」+ span.arrow + div.ruler
+         button.lform-size-middle …
+   展开后是一个选项列表（普及− / 普及 / 普及+…）。
+   类名全部来自证据语料（出现次数在括号里）：
+     控件：.combo-wrapper(42) .combo(5) .select-type(8) .select-button(4) .op-select(4)
+           .feed-selector(7) .am-dropdown-toggle(24) .date-picker-wrapper(18) .time-picker-wrapper(18)
+     面板：.am-dropdown-content(35) .am-dropdown(5) .filter-options(16) .v-popper--theme-dropdown(6)
+           .am-selected-list(12)
+   ★ 刻意**不覆盖**三个通用名：
+       · .selected(49)  —— 你之前中过招：洛谷在题目页选项卡等处复用它，染色会连带改选中态
+       · .picker / .selector —— 太通用，容易波及无关组件
+     .option(9) 虽然也很通用，但这里**限定在已知面板内部**才清底（见下面第二条），不外扩。
+   深色适配：底色走 --lg-field-dark（控件，略实）/ --lg-panel-dark（面板），
+             光斑与亮缘/暗缘/内发光全用主题变量。
+   ========================================================================== */
+/* ① 控件本体（关着的时候那个框）：与输入框同一套玻璃，用略实一档 */
+:is(.combo-wrapper,
+    .combo,
+    .select-type,
+    .select-button,
+    .op-select,
+    .feed-selector,
+    .am-dropdown-toggle,
+    .date-picker-wrapper,
+    .time-picker-wrapper) {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    border-color: light-dark(rgba(0, 0, 0, .12), rgba(255, 255, 255, .18)) !important;
+    color: var(--lg-text);
+}
+
+/* ② 展开后的面板：与浮层同一套玻璃（图里那个选项列表） */
+:is(.am-dropdown-content,
+    .am-dropdown,
+    .filter-options,
+    .v-popper--theme-dropdown,
+    .am-selected-list) {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 12px 34px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .12)) !important;
+    color: var(--lg-text);
+}
+
+/* ③ 面板内部的条目 / 控件内部的分段：一律透明（底色只由上面两层承担） */
+:is(.combo-wrapper, .am-dropdown-content, .am-dropdown, .filter-options,
+    .v-popper--theme-dropdown, .am-selected-list) :is(.text, .option, .item, li) {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+
+/* ==========================================================================
    ⑦-b 弹窗 / 提示：深色 + **同一套液态玻璃配方**
    --------------------------------------------------------------------------
    用户反馈（两张截图）：
