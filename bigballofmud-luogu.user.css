@@ -90,11 +90,11 @@
        ---------------------------------------------------------------------- */
     --lg-blur: 24px;
     --lg-card-blur: 18px;
-    --lg-alpha: 26%;          /* 主卡片玻璃（数值越小越透） */
-    --lg-alpha-soft: 20%;     /* 次级容器：列表 / 表格 / 分页 / 搜索框 */
-    --lg-alpha-pop: 26%;      /* 浮层：模态 / 下拉 / 气泡 / 通知（★ 与卡片 --lg-alpha 同值，避免色差） */
-    --lg-alpha-field: 44%;    /* 表单控件：输入框 / 文本域 / 下拉选择 */
-    --lg-nav-alpha: 42%;      /* 顶栏两个胶囊 + 左右侧栏 */
+    --lg-alpha: 18%;          /* 主卡片玻璃（数值越小越透）★ 用户：「玻璃加透」 */
+    --lg-alpha-soft: 13%;     /* 次级容器：列表 / 表格 / 分页 / 搜索框 */
+    --lg-alpha-pop: 18%;      /* 浮层：模态 / 下拉 / 气泡 / 通知（★ 必须与卡片 --lg-alpha 同值，避免色差） */
+    --lg-alpha-field: 36%;    /* 表单控件：输入框 / 文本域 / 下拉选择 */
+    --lg-nav-alpha: 34%;      /* 顶栏两个胶囊 + 左右侧栏 */
     /* ★ 想整体调透/调实，只改上面这五个数即可 —— 全站玻璃都引用它们，
        不再散落写死的百分比（之前 55% / 72% / 78% 各写各的，改一处不透）。 */
     --lg-sat: 215%;
@@ -127,6 +127,11 @@
        原值 10px 补上这个差就是 32px）；上下留一点空就够，用 16px。 */
     --lg-footer-gap: 32px;        /* 左右内缩 */
     --lg-footer-gap-block: 16px;  /* 上下内缩 */
+    /* 页脚专用的一档：比卡片**略实一点**（各高约 6~8 个百分点）。
+       原因：页脚是整条横带，背后往往是背景图最亮最花的部分，同样的 alpha 看上去会比卡片更透 ——
+       用户：「底部的那个玻璃在某些页面显着更透明」。 */
+    --lg-footer-alpha: 24%;
+    --lg-footer-dark: rgba(18, 21, 27, .52);
     --lg-side-radius: 26px;
 
     /* ----------------------------------------------------------------------
@@ -184,13 +189,13 @@
        边缘高光/暗缘/内发光也都换成"深色下更弱"的色值变量。
        （浅色分支的值一概不动，浅色观感保持原样。）
        ---------------------------------------------------------------------- */
-    --lg-panel-dark: rgba(18, 21, 27, .55);   /* 卡片 */
-    --lg-nav-dark: rgba(12, 14, 18, .62);     /* 顶栏胶囊 / 两侧栏 */
-    --lg-soft-dark: rgba(18, 21, 27, .46);    /* 次级容器 */
-    --lg-pop-dark: rgba(18, 21, 27, .55);     /* 浮层 —— ★ 与卡片同一组数值（曾用 rgba(16,19,24,.70)，
+    --lg-panel-dark: rgba(18, 21, 27, .44);   /* 卡片 */
+    --lg-nav-dark: rgba(12, 14, 18, .52);     /* 顶栏胶囊 / 两侧栏 */
+    --lg-soft-dark: rgba(18, 21, 27, .36);    /* 次级容器 */
+    --lg-pop-dark: rgba(18, 21, 27, .44);     /* 浮层 —— ★ 与卡片同一组数值（曾用 rgba(16,19,24,.70)，
                                                  比卡片更暗更实，弹窗与卡片并排会看出色差） */
-    --lg-field-dark: rgba(22, 25, 31, .58);   /* 表单控件 */
-    --lg-block-dark: rgba(16, 19, 24, .66);   /* 代码块 */
+    --lg-field-dark: rgba(22, 25, 31, .48);   /* 表单控件 */
+    --lg-block-dark: rgba(16, 19, 24, .56);   /* 代码块 */
     /* 边与光：深色下都要"软"，硬边就是金属感 */
     --lg-rim-color: light-dark(rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
     --lg-spec-color: light-dark(rgba(255, 255, 255, .22), rgba(255, 255, 255, .07));
@@ -225,12 +230,12 @@
         --lg-rim-color: rgba(255, 255, 255, .62);
         --lg-spec-color: rgba(255, 255, 255, .22);
         --lg-glow: rgba(255, 255, 255, .07);
-        --lg-panel-dark: rgba(18, 21, 27, .55);
-        --lg-nav-dark: rgba(12, 14, 18, .62);
-        --lg-soft-dark: rgba(18, 21, 27, .46);
-        --lg-pop-dark: rgba(18, 21, 27, .55);
-        --lg-field-dark: rgba(22, 25, 31, .58);
-        --lg-block-dark: rgba(16, 19, 24, .66);
+        --lg-panel-dark: rgba(18, 21, 27, .44);
+        --lg-nav-dark: rgba(12, 14, 18, .52);
+        --lg-soft-dark: rgba(18, 21, 27, .36);
+        --lg-pop-dark: rgba(18, 21, 27, .44);
+        --lg-field-dark: rgba(22, 25, 31, .48);
+        --lg-block-dark: rgba(16, 19, 24, .56);
     }
 }
 
@@ -257,15 +262,14 @@
          1  = 内容之上（当前默认）—— 小图标/文字之上，但在顶栏、侧栏、弹窗**之下**
                （那些是定位元素且 z-index 更大），所以不会盖住交互界面。
        9998 = 几乎最上层（会盖在弹窗和文字上，不推荐）。 */
-    --sl-signature-z: -1;
+    --sl-signature-z: 1;
 }
 
-/* ★ 只在**首页**显示（用户：「复原更改，仅主页显示」）。
-   首页是旧前端，页面上有 .lg-index-content / .lg-punch / #lg-slider 这些独有元素，
-   用 body:has(...) 判定即可 —— 不按 URL、也不用媒体查询，所以不碰项目那条
-   「不许出现 @media (prefers-color-scheme)」的不变式。
-   注：:has() 需要 Chrome 105+，而本文件本来就要求 light-dark()（Chrome 111+），没有额外代价。 */
-body:has(:is(.lg-index-content, .lg-punch, #lg-slider))::after {
+/* ★ 全站显示（用户：「在全站显示」）。原本只在首页，靠 body:has() 判定；
+   现在恢复成普通的 body::after —— www.luogu.com.cn 的每个页面都会出现。
+   层级用 --sl-signature-z 控制（默认 1：在内容之上、定位元素之下，
+   所以既不会被玻璃的 backdrop-filter 模糊掉，也不会盖住顶栏 / 侧栏 / 弹窗）。 */
+body::after {
     content: "";
     position: fixed;
     right: var(--sl-signature-edge);
@@ -1710,10 +1714,10 @@ footer {
     border-radius: var(--lg-radius) !important;
     border: none !important;
     background-color: light-dark(
-        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
-        var(--lg-panel-dark)
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-footer-alpha, var(--lg-alpha)), transparent),
+        var(--lg-footer-dark, var(--lg-panel-dark))
     ) !important;
-    /* 与 ⑥ 段卡片完全一致的液态玻璃面 */
+    /* 与 ⑥ 段卡片同一套液态玻璃面（底色用略实一档的 footer 变量） */
     background-image:
         radial-gradient(86% 54% at 13% -16%,
             var(--lg-spec-color) 0%,
