@@ -1977,11 +1977,14 @@ textarea:disabled,
 
 /* ★ 这里刻意**不含 .tag**：
    .tag 在题目列表里既是「小标签」也是**行容器**，给它加圆角会把整行变成大胶囊
-   （用户截图：「这个标签悬浮不对啊」）。同理见下面 ⑳ 的动画规则。 */
-.lfe-caption {
-    border-radius: var(--lg-radius) !important;
-    transition: translate .3s ease, box-shadow .3s ease;
-}
+   （用户截图：「这个标签悬浮不对啊」）。同理见下面 ⑳ 的动画规则。
+   ★ 第二十八轮：也**不再给 .lfe-caption 加圆角**。
+   原因（用户："应该是显示框截断的，因为正好是圆角的位置"）：
+     .lfe-caption 是**文本行容器**（评测记录里是 div.detail.lfe-caption），
+     洛谷那边本来就给它 overflow: hidden —— 圆角本身不裁内容，
+     但"有 overflow 的盒子 + 我加的 border-radius"会把方形裁切变成**圆角裁切**，
+     于是紧贴左缘的 svg 图标（FA 的时钟/数据库图标）被切掉一角。
+   现在只保留"悬停轻轻抬起"，不碰几何。 */
 
 a:hover > .lfe-caption {
     translate: 0 -2px;
