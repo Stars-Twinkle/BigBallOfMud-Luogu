@@ -2409,13 +2409,15 @@ footer a:hover {
     color: var(--lg-text);
 }
 
-/* (2) 文章底部操作栏（点赞 / 收藏 / 不推荐）：液态玻璃。
-   ★ 用户第十轮："点赞控件侧边的正常会自动隐藏，现在一直显示" ——
-     这里原本写成 .article-content .actions（不带 :not），把**右侧那个抽屉**
-     （DOM：div.actions.left-mode.hasDrawer.hidden，靠 .hidden 类自动显隐）也圈了进来。
-     现在用 :not(.hasDrawer) 把抽屉排除掉：带抽屉的那个组件完全交回洛谷，
-     背景 / 阴影 / 模糊一律不碰，避免干扰它的显隐表现。 */
-.article-content .actions:not(.hasDrawer) {
+/* (2) 侧边抽屉（收藏 / 点赞 / 不推荐 / 编辑）：液态玻璃。
+   ★ 用户第十一轮澄清：「没让你改底栏，把这个改成玻璃并保留自动隐藏」。
+     这个竖条抽屉的 DOM 是 div.actions.left-mode.hasDrawer（靠 .hidden 自动显隐），
+     而**底部那条操作栏**是另一个不带 hasDrawer 的 .actions —— 上一轮我做反了：
+     给底栏加了玻璃、还特意排除了抽屉。现在对调回来。
+   ★ 自动隐藏必须保留：这条规则**只动背景与模糊**，绝不写 opacity / visibility /
+     display / translate / transform，显隐完全交给洛谷的 .hidden 类。 */
+.article-content .actions.hasDrawer,
+.article-content .actions.left-mode.hasDrawer {
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
         var(--lg-soft-dark)
@@ -2435,16 +2437,15 @@ footer a:hover {
     color: var(--lg-text);
 }
 
-/* 操作栏里的按钮/图标不再各带底色（同样排除抽屉） */
-.article-content .actions:not(.hasDrawer) button,
-.article-content .actions:not(.hasDrawer) .action,
-.article-content .actions:not(.hasDrawer) > div {
+/* 抽屉里的条目 / 图标不再各带底色（只清底，不碰布局与显隐） */
+.article-content .actions.hasDrawer > div,
+.article-content .actions.hasDrawer button,
+.article-content .actions.hasDrawer .action {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
     border-color: transparent !important;
 }
-
 
 /* ==========================================================================
    ⑯-b 卡片 / 列表里的「一级文字」必须是白的
