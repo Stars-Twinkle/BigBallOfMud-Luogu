@@ -267,10 +267,10 @@ body::after {
     bottom: var(--sl-signature-edge);
     width: var(--sl-signature-w);
     aspect-ratio: 240 / 215;      /* 与抠像成品一致 */
-    /* 深色那一档特意比浅色高一点：深色模式里 .theme-page 有一层
-       box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) 的全页压暗罩，_它在水印之上_，
-       会把水印一起压暗，所以要预先补回来。 */
-    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .36));
+    /* 深色那一档要比浅色高**很多**：SPA 页面上 .theme-page 有一层
+       box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) 的整页压暗罩，_它在水印之上_，
+       会把水印几乎洗掉 —— 这就是"除了首页都不显示"的原因（首页是旧前端，没有 .theme-page）。 */
+    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .62));
     -webkit-mask: var(--sl-signature) no-repeat center / contain;
     mask: var(--sl-signature) no-repeat center / contain;
     pointer-events: none;          /* 绝不挡点击 */
