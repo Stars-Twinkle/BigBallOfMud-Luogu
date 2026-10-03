@@ -2409,9 +2409,13 @@ footer a:hover {
     color: var(--lg-text);
 }
 
-/* (2) 文章底部操作栏（点赞 / 收藏 / 不推荐）：液态玻璃 */
-.article-content .actions,
-.article-content .actions.left-mode {
+/* (2) 文章底部操作栏（点赞 / 收藏 / 不推荐）：液态玻璃。
+   ★ 用户第十轮："点赞控件侧边的正常会自动隐藏，现在一直显示" ——
+     这里原本写成 .article-content .actions（不带 :not），把**右侧那个抽屉**
+     （DOM：div.actions.left-mode.hasDrawer.hidden，靠 .hidden 类自动显隐）也圈了进来。
+     现在用 :not(.hasDrawer) 把抽屉排除掉：带抽屉的那个组件完全交回洛谷，
+     背景 / 阴影 / 模糊一律不碰，避免干扰它的显隐表现。 */
+.article-content .actions:not(.hasDrawer) {
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
         var(--lg-soft-dark)
@@ -2431,10 +2435,10 @@ footer a:hover {
     color: var(--lg-text);
 }
 
-/* 操作栏里的按钮/图标不再各带底色 */
-.article-content .actions button,
-.article-content .actions .action,
-.article-content .actions > div {
+/* 操作栏里的按钮/图标不再各带底色（同样排除抽屉） */
+.article-content .actions:not(.hasDrawer) button,
+.article-content .actions:not(.hasDrawer) .action,
+.article-content .actions:not(.hasDrawer) > div {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
