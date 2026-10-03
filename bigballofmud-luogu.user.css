@@ -760,10 +760,12 @@ nav.sidebar {
     backdrop-filter: none !important;
 }
 
-/* 次级容器：列表、表格、分页、目录、搜索框的薄玻璃（不加模糊，省性能） */
+/* 次级容器：列表、表格、目录、搜索框的薄玻璃（不加模糊，省性能）
+   ★ 这里**不含 .page-bar** —— 分页条本身不铺玻璃，玻璃在里面的页码按钮上
+     （见 ⑫-d）。曾经把 .page-bar 列在这里，结果"分页条一层 + 按钮一层"叠成两层玻璃
+     （用户："另外这个底下多了层玻璃"）。 */
 .table-container,
 .table-wrap,
-.page-bar,
 .order-bar,
 .list-header,
 .section-list-container,
@@ -2616,6 +2618,15 @@ html.sl-theme-switching *::after {
     --lfe-color--black-1: light-dark(#262626, #e7eaee) !important;
 }
 
+/* 分页条容器：只负责排布，不铺任何底色（玻璃在按钮上） */
+.page-bar {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
 /* --------------------------------------------------------------------------
    ⑫-d 分页条的页码按钮
    洛谷的 LPaginationBar 用的是**裸 <button>**（不是 .l-button 组件），
@@ -2624,7 +2635,22 @@ html.sl-theme-switching *::after {
    （注意只针对 .page-bar 里的 button，不动其它按钮，避免把蓝色实心按钮刷掉）
    -------------------------------------------------------------------------- */
 .page-bar button {
-    background-color: light-dark(#fff, var(--lg-field-dark)) !important;
+    /* 液态玻璃小胶囊：与下拉控件同一套配方，用略淡一档（--lg-alpha-soft） */
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 14px var(--lg-glow) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
     border: 1px solid light-dark(#bfbfbf, rgba(255, 255, 255, .16)) !important;
     border-radius: var(--lg-radius-xs) !important;
     color: var(--lg-text);
