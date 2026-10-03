@@ -2611,6 +2611,88 @@ footer a:hover {
     display: none !important;
 }
 /* ==========================================================================
+   ⑯-g 题单广场的"选项卡"（.category-card）：玻璃 + 深浅色
+   --------------------------------------------------------------------------
+   用户要求（2026-10-03）："这个选项卡适配一下玻璃和深浅色"。
+   实证 DOM（用户 DevTools，题单广场 /training/list）：
+       div.columba-content-wrap.main-content
+         section.training-section
+           div.training-type-container            ← grid 容器（603×208）
+             div.category-card「洛谷官方 / 从浅入深，系统学习算法…」
+             div.category-card「竞赛/考级真题 …」
+             div.category-card「出版物题单 …」
+             div.category-card.active「精选用户分享 …」   ← 选中态
+           div.l-card.burger.training-list-card    ← 下面的题单列表（⑥ 段已处理）
+   处理：
+     · 容器（.training-type-container / .training-section）不铺底，玻璃只留给每块卡片
+       —— 与比赛列表/通知中心同一条判定，避免"外层 + 每项"叠成两层；
+     · 每块 .category-card 用与卡片相同的液态玻璃配方，走 light-dark() 适配深浅；
+     · .active 用强调色描边 + 更实的底色，把"选中"表达清楚；
+     · 说明文字次要一档，并**放行语义色**（踩过：不给 :not([class*="lcolor"]) 会把彩字刷掉）。
+   ========================================================================== */
+/* ① 容器不铺底 */
+.training-type-container,
+.training-section {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* ② 每块选项卡：液态玻璃 */
+.category-card {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+    transition: translate .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+
+.category-card:hover {
+    translate: 0 -2px;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 0 22px var(--lg-glow),
+        0 12px 34px var(--lg-shadow-color-hi) !important;
+}
+
+/* ③ 选中态：底色更实 + 强调色内圈，深浅各自一档 */
+.category-card.active {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) 34%, transparent),
+        rgba(18, 21, 27, .62)
+    ) !important;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset 0 0 0 1px color-mix(in srgb, var(--lfe-color--primary, #3498db) 40%, transparent),
+        inset 0 0 22px var(--lg-glow),
+        0 10px 34px var(--lg-shadow-color-hi) !important;
+}
+
+/* ④ 卡片里的说明文字：次要一档（放行语义色） */
+.category-card :is(p, span, small, .caption, .lfe-caption):not([class*="lcolor"]) {
+    color: var(--lg-text-weak);
+}
+
+
+/* ==========================================================================
    ⑯-f 两套前端的玻璃一致性（核对用）
    --------------------------------------------------------------------------
    结论（第二十五轮审计）：**参数层已经完全统一** ——
