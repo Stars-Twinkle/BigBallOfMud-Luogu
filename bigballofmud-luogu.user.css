@@ -2784,13 +2784,33 @@ body {
      否则会出现"浅灰底 + 浅色字"。用 :not() 只挑默认那几种。
    -------------------------------------------------------------------------- */
 .am-panel {
-    background-color: light-dark(#fff, var(--lg-panel-dark)) !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    /* 与 ⑥ 段卡片完全一致的液态玻璃面 */
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
     border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .12)) !important;
-    color: light-dark(#262626, #e7eaee);
+    color: var(--lg-text);
 }
 
+/* 默认灰标题栏改成透明 —— 底色由外层玻璃承担。
+   ★ 彩色标题栏（success/danger/primary/secondary/warning）**必须排除**：
+     那是「近期比赛」区分比赛类型用的配色，用户明确要求保留。 */
 .am-panel:not(.am-panel-success):not(.am-panel-danger):not(.am-panel-primary):not(.am-panel-secondary):not(.am-panel-warning) > .am-panel-hd {
-    background-color: light-dark(#f5f5f5, rgba(255, 255, 255, .07)) !important;
+    background-color: transparent !important;
+    background-image: none !important;
     border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .12)) !important;
 }
 
@@ -2798,6 +2818,12 @@ body {
 .am-panel .lg-small,
 .am-panel .am-panel-bd {
     color: light-dark(#5a6472, #a9b1bb);
+}
+
+/* 正文容器不带底：否则玻璃里又套一层白盒子 */
+.am-panel .am-panel-bd {
+    background-color: transparent !important;
+    background-image: none !important;
 }
 
 /* 面板标题在彩色标题栏上保持 Amaze 自己的深色字，不要覆盖 */
@@ -2830,9 +2856,25 @@ body {
       这里恢复同样做法。
    -------------------------------------------------------------------------- */
 .am-comment-main {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    /* 与 ⑥ 段卡片完全一致的液态玻璃面 */
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
     border-color: light-dark(#dedede, rgba(255, 255, 255, .16)) !important;
-    background-color: light-dark(#f8f8f8, var(--lg-panel-dark)) !important;
-    color: light-dark(#262626, #e7eaee);
+    color: var(--lg-text);
     border-radius: var(--lg-radius-sm) !important;
     transition: box-shadow .4s ease;
 }
@@ -2850,14 +2892,16 @@ body {
 
 /* 头/身各自跟着外框的圆角走，避免出现"外圆内方"的直角 */
 .am-comment-hd {
-    background-color: light-dark(#f8f8f8, rgba(255, 255, 255, .05)) !important;
+    background-color: transparent !important;
+    background-image: none !important;
     border-bottom-color: light-dark(#eee, rgba(255, 255, 255, .12)) !important;
     border-radius: calc(var(--lg-radius-sm) - 1px) calc(var(--lg-radius-sm) - 1px) 0 0 !important;
 }
 
 .am-comment-bd {
-    background-color: light-dark(#ffffff, var(--lg-panel-dark)) !important;
-    color: light-dark(#262626, #e7eaee);
+    background-color: transparent !important;
+    background-image: none !important;
+    color: var(--lg-text);
     border-radius: 0 0 calc(var(--lg-radius-sm) - 1px) calc(var(--lg-radius-sm) - 1px) !important;
 }
 
