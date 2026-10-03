@@ -65,16 +65,37 @@
    ========================================================================== */
 @-moz-document domain("www.luogu.com.cn") {
 
-/* 让 body 的背景**稳定传播到画布**：html 一旦自带底色，body 的背景就不再传播，
-   而负 z-index 的签名水印只能落在"画布背景"之上 —— 那它就会被压到新出现的底色下面
-   （用户："又把签名弄没了"）。
-   ★ 历史教训：这条曾经被回退过，理由是想排查"个人主页对比度炸了"；
-     后来发现那个问题真正的原因是 .l-flex-info-row 没有被覆盖（已修），与这条无关。
-     所以现在恢复它 —— 签名要"在背景之上、内容之下"，这是必要条件。 */
+/* ★ 关键约定（第二十三轮）：**壁纸与深色压暗都画在 html 上，body 保持透明**。
+   为什么必须这样：
+     · 签名水印是负 z-index，它只能落在"画布背景"之上；
+     · 而"body 的背景是否传播到画布"取决于 html 有没有自己的背景 —— 一旦某页的壁纸被
+       画在 html / 内容层上，body 的背景就不再传播、退化成普通块背景，于是把签名整块盖住。
+       这正是"签名仅首页在内容之下"的原因（首页旧前端把壁纸画在 body 上，一直正常）。
+     · 把壁纸改画在 html（也就是画布本身）之后，两边机制一致，不再依赖传播行为。
+   注：以前这里是一条 html { background: transparent }，与本约定正好相反，已删除。 */
+/* 画布背景：壁纸 + 深色压暗都画在这里（签名水印落在它之上、内容之下）。 */
 html {
-    background-color: transparent !important;
-    background-image: none !important;
+    background-color: light-dark(#eef1f7, #14161a) !important;
+    background-image:
+        /* 深色压暗（补回原来 .theme-page::before 那层 58%，合成后约 .84） */
+        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
+                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
 }
+
+/* 内容整体抬到签名（z-index: 1）之上，于是签名落在"背景图之上、内容之下"。
+   ★ 为什么是这里：负 z-index 在 SPA 页面会被某个内容层盖住且定位不到，
+     所以反过来用"抬内容"来实现同样的层叠结果。这些容器自身背景都是透明的
+     （见 ⑥/⑦ 段的透明化规则），不会挡住签名。 */
+:is(#app, #app-old, .lfe-body, .theme-page, .main-container, main, footer) {
+    position: relative;
+    z-index: 2;
+}
+
 /* --------------------------------------------------------------------------
    ① 配色模式：三态，两个来源（JS 优先）
    · 装了 bigballofmud-luogu-switch.user.js → 由它在 <html> 上写 data-sl-theme，
@@ -282,7 +303,7 @@ html {
        ★ 代价：background-image 不能用 light-dark() 切色，所以用一张**中灰**版本
          （128,128,128 + 46% 不透明度），浅色与深色背景下都看得见。 */
 
-    --sl-signature-z: 1;         /* 1 = 可见（默认）；-1 = 内容之下（SPA 页会被盖住） */
+    --sl-signature-z: 1;         /* 1 = 可见层；内容被抬到 2，于是它就落在内容之下 */
 }
 
 /* ── 签名水印：html::after + mask 上色（第十九轮）──
@@ -315,11 +336,13 @@ html::after {
     -webkit-mask-mode: alpha;
     mask-mode: alpha;
     pointer-events: none;
-    /* ★ 层级由 --sl-signature-z 控制（默认 1 = 看得见）：
-         1   浮在内容之上，但 pointer-events: none，不影响交互 → 默认
-        -1   "背景图之上、内容之下"（更理想），但在 SPA 页面会被加载后写入的壁纸层盖住
-             （实测：body::after 短暂可见后消失；html::after 完全不可见）。
-             想改用它，记得同时保留文件开头那条 html 置空底色的规则。 */
+    /* ★ 层级方案（第二十四轮，终结版）：**反过来做**。
+       负 z-index（-1）在 SPA 页面上始终看不见 —— 试过 body::after、body 背景栈、
+       html::after，也试过把画布背景挪到 html，全都被某个内容层盖住，
+       而那个层在 CSS 侧定位不到（用户实测："其他页面不显示签名"）。
+       所以改成：签名放在可见层（z-index: 1），再把**页面内容整体抬到 2**
+       （见下面那条 content 规则）。效果一样 —— 内容在签名之上、壁纸在签名之下 ——
+       但不再依赖任何"传播"或"谁盖住谁"的隐式行为，逐页表现一致。 */
     z-index: var(--sl-signature-z);
 }
 
@@ -3324,17 +3347,10 @@ html.sl-theme-switching *::after {
    ========================================================================== */
 @-moz-document domain("www.luogu.com.cn") {
 body {
-    background-color: light-dark(#eef1f7, #14161a) !important;
-    background-image:
-        /* 深色压暗（从 .62 提到 .84，补回原来 .theme-page::before 的 58%） */
-        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
-                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
-        /* 第三层：壁纸 */
-        var(--sl-bg-image) !important;
-    background-repeat: no-repeat, no-repeat !important;
-    background-size: cover, cover !important;
-    background-position: center, center !important;
-    background-attachment: fixed, fixed !important;
+    /* body 不再承担任何背景：壁纸与压暗都移到 html 上（见文件开头的约定）。
+       这样 body 的背景层就不会盖住负 z-index 的签名水印。 */
+    background-color: transparent !important;
+    background-image: none !important;
     color: var(--lg-text);
 }
 
