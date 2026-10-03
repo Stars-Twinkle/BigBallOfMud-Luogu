@@ -207,15 +207,7 @@
 
 /* 老浏览器没有 light-dark() 时退化为固定浅色玻璃（深色模式不生效） */
 @supports not (color: light-dark(#fff, #000)) {
-    /* 让 body 的背景**稳定传播到画布**：html 一旦自带底色，body 的背景就不再传播，
-      而负 z-index 的水印只能落在"画布背景"之上 —— 那它就会被压到新出现的底色下面。
-      置空 html 的底色即可恢复传播（视觉不变：body 那张壁纸会代理到画布）。 */
-   html {
-       background-color: transparent !important;
-       background-image: none !important;
-   }
-
-   :root {
+    :root {
         --lg-highlight: rgba(255, 255, 255, .75);
         --lg-border: rgba(255, 255, 255, .55);
         --lg-sheen: rgba(255, 255, 255, .16);
@@ -265,10 +257,15 @@
          1  = 内容之上（当前默认）—— 小图标/文字之上，但在顶栏、侧栏、弹窗**之下**
                （那些是定位元素且 z-index 更大），所以不会盖住交互界面。
        9998 = 几乎最上层（会盖在弹窗和文字上，不推荐）。 */
-    --sl-signature-z: 1;
+    --sl-signature-z: -1;
 }
 
-body::after {
+/* ★ 只在**首页**显示（用户：「复原更改，仅主页显示」）。
+   首页是旧前端，页面上有 .lg-index-content / .lg-punch / #lg-slider 这些独有元素，
+   用 body:has(...) 判定即可 —— 不按 URL、也不用媒体查询，所以不碰项目那条
+   「不许出现 @media (prefers-color-scheme)」的不变式。
+   注：:has() 需要 Chrome 105+，而本文件本来就要求 light-dark()（Chrome 111+），没有额外代价。 */
+body:has(:is(.lg-index-content, .lg-punch, #lg-slider))::after {
     content: "";
     position: fixed;
     right: var(--sl-signature-edge);
@@ -278,7 +275,7 @@ body::after {
     /* 深色那一档要比浅色高**很多**：SPA 页面上 .theme-page 有一层
        box-shadow: inset 0 0 0 200vmax rgba(0,0,0,.58) 的整页压暗罩，_它在水印之上_，
        会把水印几乎洗掉 —— 这就是"除了首页都不显示"的原因（首页是旧前端，没有 .theme-page）。 */
-    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .62));
+    background-color: light-dark(rgba(31, 35, 41, .30), rgba(238, 242, 247, .26));
     -webkit-mask: var(--sl-signature) no-repeat center / contain;
     mask: var(--sl-signature) no-repeat center / contain;
     pointer-events: none;          /* 绝不挡点击 */
