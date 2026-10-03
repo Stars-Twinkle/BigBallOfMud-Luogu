@@ -2469,13 +2469,42 @@ footer a:hover {
 }
 
 
-/* 文章/题解页的正文外壳（内联白底）。结构定位：main.main > div[style*=…] */
+/* 文章/题解页的正文外壳（内联白底）。结构定位：main.main > div[style*=…]。
+   该外壳的内联白底只能用 !important 压（见 ⑰-b 说明）。
+   ★ 用户第六轮（文章广场 / 个人记录）："此处写成玻璃" —— 之前只把它涂成一色平底，
+     现在换成与卡片同一套**液态玻璃**（光斑 + 斜向柔光 + 亮上缘 + 暗下缘 + 内发光 + 模糊 + 圆角 + 外阴影）。
+     嵌入页（article-content）里的 .lfe-marked-wrap / .lfe-marked 保持透明，
+     避免"玻璃里再套一层"。 */
 main.main > div[style*="background-color: rgb(255, 255, 255)"],
 main.main > div[style*="background-color: rgb(255,255,255)"],
 main.main > div[style*="background-color:#fff"],
 main.main > div[style*="background-color: #fff"],
 main.main > div[style*="#ffffff"] {
-    background-color: light-dark(#fff, var(--lg-panel-dark)) !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    border-radius: var(--lg-radius) !important;
+}
+
+/* 外壳里面那两层保持透明（玻璃只在外壳上） */
+main.main > div[style*="background-color: rgb(255, 255, 255)"] :is(.article-content, .lfe-marked-wrap, .lfe-marked),
+main.main > div[style*="background-color: #fff"] :is(.article-content, .lfe-marked-wrap, .lfe-marked) {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
 }
 
 /* 外壳里的正文与标题 */
