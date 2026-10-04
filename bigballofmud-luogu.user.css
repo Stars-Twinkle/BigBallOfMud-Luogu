@@ -4171,34 +4171,65 @@ rect.highcharts-point.highcharts-color-1 {
    万一某个浏览器/某个页面上 color-scheme 没能驱动 light-dark()，
    这一步也能让"点按钮 → 整页立刻变"这件事成立（用户反复反馈"切换没反应"）。
    注意：属性写在 <html> 上，所以选择器用 html[data-sl-theme=…]（等价于 :root[data-sl-theme=…]）。 */
-html[data-sl-theme="dark"] {
-    background-color: #14161a !important;
-}
+/* ★ 这两条"只给颜色、不给壁纸"的属性规则已被下面的统一画布取代（避免同一元素多条 !important 互压）。 */
 
-html[data-sl-theme="light"] {
-    background-color: #eef1f7 !important;
-}
-
-/* ── 外壳：壁纸与压暗交给画布（与主站同一约定） ── */
-html, body, #app.lg-container, .lg-container, .lfe-body {
+/* ── 外壳：背景一律交给画布（与主站同一约定） ──
+   ★ 注意：这里**不含 html** —— 画布由下面那条统一规则负责，
+     早先 html 也在这一组里（background-image: none !important），会和画布规则互相打架。 */
+body, #app.lg-container, .lg-container, .lfe-body {
     background-color: transparent !important;
     background-image: none !important;
     color: var(--lg-text);
 }
 
+/* ==========================================================================
+   网校画布（唯一一处，按模式分层）
+   --------------------------------------------------------------------------
+   用户反馈：「跟随系统的深色背景会直接黑掉」——
+   原因是这里原先用 light-dark(白洗, 84% 黑) 一条规则覆盖所有情况：
+   跟随系统时没有 data-sl-theme 属性，light-dark() 就按**系统**取到 84% 黑，
+   壁纸被压得几乎看不见，观感就是"直接黑掉"。
+   现在拆成四条，各司其职：
+     · 无属性（跟随系统）：light-dark() 取 24% 白 / 72% 黑（**保留壁纸可见**）
+     · 显式浅色：34% 白轻提亮 + 浅底
+     · 显式深色：72% 黑压暗（不再 84%，否则等于把壁纸抹掉）
+   注意：项目禁止 @media (prefers-color-scheme)，跟随系统一律用 light-dark() 表达。
+   ========================================================================== */
 html {
+    background-image: var(--sl-bg-image) !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+}
+
+html:not([data-sl-theme]) {
     background-color: light-dark(#eef1f7, #14161a) !important;
-    /* ★ 浅色要**洗白**：网校的壁纸（--sl-bg-image）本身偏暗，
-       不洗白的话浅色模式的玻璃压在暗壁纸上仍是暗灰 ——
-       用户看到的"浅色也不像玻璃"就是这一条引起的。
-       这里用 light-dark() 同时表达两件事：
-         浅色 → 叠一层 78% 的白（把壁纸压成浅底）
-         深色 → 换成原来的 84% 黑压暗
-       background 是"非颜色"，不能直接被 light-dark() 切换，
-       但里面的**颜色值**可以 —— 所以写成同一个 linear-gradient 的两个分支。 */
     background-image:
-        linear-gradient(light-dark(rgba(255, 255, 255, .78), rgba(0, 0, 0, .84)),
-                        light-dark(rgba(255, 255, 255, .78), rgba(0, 0, 0, .84))),
+        linear-gradient(light-dark(rgba(255, 255, 255, .24), rgba(0, 0, 0, .72)),
+                        light-dark(rgba(255, 255, 255, .24), rgba(0, 0, 0, .72))),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
+}
+
+html[data-sl-theme="light"] {
+    background-color: #eef1f7 !important;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, .34), rgba(255, 255, 255, .34)),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
+}
+
+html[data-sl-theme="dark"] {
+    background-color: #14161a !important;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, .72), rgba(0, 0, 0, .72)),
         var(--sl-bg-image) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
@@ -5034,35 +5065,9 @@ html[data-sl-theme="dark"] :is(
      默认（未指定/跟随系统）：只铺壁纸，不加任何层
      显式浅色：壁纸 + 34% 白轻提亮（保留你的壁纸，只是别太沉）
      显式深色：壁纸 + 84% 黑压暗 */
-html {
-    background-color: light-dark(#eef1f7, #14161a) !important;
-    background-image: var(--sl-bg-image) !important;
-    background-repeat: no-repeat !important;
-    background-size: cover !important;
-    background-position: center !important;
-    background-attachment: fixed !important;
-}
-
-html[data-sl-theme="light"] {
-    background-color: #eef1f7 !important;
-    background-image:
-        linear-gradient(rgba(255, 255, 255, .34), rgba(255, 255, 255, .34)),
-        var(--sl-bg-image) !important;
-    background-repeat: no-repeat, no-repeat !important;
-    background-size: cover, cover !important;
-    background-position: center, center !important;
-    background-attachment: fixed, fixed !important;
-}
-
-html[data-sl-theme="dark"] {
-    background-image:
-        linear-gradient(rgba(0, 0, 0, .84), rgba(0, 0, 0, .84)),
-        var(--sl-bg-image) !important;
-    background-repeat: no-repeat, no-repeat !important;
-    background-size: cover, cover !important;
-    background-position: center, center !important;
-    background-attachment: fixed, fixed !important;
-}
+/* ★ 这里原先还有一份**更早版本**的画布三连（深色 84%）——
+   它与上面那条统一画布规则特异性相同、位置更靠后，于是把 72% 的新规则压住了，
+   表现就是"跟随系统/深色下壁纸被抹掉、直接黑掉"。已删除，画布只保留**唯一一处**定义。 */
 
 /* ② 结构层透明：底交给画布（浅色已洗白 / 深色已压暗） */
 html,
