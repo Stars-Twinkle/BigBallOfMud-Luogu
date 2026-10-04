@@ -353,6 +353,9 @@
         if (!isSchool) return;
         var imgs = document.querySelectorAll(CUT_SEL);
         for (var i = 0; i < imgs.length; i++) {
+            // ★ 先打标记：CSS 那边靠 [data-sl-level="1"] 认出它
+            //   —— 换了 src 之后，原来的 [src*="course-level"] 就不再匹配了（踩过）。
+            imgs[i].setAttribute('data-sl-level', '1');
             if (imgs[i].getAttribute('src') === CUT_URL) continue;
             imgs[i].setAttribute('src', CUT_URL);
         }
