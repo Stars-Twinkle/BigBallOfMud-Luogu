@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.10
+@version      20261004.11
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1346,6 +1346,73 @@ nav.sidebar {
 .lfe-marked-loading {
     /* 不加 !important：⑫ 节不变式禁止压 color（洛谷彩底上的白字是内联的） */
     color: var(--lg-text);
+}
+
+/* ==========================================================================
+   ⑦-b-2 私信页的消息气泡：换成玻璃（用户：「把主站私信中这种消息框也换成玻璃」）
+   --------------------------------------------------------------------------
+   实证 DOM（用户 DevTools，私信页）：
+       div.main > div.block
+         div.top-container（对方昵称 / 搜索联系人）
+         div.history[scroll] > div.stack
+           div > div.message-block.right（自己）/ .left（对方）
+               > img[src="…/usericon/….png"]   ← 头像
+               > div.message                    ← ★ 气泡本体（236 × 36）
+               > div.delete
+   ★ 与 ⑦-b 的关系：那段**特意排除**过 .message / .message-block ——
+     因为当时两层都套玻璃，变成「每条消息两张卡片」（用户当年反馈「私信多卡片了」）。
+     现在按「一条消息只留一层玻璃」重做：**只给气泡 .message 铺玻璃**，
+     行容器 .message-block 透明（它只是包住头像与气泡的那一行）。
+   ★ 语义保留：自己发的（.right）与对方的（.left）本来靠底色区分 ——
+     这里给 .right 的气泡掺一点强调色，保持两类消息可区分。
+   ★ 作用域限定在 .block .history .stack 之内（私信历史区），不外溢到别处的 .message。
+   ========================================================================== */
+.block .history .stack .message-block .message {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 44%, transparent),
+        rgba(18, 21, 27, .46)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* 自己发的那一侧：掺一点强调色，保持与对方可区分（语义） */
+.block .history .stack .message-block.right .message {
+    background-color: light-dark(
+        color-mix(in srgb, var(--lfe-color--primary, #3498db) 18%, color-mix(in srgb, #ffffff 46%, transparent)),
+        color-mix(in srgb, var(--lfe-color--primary, #5aa9e6) 20%, rgba(18, 21, 27, .46))
+    ) !important;
+}
+
+/* 行容器透明：一条消息只有气泡那一层玻璃（避免「每条两张卡片」回归） */
+.block .history .stack .message-block {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下都明确给一次（属性驱动兜底） */
+html[data-sl-theme="light"] .block .history .stack .message-block .message {
+    background-color: color-mix(in srgb, #ffffff 44%, transparent) !important;
+}
+
+html[data-sl-theme="dark"] .block .history .stack .message-block .message {
+    background-color: rgba(18, 21, 27, .46) !important;
 }
 
 /* ==========================================================================
