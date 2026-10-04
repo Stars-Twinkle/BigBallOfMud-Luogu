@@ -5566,6 +5566,44 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
     color: #f2f5f8;
 }
 
+/* ==========================================================================
+   ㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白色卡片，直接移除」）
+   --------------------------------------------------------------------------
+   实证 DOM（用户 DevTools，2026-10-04，Home 模板）：
+       div.home-wrapper > div.course-container > div.wrap        ← 分类卡（红/绿/蓝）
+         div.card                                               ← ★ 白色内卡（要移除的那层）
+           div.brief
+             h3.lfe-h3.main-title 洛谷入门计划【后期】
+             div.row.lfe-caption > div.title 内容
+             div.row.lfe-caption > div.content 适用于学习完 C++ 语言的…
+   处理：把 .wrap 里的 .card / .brief 整层设为透明（背景 / 描边 / 阴影 / 模糊全去掉），
+   让说明文字**直接落在分类卡上** —— 还是那条原则：一层区域只留一个承载体。
+   ★ 只作用于 `.wrap` 内部的 .card，不碰首页其它位置的 .card（避免误伤）。
+   ========================================================================== */
+.home-wrapper .wrap .card,
+.home-wrapper .wrap .card > .brief,
+.home-wrapper .wrap .card > div {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下都透明（逐条列出，不用 :is()，避免撞"不许进玻璃名单"的守卫） */
+html[data-sl-theme="light"] .home-wrapper .wrap .card,
+html[data-sl-theme="dark"] .home-wrapper .wrap .card,
+html[data-sl-theme="light"] .home-wrapper .wrap .card > .brief,
+html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
