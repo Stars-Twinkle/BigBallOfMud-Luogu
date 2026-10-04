@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.07
+@version      20261004.08
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4806,13 +4806,10 @@ html[data-sl-theme="light"] :is(
         .player-wrap.class-room .note-wrap,
     .player-wrap.class-room .settings-wrap,
     .player-wrap.class-room .panel,
-    .player-wrap.class-room .content,
     .player-wrap.class-room .controller,
     .player-wrap.class-room .control-popup,
     .player-wrap.class-room .control-menu,
-    .player-wrap.class-room header,
-    .player-wrap.class-room footer
-) {
+    ) {
     background-color: color-mix(in srgb, #ffffff 40%, transparent) !important;
     background-image:
         radial-gradient(86% 54% at 13% -16%,
@@ -4852,13 +4849,10 @@ html[data-sl-theme="dark"] :is(
         .player-wrap.class-room .note-wrap,
     .player-wrap.class-room .settings-wrap,
     .player-wrap.class-room .panel,
-    .player-wrap.class-room .content,
     .player-wrap.class-room .controller,
     .player-wrap.class-room .control-popup,
     .player-wrap.class-room .control-menu,
-    .player-wrap.class-room header,
-    .player-wrap.class-room footer
-) {
+    ) {
     background-color: var(--lg-panel-dark) !important;
     background-image:
         radial-gradient(86% 54% at 13% -16%,
@@ -5011,6 +5005,40 @@ html[data-sl-theme="light"] .player-wrap.class-room .tab .category,
 html[data-sl-theme="dark"] .player-wrap.class-room .tab .category,
 html[data-sl-theme="light"] .player-wrap.class-room .tab .items,
 html[data-sl-theme="dark"] .player-wrap.class-room .tab .items {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ★★ 提问面板内部（用户：「网校的玻璃还没去掉」，两张图分别选中 header 与 div.content）：
+   实证 DOM（用户 DevTools，网校课堂页）：
+       div.questions > div.panel          ← ★ 玻璃只留这一层
+         > header                        ← 作者行（FreezingCold + 点赞）
+         > div.content                   ← 提问正文（所以是什么编程软件）
+         > footer
+   之前 .panel（㉓）、header / footer（㉖）、.content（㉓ 与 ㉖）各铺一层 → 叠成多层。
+   现在把内部一律清成透明，一条问答就**只有 .panel 一层玻璃**。
+   ★ 只作用于网校播放页（.player-wrap.class-room 前缀，位于网校域块内）。 */
+.player-wrap.class-room .panel > header,
+.player-wrap.class-room .panel > .content,
+.player-wrap.class-room .panel > footer,
+.player-wrap.class-room .questions .content {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下同样透明（逐条列出，不用 :is()） */
+html[data-sl-theme="light"] .player-wrap.class-room .panel > header,
+html[data-sl-theme="dark"] .player-wrap.class-room .panel > header,
+html[data-sl-theme="light"] .player-wrap.class-room .panel > .content,
+html[data-sl-theme="dark"] .player-wrap.class-room .panel > .content {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
