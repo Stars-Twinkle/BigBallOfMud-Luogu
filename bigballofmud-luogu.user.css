@@ -5752,6 +5752,110 @@ html[data-sl-theme="dark"] .homepage-main .header-layout .container {
     box-shadow: none !important;
 }
 
+/* ==========================================================================
+   ㊴ 网校：SweetAlert2 弹窗（「复制成功」这类）用玻璃 + 深浅适配
+   --------------------------------------------------------------------------
+   用户：「把这种窗口用玻璃适配，注意深浅色」。
+   实证 DOM（用户 DevTools，2026-10-04，网校播放页点「复制笔记」）：
+       <html class="no-js swal2-shown swal2-height-auto">
+       <body class="swal2-shown swal2-height-auto" style="padding-right: 15px">
+         <div id="app" class="lfe-vars" aria-hidden="true"></div>   ← SA2 把页面藏起来
+         <div class="swal2-container swal2-center swal2-fade swal2-show">
+           <div class="swal2-popup swal2-modal swal2-show" role="dialog" aria-modal="true">
+             div.swal2-header / div.swal2-content / div.swal2-actions / div.swal2-footer
+   ★ 为什么网校这边没生效：我这套 SA2 玻璃规则**只写在 www 域块里** ——
+     @-moz-document 按域生效，网校（class.luogu.com.cn）拿不到，所以那边还是 SA2 自带浅色皮肤。
+   这里补一份网校版，配方与 ⑦-b / ⑦-c 完全一致（镜面光斑 + 斜向缎面 + 亮上缘 + 暗下缘 +
+   内发光 + 模糊 + 描边 + 圆角）。深浅两条路都写：light-dark() 与 data-sl-theme 属性驱动。
+   ★ 遮罩只给居中弹窗（.swal2-center），toast 形态不遮罩 —— 与 www 侧同一条判断。
+   ========================================================================== */
+/* ① 遮罩：居中弹窗才压暗 + 模糊；toast 完全透明 */
+.swal2-container.swal2-center {
+    background-color: var(--lg-mask) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
+}
+
+.swal2-container:not(.swal2-center) {
+    background-color: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+
+/* ② 弹窗本体：与全站卡片同一套玻璃（网校没有 --theme-card-background，用 #fff 兜） */
+.swal2-container .swal2-popup,
+.swal2-popup,
+body > .swal2-container .swal2-popup {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 42%, transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 16px 46px var(--lg-shadow-color-hi) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    color: var(--lg-text);
+}
+
+/* ③ 属性驱动兜底：深浅两态各给一次明确值 */
+html[data-sl-theme="light"] .swal2-container .swal2-popup,
+html[data-sl-theme="light"] .swal2-popup {
+    background-color: color-mix(in srgb, #ffffff 42%, transparent) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .swal2-container .swal2-popup,
+html[data-sl-theme="dark"] .swal2-popup {
+    background-color: var(--lg-pop-dark) !important;
+    color: #f2f5f8;
+}
+
+/* ④ 标题 / 正文 / 底部：跟着主题走（SA2 自带 #595959 / #545454，暗底上看不见） */
+.swal2-container .swal2-title,
+.swal2-container .swal2-content,
+.swal2-container .swal2-html-container,
+.swal2-container .swal2-footer {
+    color: var(--lg-text);
+}
+
+/* ⑤ 按钮：玻璃胶囊（主按钮保留强调色文字，取消按钮用次要色） */
+.swal2-container .swal2-actions button {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 40%, transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+    transition: translate .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.swal2-container .swal2-actions button:hover {
+    translate: 0 -1px;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color), 0 8px 24px var(--lg-shadow-color-hi) !important;
+}
+
+/* 成功图标的三块动画辅助白块：透明（同 www 侧，否则玻璃上会出现灰盘） */
+.swal2-container .swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-container .swal2-icon.swal2-success .swal2-success-circular-line-right,
+.swal2-container .swal2-icon.swal2-success .swal2-success-fix {
+    background-color: transparent !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
