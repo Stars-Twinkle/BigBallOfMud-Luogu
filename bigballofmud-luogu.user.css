@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.13
+@version      20261004.14
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1394,6 +1394,22 @@ nav.sidebar {
         color-mix(in srgb, var(--lfe-color--primary, #3498db) 18%, color-mix(in srgb, #ffffff 46%, transparent)),
         color-mix(in srgb, var(--lfe-color--primary, #5aa9e6) 20%, rgba(18, 21, 27, .46))
     ) !important;
+}
+
+/* ★ 气泡的小尾巴（用户：「这块多出来了白色箭头，删掉」）
+   实证 DOM（用户 DevTools）——
+       div.message-block.left > img[头像] + div.message + div.delete
+   行里**没有**箭头元素，所以那个白色三角是**伪元素**画的（气泡尾巴）✗。
+   玻璃化之后它变成一块明显的白色，很突兀。这里按页面作用域关掉：
+   content: none 清掉内容，display: none 连盒子一起去掉；
+   同时覆盖 .message-block 与 .message 两级（尾实现在哪一级都不漏）。 */
+.block .history .stack .message-block::before,
+.block .history .stack .message-block::after,
+.block .history .stack .message-block .message::before,
+.block .history .stack .message-block .message::after {
+    content: none !important;
+    display: none !important;
+    border: none !important;
 }
 
 /* 行容器透明：一条消息只有气泡那一层玻璃（避免「每条两张卡片」回归） */
