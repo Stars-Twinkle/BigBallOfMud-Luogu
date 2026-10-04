@@ -199,6 +199,15 @@
     /* 注：原 --lg-refract（边缘折射提亮）已废弃 —— 它的实现要在固定顶栏里叠一层
        带 mask 的 backdrop-filter，滚动时每帧重算，导致"一直在抖"。
        边缘厚度现在完全由 --lg-rim（亮上缘）与 --lg-shade（暗下缘）表达。 */
+
+/* 主题三态：靠"属性选择器特异性高于 :root"接管深浅，两个域名共用。 */
+:root[data-sl-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-sl-theme="dark"] {
+    color-scheme: dark;
+}
 }
 
 }
@@ -245,13 +254,9 @@ html {
    （滚动条、输入框、光标）跟着变浅/变深。
    属性选择器特异性 (0,2,0) 高于下面的 :root (0,1,0)，所以 JS 一写属性就接管。
    -------------------------------------------------------------------------- */
-:root[data-sl-theme="light"] {
-    color-scheme: light;
-}
+/* （主题三态规则已上移到共用域块，见文件开头） */
 
-:root[data-sl-theme="dark"] {
-    color-scheme: dark;
-}
+/* （主题三态规则已上移到共用域块，见文件开头） */
 
 /* 令牌层已上移到文件开头的"共用域块"（主站 + 网校共用同一套变量）。 */
 
@@ -3966,6 +3971,191 @@ rect.highcharts-point.highcharts-color-1 {
    ========================================================================== */
 @-moz-document domain("class.luogu.com.cn") {
 
-    /* 占位：等网校 DOM 证据后填入元素规则（配方复用 ⑥ / ⑨ / ⑪ 段，保证观感一致）。 */
+/* ★ 类名来源（严格按源码，不是猜的）：
+     https://fecdn.luogu.com.cn/yugu/loader.css?ver=20260913   （51 KB）
+     https://fecdn.luogu.com.cn/yugu/loader.js?ver=20260913    （2.4 MB）
+   实测结论：
+     · 网校**自己没有任何主题层** —— loader.css 里 color-scheme / light-dark() / CSS 变量
+       出现次数全是 0，所以那边原本既没有深色模式、也没有可覆盖的令牌；
+     · 但它和**主站新前端共用组件与排版类**：
+         排版/颜色：.lfe-body .lfe-h1…h6 .lfe-caption .lfe-m-* .lfe-color-inverse .lfe-form-sz-*
+         组件标签：<l-link> <l-marked> <l-text> <l-time> <l-bread-crumb> <l-user-name>
+                   <l-category> <l-tag> <l-button> <l-check> <l-radio>
+         staticClass（渲染出来的真实类名，共 89 个）里与本样式相关的：
+           nav-container · nav-items · nav-item · expand · expand-item · expand-content · sub-content
+           icon-btn · avatar-top · avatar · user-action · icon-right-number · header-layout
+           logo-wrap · exit-wrap · top-progress > bar · bread-crumb
+           card · category · badge · dropdown · dropdown-wrap · combo-wrapper · refined-input
+           input-wrap · fa-input · input-group · modal · switch-btn · stat · tags · item · items
+           frame · wrapped · control · control-container · calendar-tiny · calendar-container
+   做法：深浅由文件开头的"共用令牌层"提供（已含 color-scheme: [[colorMode]] 与主题三态），
+   下面只写元素规则，配方逐条复用主站的 ⑥ 卡片 / ⑨ 输入框 / ⑪ 按钮，保证观感一致。 */
+
+/* ── 外壳：壁纸与压暗交给画布（与主站同一约定） ── */
+html, body, #app.lg-container, .lg-container, .lfe-body {
+    background-color: transparent !important;
+    background-image: none !important;
+    color: var(--lg-text);
+}
+
+html {
+    background-color: light-dark(#eef1f7, #14161a) !important;
+    background-image:
+        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
+                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
+}
+
+/* ── 排版：lfe-* 与主站同一套（深浅跟随令牌） ── */
+.lfe-h1, .lfe-h2, .lfe-h3, .lfe-h4, .lfe-h5, .lfe-h6 {
+    color: var(--lg-text);
+}
+
+.lfe-caption, .lfe-m-caption {
+    color: var(--lg-text-weak);
+}
+
+/* ── 侧栏 / 顶栏导航：玻璃只给"块"，不给每条 ── */
+.nav-container,
+.header-layout {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-nav-alpha), transparent),
+        var(--lg-nav-dark)
+    ) !important;
+    background-image:
+        radial-gradient(88% 58% at 14% -14%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 62%) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* 导航里的条目不各带底色；展开态原本是**内联 #fff**（源码：style:{"background-color":e.expand?"#fff":"transparent"}），
+   这里用 !important 压掉它 —— 注意只压背景，不动 color。 */
+.nav-items, .nav-item, .expand, .expand-item, .expand-content, .sub-content {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    color: var(--lg-text);
+}
+
+/* ── 卡片 / 面板：复用 ⑥ 段配方 ── */
+.card, .category, .frame, .wrapped, .calendar-container, .modal > .background {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* ── 输入框 / 下拉：复用 ⑨ 段配方（refined-input / combo-wrapper 与主站同名） ── */
+.refined-input,
+.combo-wrapper,
+.input-wrap,
+.fa-input,
+.control,
+.input-group {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight) !important;
+    color: var(--lg-text);
+}
+
+.refined-input input,
+.combo-wrapper input,
+.input-wrap input,
+.fa-input input,
+.control input {
+    background-color: transparent !important;
+    border: none !important;
+    color: var(--lg-text);
+}
+
+.refined-input input::placeholder,
+.input-wrap input::placeholder,
+.fa-input input::placeholder {
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .50));
+}
+
+/* ── 按钮：图标按钮与开关按钮走玻璃胶囊（复用 ⑪ 段语言） ── */
+.icon-btn, .switch-btn {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 34%, transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    border: 1px solid light-dark(rgba(255, 255, 255, .85), rgba(255, 255, 255, .28)) !important;
+    border-radius: 999px !important;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color) !important;
+    color: var(--lg-text);
+    transition: translate .2s ease, box-shadow .2s ease;
+}
+
+.icon-btn:hover, .switch-btn:hover {
+    translate: 0 -1px;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color), 0 8px 24px var(--lg-shadow-color-hi) !important;
+}
+
+/* ── 顶部进度条 / 徽标 / 面包屑这类小件 ── */
+.top-progress {
+    background-color: transparent !important;
+}
+
+.top-progress > .bar {
+    background-image: linear-gradient(90deg, var(--lg-link-1), var(--lg-link-2) 45%, var(--lg-link-3)) !important;
+}
+
+.badge, .tags > .item {
+    border-radius: var(--lg-radius-xs) !important;
+}
+
+.bread-crumb {
+    color: var(--lg-text-weak);
+}
+
+/* ── 头像 / 统计块 ── */
+.avatar, .avatar-top {
+    border-radius: 999px !important;
+    box-shadow: 0 0 0 2px light-dark(rgba(255, 255, 255, .72), rgba(255, 255, 255, .30));
+}
+
+.avatar:hover, .avatar-top:hover {
+    scale: 1.08;
+}
+
+.stat {
+    color: var(--lg-text);
+}
+
+.icon-right-number {
+    color: var(--lfe-color--red-3, #e74c3c);
+}
 
 }
