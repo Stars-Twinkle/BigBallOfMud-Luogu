@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.31
+@version      20261004.32
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3125,6 +3125,44 @@ footer a:hover {
    ★ .label 是通用类名，所以只在文章页的上下文里点名（.meta / .metas / .banner-content /
      .article-content / .update-info），不外扩到全站。
    ========================================================================== */
+
+/* ==========================================================================
+   ⑯-c-2 卡片里的「裸标题」（没有类名的 h1~h4）：补上主题色
+   --------------------------------------------------------------------------
+   用户反馈：「文字太暗了」，DevTools 给出的是个人主页那张卡：
+       div.l-card > div.header > h3        ← 注意：**没有任何 class**（只有 data-v-*）
+   而本项目所有标题规则都写作 .lfe-h1 / .lfe-h2 / .lfe-h3 …（见 ⑯-c 与 ⑰ 段），
+   于是这类"光秃秃的 h3"一条都命中不到 —— 深色主题下它会继承到偏暗的颜色，看着就是"文字太暗"。
+   这里按容器限定补一条：只覆盖卡片（及其 header）内的裸标题，正文与列表不受影响。
+   ★ 两个主题各给一次明确值，不依赖继承；不使用裸标签选择器（一律带 .l-card 前缀）。
+   ========================================================================== */
+.l-card .header > h1, .l-card .header > h2, .l-card .header > h3, .l-card .header > h4,
+.l-card .header h1, .l-card .header h2, .l-card .header h3, .l-card .header h4,
+.l-card > h1, .l-card > h2, .l-card > h3, .l-card > h4 {
+    color: light-dark(#1f2329, #f2f5f8);
+}
+
+html[data-sl-theme="light"] .l-card .header > h1,
+html[data-sl-theme="light"] .l-card .header > h2,
+html[data-sl-theme="light"] .l-card .header > h3,
+html[data-sl-theme="light"] .l-card .header > h4,
+html[data-sl-theme="light"] .l-card > h1,
+html[data-sl-theme="light"] .l-card > h2,
+html[data-sl-theme="light"] .l-card > h3,
+html[data-sl-theme="light"] .l-card > h4 {
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .l-card .header > h1,
+html[data-sl-theme="dark"] .l-card .header > h2,
+html[data-sl-theme="dark"] .l-card .header > h3,
+html[data-sl-theme="dark"] .l-card .header > h4,
+html[data-sl-theme="dark"] .l-card > h1,
+html[data-sl-theme="dark"] .l-card > h2,
+html[data-sl-theme="dark"] .l-card > h3,
+html[data-sl-theme="dark"] .l-card > h4 {
+    color: #f2f5f8;
+}
 .banner-content :is(.title, #article-title),
 .article-content :is(.label, .meta, .metas, .update-info),
 .banner-content :is(.label, .meta, .metas),
