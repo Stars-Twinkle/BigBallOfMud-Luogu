@@ -337,47 +337,24 @@
     }
 
     /* ======================================================================
-       二·六、网校首页「学习体系」大图：**抠掉底板**
+       二·六、网校首页「学习体系」大图：换成**用户抠好的那张**
        ----------------------------------------------------------------------
-       实证（SVG 已下到 evidence/网校语料/course-level.svg，457 KB，文字都转成了 path）：
-         · <rect width="1200" height="320" fill="white"/>                ← 白底板（唯一整幅 rect）
-         · 短路径（500~900 字符）用平板色 #9DC3E6 / #5B9BD5 / #70AD47   ← 蓝绿面板衬底
-         · 几千字符的 fill="white" / "black" 路径 = 文字笔画（不能动）
-         · fill="url(#paint0_linear_…)" 只有一处 = 彩虹进度带（语义，保留）
-       做法：fetch 下来 → 去掉白底板与「平板色 + 短路径」的衬底 → 换成 blob 写回 img.src。
-             457 KB 不进仓库/样式表，也不依赖图床（同源 blob）。
-       ★ 幂等：处理过的图片打 data-sl-cut；SPA 重建节点后由低频纠偏再补。
+       最初我打算自己抠（fetch SVG → 去白底板与平板色短路径 → blob 写回），
+       但用户实测后指出「你抠图扣错了」，并自己抠好上传到：
+           https://cdn.luogu.com.cn/upload/image_hosting/0sldamx5.webp
+       所以这里改成：**直接把 img.src 指到那张图**（幂等：已是该地址就跳过）。
+       CSS 那边再用 content: url(...) 兜一层 —— 没装脚本时也是对的（见 ㊲ 段）。
+       玻璃承载层仍在 CSS 里，不受影响。
        ====================================================================== */
+    var CUT_URL = 'https://cdn.luogu.com.cn/upload/image_hosting/0sldamx5.webp';
     var CUT_SEL = 'img[src*="course-level"]';
-    var CUT_FLAT_FILLS = ["#9DC3E6", "#5B9BD5", "#70AD47"];
-    var CUT_SHORT_PATH = 2000;
 
     function cutLevelPanel() {
         if (!isSchool) return;
         var imgs = document.querySelectorAll(CUT_SEL);
         for (var i = 0; i < imgs.length; i++) {
-            (function (img) {
-                if (img.getAttribute('data-sl-cut') === '1') return;
-                img.setAttribute('data-sl-cut', '1');   // 先打标，避免并发重复处理
-                var src = img.getAttribute('src') || img.src;
-                if (!src || src.indexOf('blob:') === 0) return;
-                fetch(src, { credentials: 'omit' })
-                    .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
-                    .then(function (svg) {
-                        var out = svg
-                            .replace(/<rect[^>]*width="1200"[^>]*height="320"[^>]*fill="white"[^>]*\/?>/i, '')
-                            .replace(/<path\b[^>]*>/gi, function (tag) {
-                                if (tag.length > CUT_SHORT_PATH) return tag;
-                                for (var k = 0; k < CUT_FLAT_FILLS.length; k++) {
-                                    if (tag.indexOf('fill="' + CUT_FLAT_FILLS[k] + '"') >= 0) return '';
-                                }
-                                return tag;
-                            });
-                        var url = URL.createObjectURL(new Blob([out], { type: 'image/svg+xml' }));
-                        img.src = url;
-                    })
-                    .catch(function () { img.removeAttribute('data-sl-cut'); });
-            })(imgs[i]);
+            if (imgs[i].getAttribute('src') === CUT_URL) continue;
+            imgs[i].setAttribute('src', CUT_URL);
         }
     }
 
