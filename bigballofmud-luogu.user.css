@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.33
+@version      20261004.34
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1652,63 +1652,21 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
      contain / will-change / isolation
    只作用于"含 canvas 的图表卡"；其余卡片玻璃一律不动。 */
 html body .l-card:has(canvas) {
-    /* ★★★ 第六轮 —— 真正的最后一块（用户提供的 13 条实采数据反推出来的）：
-       把每条记录的 inline left/top 与 视口 rect / scrollY 联立，可解出**包含块原点的文档坐标**：
-         例：left/top = (87.71, 1861.44)，视口 rect = (168, 2066)，scrollY = 1586
-             → 浮窗文档坐标 = (168, 3652) → 包含块原点 = (168-87.71, 3652-1861.44) = (80.3, 1790.6)
-         13 条记录解出来的原点都落在 (≈80, ≈1790) —— 正是图表卡片 .l-card 的位置。
-       ⇒ 结论：.tooltip 的包含块**仍然是 .l-card**。
-       而 absolute 的包含块只由「最近的 positioned 祖先」决定 —— 所以前几轮清掉
-       backdrop-filter / filter / transform / contain / willChange / isolation 全都无效：
-       **我一直漏查了 .l-card 自己的 position**（它是 relative，卡片常规写法）。
-       这里把图表卡改回 static，.tooltip 的包含块就回到「初始包含块（文档）」，
-       与洛谷 JS 传进来的文档坐标（canvas.getBoundingClientRect() + pageXOffset/pageYOffset + caret）终于一致。
-       ★ 安全性：该卡片内部结构极简（div.header + canvas#rating-chart + div.tooltip），
-         唯一的 absolute 后代就是这个浮窗，把它改成 static 不会影响别的布局。 */
-    /* ★ 第七轮：这里一度写过 position: static —— 用户截图显示它把图表卡片撑满整屏（副作用），
-       已回滚。包含块的问题改用**实测**确定（见下方说明），不再靠推断。 */
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    filter: none !important;
-    transform: none !important;
-    perspective: none !important;
-    contain: none !important;
-    will-change: auto !important;
-    isolation: auto !important;
-    /* 补偿：卡片底色比常规卡片稍实一点（原来是靠模糊+透明透出壁纸） */
-    background-color: light-dark(
-        color-mix(in srgb, var(--theme-card-background, #fff) calc(var(--lg-alpha-pop) + 8%), transparent),
-        color-mix(in srgb, var(--lg-pop-dark) 100%, #000 4%)
-    ) !important;
+    /* ★ 第八轮废弃：真实页面受控实验（Chrome + DevTools 协议，evidence/脚本与语料/一次性脚本/
+       compare_containing_block.mjs）证明图表卡片 .l-card 的 computed position 是 **static**，
+       它根本不是 .tooltip 的包含块；造一个结构/内联写法相同的 .tooltip 放进卡片内与 <html> 下，
+       两者 rectY 都是 300（正确）。⇒ 洛谷的浮窗定位本来就是对的，之前"看不见"是我那版脚本
+       自己写 left/top 把它推出了视口。
+       因此本条不再做任何 backdrop-filter / filter / contain / will-change / isolation / position 干预
+       （清掉 backdrop-filter 只会让图表卡片白白丢掉玻璃模糊）。规则体留空，只作说明。 */
 }
 
 /* ★ 浮窗被脚本搬到 <html> 下之后（见 userscript 的 fixEloTooltip 第三版），它不再是卡片后代，
    上面的 .l-card:has(canvas) .tooltip 规则就匹配不到了。这里用 html > .tooltip 补一份完全相同的配方：
    既覆盖"脚本已装"的情形，也保证"只装样式没装脚本"时原规则仍然有效（两个选择器都留着）。 */
 html > .tooltip {
-    z-index: 9999 !important;
-    pointer-events: none !important;
-    background-color: light-dark(
-        color-mix(in srgb, var(--theme-card-background, #fff) calc(var(--lg-alpha-pop) + 8%), transparent),
-        var(--lg-pop-dark)
-    ) !important;
-    background-image:
-        radial-gradient(86% 54% at 13% -16%,
-            var(--lg-spec-color) 0%,
-            rgba(255, 255, 255, 0) 58%),
-        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
-    border: 1px solid var(--lg-border) !important;
-    border-radius: var(--lg-radius-sm) !important;
-    box-shadow:
-        inset 0 1.5px 0 var(--lg-rim-color),
-        inset -1px -1px 0 var(--lg-shade),
-        inset 0 0 18px var(--lg-glow),
-        0 12px 34px var(--lg-shadow-color-hi) !important;
-    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
-    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
-    padding: 8px 10px !important;
-    font-size: .875rem;
-    color: var(--lg-text);
+    /* ★ 第八轮废弃：这一套是为"把浮窗搬到 <html> 下"准备的，而搬家方案已作废
+       （见上一条说明：浮窗定位本来就正确，不需要搬家）。规则体留空，不会匹配到任何东西。 */
 }
 
 html > .tooltip > b,

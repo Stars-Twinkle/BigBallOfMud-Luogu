@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261004.32
+// @version      20261004.33
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -509,49 +509,6 @@
        五、启动
        ====================================================================== */
     // document-start 阶段 <html> 可能还没建好，等它出现就立刻写属性（深色用户不闪白）
-    /* ======================================================================
-       六·二、个人主页「比赛等级分趋势图」的浮窗：位置改成"跟着指针"
-       ----------------------------------------------------------------------
-       背景（用户多轮实测 + 控制台诊断，样式侧已尽力但无法解决）：
-         该图浮窗由 Chart.js + Vue 组件 UserEloChartTooltip 渲染为 div.tooltip，
-         它的 inline style 由组件按**文档坐标**写入：
-             left = canvas.rect.left + pageXOffset + caretX
-             top  = canvas.rect.top  + pageYOffset + caretY - height/2
-         但其 absolute 包含块并非文档 —— 13 条实采记录联立解出的包含块原点稳定落在
-         图表卡片附近，于是"文档坐标"被当成"卡内坐标"使用，浮窗整体偏出视口：
-             实测 rect(视口).y ≈ 2066，而视口高度只有 668 ⇒ 永远看不见。
-       样式侧试过并已回滚：清 backdrop-filter/filter/transform/contain/will-change/isolation、
-         放开祖先 overflow、把卡片改 static（后者把卡片撑满整屏）。
-       ⇒ 这里走"指针驱动"：把浮窗钉成 position: fixed（其包含块为视口；祖先已确认没有任何
-         transform / filter / backdrop-filter，不会被别的元素捕获），left/top 每 120ms 按当前
-         指针位置写一次（右下 14px，并做视口内收边）。
-       作用域：只认 div.tooltip（站内只有该组件用它），元素被 Vue 重建时幂等重设；
-               其它页面与组件零影响。
-       ====================================================================== */
-    function fixEloTooltip() {
-        /* ★ 第三版（终结版）—— 不抢样式，改成"搬家"。
-           历史：
-             v1 跟着鼠标写 left/top → 用户「咋飞这么远」（Chart.js 的 caret 指数据点，不是鼠标）；
-             v2 保留洛谷原坐标再换算 → 仍不准，且实测出现"位置飘忽 / 挡住内容"，
-                根因是**在跟 Vue 抢 inline style**（洛谷每次 hover 都重写 left/top，我也写，胜负不定）。
-           v3 思路：不动样式，只把浮窗**搬出所有定位祖先**。
-             洛谷组件的坐标算法是：left/top = canvas.rect + pageXOffset/pageYOffset + caret
-             —— 也就是**文档坐标**，本来就完全正确；
-             只因 .tooltip 的 absolute 包含块是图表卡片（卡片带 position: relative），
-             这份文档坐标被当成"卡内坐标"用，才整体错位到视口之外。
-             把它移到 <html> 下（html 不是定位祖先）后，包含块就是初始包含块＝文档，
-             洛谷的坐标立刻正确 —— 我们一行样式都不需要改，也不会与 Vue 打架。
-           ★ 幂等 + 低频（200ms）：元素被 Vue 重建时会被再搬一次；已在 <html> 下则什么都不做。
-           ★ 只认 div.tooltip（站内只有该组件用它），对其它页面与组件零影响。 */
-        function hoist() {
-            var t = document.querySelector("div.tooltip");
-            if (!t) return;
-            if (t.parentNode !== document.documentElement) {
-                document.documentElement.appendChild(t);
-            }
-        }
-        setInterval(hoist, 200);
-    }
 
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
@@ -573,9 +530,6 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
-
-        // 主站个人主页：图表浮窗改成指针驱动定位（详见 六·二）
-        if (isMain) fixEloTooltip();
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }
