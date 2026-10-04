@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261004.27
+// @version      20261004.28
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -509,6 +509,53 @@
        五、启动
        ====================================================================== */
     // document-start 阶段 <html> 可能还没建好，等它出现就立刻写属性（深色用户不闪白）
+    /* ======================================================================
+       六·二、个人主页「比赛等级分趋势图」的浮窗：位置改成"跟着指针"
+       ----------------------------------------------------------------------
+       背景（用户多轮实测 + 控制台诊断，样式侧已尽力但无法解决）：
+         该图浮窗由 Chart.js + Vue 组件 UserEloChartTooltip 渲染为 div.tooltip，
+         它的 inline style 由组件按**文档坐标**写入：
+             left = canvas.rect.left + pageXOffset + caretX
+             top  = canvas.rect.top  + pageYOffset + caretY - height/2
+         但其 absolute 包含块并非文档 —— 13 条实采记录联立解出的包含块原点稳定落在
+         图表卡片附近，于是"文档坐标"被当成"卡内坐标"使用，浮窗整体偏出视口：
+             实测 rect(视口).y ≈ 2066，而视口高度只有 668 ⇒ 永远看不见。
+       样式侧试过并已回滚：清 backdrop-filter/filter/transform/contain/will-change/isolation、
+         放开祖先 overflow、把卡片改 static（后者把卡片撑满整屏）。
+       ⇒ 这里走"指针驱动"：把浮窗钉成 position: fixed（其包含块为视口；祖先已确认没有任何
+         transform / filter / backdrop-filter，不会被别的元素捕获），left/top 每 120ms 按当前
+         指针位置写一次（右下 14px，并做视口内收边）。
+       作用域：只认 div.tooltip（站内只有该组件用它），元素被 Vue 重建时幂等重设；
+               其它页面与组件零影响。
+       ====================================================================== */
+    function fixEloTooltip() {
+        var px = 0;
+        var py = 0;
+        var seen = null;
+        document.addEventListener("mousemove", function (e) {
+            px = e.clientX;
+            py = e.clientY;
+        }, true);
+        setInterval(function () {
+            var t = document.querySelector("div.tooltip");
+            if (!t) { seen = null; return; }
+            var cs = getComputedStyle(t);
+            if (cs.opacity === "0" || cs.display === "none" || cs.visibility === "hidden") return;
+            if (seen !== t) {
+                seen = t;
+                t.setAttribute("data-sl-pointer-fixed", "1");
+                t.style.setProperty("position", "fixed", "important");
+                t.style.setProperty("pointer-events", "none", "important");
+            }
+            if (!px && !py) return;   // 还没收到过指针事件
+            var r = t.getBoundingClientRect();
+            var x = Math.min(px + 14, Math.max(8, innerWidth - r.width - 8));
+            var y = Math.max(8, Math.min(py - r.height / 2, innerHeight - r.height - 8));
+            t.style.setProperty("left", x + "px", "important");
+            t.style.setProperty("top", y + "px", "important");
+        }, 120);
+    }
+
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
@@ -529,6 +576,9 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
+
+        // 主站个人主页：图表浮窗改成指针驱动定位（详见 六·二）
+        if (isMain) fixEloTooltip();
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }
