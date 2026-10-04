@@ -4140,6 +4140,161 @@ html {
     color: var(--lg-text-weak);
 }
 
+/* ==========================================================================
+   ㉓ 网校播放页（课堂 /player-wrap.class-room）
+   --------------------------------------------------------------------------
+   ★ 全部依据**真实产物**（2026-10-04 爬取，非猜测）：
+     loader.js 里的 chunk 映射 + publicPath 解出模板 module.<id>.<hash>.js，
+     49 个 chunk 全量下载，播放器在 module.9.js；其样式是同名产物
+     https://fecdn.luogu.com.cn/yugu/module.9.1ed51debeebc31b2fec7.css（9139 字符）。
+   实测它写死的浅色（必须覆盖的）——
+       .main           { background:#fff }
+       .side           { background:#f8f8f8 }
+       .side > div     { color:#000 }
+       .controller     { background-color:#fafafa; color:#333 }
+       .control-popup  { background:#fff }
+       .panel          { background:#fff; border:1px solid #ddd }
+       header / footer { background:#eee }
+       .progress-wrapper { background-color:#e8e8e8 }
+       .bar-wrapper      { background:#e7e7e7 }
+       .control-menu-item { color:#333 }
+       table.stripped tbody tr:nth-of-type(odd/2n) { background:#eee / #fff }
+       .vote-root { color:#000 }
+   另外页面外层还有**内联**的 background-color: rgb(239,239,239)（两个 .wrapped.lfe-body），
+   内联只能用 !important 压（本项目只对 background 用 !important，color 一律不用）。
+   ★ 这些选择器在原产物里都带 [data-v-…] 作用域哈希；本项目铁律是**不碰 data-v-***，
+     所以这里统一用 .class-room/.player-wrap 前缀把特异性提到 (0,2,0)~(0,3,0) 取胜。
+   ★ 语义色（进度条的绿、投票选中态、提示气泡的黑底白字）**保留**，只改"面板底色/文字"这类。
+   ========================================================================== */
+/* ① 页面外层：内联灰色底 + 结构容器 */
+.player-wrap .wrapped.lfe-body,
+.player-wrap .main-container {
+    background-color: transparent !important;
+    background-image: none !important;
+    color: var(--lg-text);
+}
+
+/* ② 播放区与侧栏：两块玻璃 */
+.player-wrap.class-room .main,
+.player-wrap.class-room .side {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 62%, transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* 侧栏内部（原产物写死 color:#000） */
+.player-wrap.class-room .side > div,
+.player-wrap.class-room .side-content,
+.player-wrap.class-room .tab {
+    color: var(--lg-text);
+}
+
+/* 侧栏标签（聊天 / 笔记 / 提问 / 设置）：选中态用强调色，未选中用弱化色 */
+.player-wrap.class-room .tab {
+    border-radius: var(--lg-radius-xs) !important;
+    transition: color .2s ease, background-color .2s ease;
+}
+
+/* ③ 播放器控制条（原 #fafafa / #333） */
+.player-wrap.class-room .controller {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 74%, transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    color: var(--lg-text);
+}
+
+/* 控制条里的浮层菜单 / 弹层（原 #fff） */
+.player-wrap.class-room .control-popup,
+.player-wrap.class-room .control-menu {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 82%, transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image: none !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: 0 8px 26px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* 菜单项文字（原 #333）——选中/悬停的绿色是语义色，保留 */
+.player-wrap.class-room .control-menu-item {
+    color: var(--lg-text);
+}
+
+/* ④ 进度条轨道（原 #e8e8e8 / #e7e7e7）—— 绿色进度与白点保留 */
+.player-wrap.class-room .progress-wrapper,
+.player-wrap.class-room .bar-wrapper {
+    background-color: light-dark(rgba(0, 0, 0, .14), rgba(255, 255, 255, .20)) !important;
+}
+
+/* ⑤ 侧栏里的面板 / 表格（原 #fff + #ddd 边框 + 斑马纹 #eee/#fff） */
+.player-wrap.class-room .panel,
+.player-wrap.class-room .content {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 66%, transparent),
+        var(--lg-soft-dark)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    color: var(--lg-text);
+}
+
+.player-wrap.class-room header,
+.player-wrap.class-room footer {
+    background-color: transparent !important;
+    border-color: var(--lg-border) !important;
+    color: var(--lg-text);
+}
+
+.player-wrap.class-room table td,
+.player-wrap.class-room table th {
+    border-color: var(--lg-border) !important;
+    color: var(--lg-text);
+}
+
+.player-wrap.class-room table.stripped tbody tr:nth-of-type(odd) {
+    background-color: light-dark(rgba(0, 0, 0, .04), rgba(255, 255, 255, .05)) !important;
+}
+
+.player-wrap.class-room table.stripped tbody tr:nth-of-type(2n) {
+    background-color: transparent !important;
+}
+
+.player-wrap.class-room tr.replay-selection:hover {
+    background-color: light-dark(rgba(0, 0, 0, .06), rgba(255, 255, 255, .07)) !important;
+}
+
+.player-wrap.class-room tr.replay-selection.active {
+    background-color: color-mix(in srgb, var(--lfe-color--primary, #3498db) 18%, transparent) !important;
+}
+
+/* ⑥ 投票页（原 color:#000） */
+.player-wrap.class-room .vote-root,
+.player-wrap.class-room .vote-edit-content {
+    color: var(--lg-text);
+}
+
+/* ⑦ 视频本体保持深色（原 #333）—— 视频需要暗底，交回原样 */
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
