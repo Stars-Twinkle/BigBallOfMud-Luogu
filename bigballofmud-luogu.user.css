@@ -4137,6 +4137,18 @@ rect.highcharts-point.highcharts-color-1 {
    做法：深浅由文件开头的"共用令牌层"提供（已含 color-scheme: [[colorMode]] 与主题三态），
    下面只写元素规则，配方逐条复用主站的 ⑥ 卡片 / ⑨ 输入框 / ⑪ 按钮，保证观感一致。 */
 
+/* ★ 属性驱动的保险（不依赖 light-dark() 的解析）——
+   万一某个浏览器/某个页面上 color-scheme 没能驱动 light-dark()，
+   这一步也能让"点按钮 → 整页立刻变"这件事成立（用户反复反馈"切换没反应"）。
+   注意：属性写在 <html> 上，所以选择器用 html[data-sl-theme=…]（等价于 :root[data-sl-theme=…]）。 */
+html[data-sl-theme="dark"] {
+    background-color: #14161a !important;
+}
+
+html[data-sl-theme="light"] {
+    background-color: #eef1f7 !important;
+}
+
 /* ── 外壳：壁纸与压暗交给画布（与主站同一约定） ── */
 html, body, #app.lg-container, .lg-container, .lfe-body {
     background-color: transparent !important;
