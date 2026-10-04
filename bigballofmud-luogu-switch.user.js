@@ -302,7 +302,12 @@
         'nav.lfe-body',
         '.main-container',
         '.wrapped.lfe-body',
-        'main.wrapped.lfe-body'
+        'main.wrapped.lfe-body',
+        /* ★ 标签栏的**未选中项**也带内联 color（配深底导航用的浅色），
+           浅色模式下会变成"浅字浅底"。这里一并剥掉，颜色交给样式表按属性给。
+           注意**排除 .selected**：它的内联背景/文字色是状态色，必须原样保留。 */
+        '.tab .items > li:not(.selected)',
+        '.category .items > li:not(.selected)'
     ].join(',');
 
     function stripInlineTheme() {
@@ -311,6 +316,8 @@
         for (var i = 0; i < nodes.length; i++) {
             var el = nodes[i], st = el.style;
             if (!st) continue;
+            // 状态项（选中标签等）的内联色必须保留
+            if (el.classList && el.classList.contains('selected')) continue;
             if (st.backgroundColor) st.removeProperty('background-color');
             if (st.backgroundImage) st.removeProperty('background-image');
             if (st.color) st.removeProperty('color');

@@ -5339,6 +5339,42 @@ html[data-sl-theme="dark"] .player-wrap.class-room .chats > p a {
     color: #6cb2ff;
 }
 
+/* ==========================================================================
+   ㉝ 网校标签栏：**未选中项**的文字色（用户：「浅色模式下未选中项不应该是黑色吗」）
+   --------------------------------------------------------------------------
+   实证 DOM：ul.items > li（未选中，带内联 color）+ li.selected（内联背景/文字色）。
+   未选中项的浅色是**内联**写死的（配深底导航），普通规则压不过内联 ——
+   所以这里两手：
+     ① CSS 按属性给出明确前景（浅 #1f2329 = 正文黑 / 深 #e7eaee）；
+     ② 由脚本 stripInlineTheme 把**未选中项**的内联 color 剥掉（.selected 一律跳过，
+        它的内联背景/文字色是状态色，必须原样保留）。
+   ========================================================================== */
+html[data-sl-theme="light"] .player-wrap.class-room .tab .items > li:not(.selected),
+html[data-sl-theme="light"] .player-wrap.class-room .tab .items > li:not(.selected) a,
+html[data-sl-theme="light"] .full-container .card .category .items > li:not(.selected),
+html[data-sl-theme="light"] .full-container .card .category .items > li:not(.selected) a {
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selected),
+html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selected) a,
+html[data-sl-theme="dark"] .full-container .card .category .items > li:not(.selected),
+html[data-sl-theme="dark"] .full-container .card .category .items > li:not(.selected) a {
+    color: #e7eaee;
+}
+
+/* 悬停时用强调色（状态语义：可点） */
+html[data-sl-theme="light"] .player-wrap.class-room .tab .items > li:not(.selected):hover a,
+html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selected):hover a {
+    color: light-dark(#1a6fd4, #6cb2ff);
+}
+
+/* 无属性（跟随系统）时的兜底 */
+.player-wrap.class-room .tab .items > li:not(.selected),
+.player-wrap.class-room .tab .items > li:not(.selected) a {
+    color: var(--lg-text);
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
