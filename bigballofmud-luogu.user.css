@@ -5590,6 +5590,16 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
     color: #f2f5f8;
 }
 
+/* ★★★ 第十次修正（也是最后一次碰这里）：**撤回所有对分类卡内部的改动**。
+   复盘：我先后猜过三次 ——
+     ① 把 .card 与 .brief 一起透明化 → 用户：「还有这个白色卡片，直接移除」之后我又做过头；
+     ② 把 .card 与 .brief 一起 opacity:0 → 用户：「上面文字怎么全没了」（卡上空白）；
+     ③ 只隐藏 .brief → 用户：「这啥东西」（背面文字全露着，封面不在）。
+   三次都没猜中这一层的真实分工 —— 说明**我没有这张卡的准确 DOM**。
+   按项目铁律（不猜类名 / 能拿到证据就别猜），这里停止改动：
+     · 卡片内部（.card / .brief 及其子元素）**一律不碰**，交回网校自己的交互；
+     · 只保留**外壳**那层：容器透明 + .wrap 上叠玻璃（见 ㉟ 段）。
+   要精准适配这张卡，需要一行面包屑 + 说明"封面是哪个元素、背面文字是哪个元素"。 */
 /* ==========================================================================
    ㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白色卡片，直接移除」）
    --------------------------------------------------------------------------
@@ -5612,29 +5622,6 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
    （用户：「上面文字怎么全没了」）。
    现在只处理 .brief：它是"白色卡片"本体（用户最早说「还有这个白色卡片，直接移除」），
    背景交回外层，自己不留底。 */
-.home-wrapper .wrap .brief,
-.home-wrapper .wrap .card > .brief {
-    background-color: transparent !important;
-    background-image: none !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
-/* 两种主题下都透明（逐条列出，不用 :is()，避免撞"不许进玻璃名单"的守卫） */
-html[data-sl-theme="light"] .home-wrapper .wrap .brief,
-html[data-sl-theme="dark"] .home-wrapper .wrap .brief,
-html[data-sl-theme="light"] .home-wrapper .wrap .card > .brief,
-html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
-    background-color: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
 /* --------------------------------------------------------------------------
    ★★ 分类卡（.wrap）的「背面」默认隐藏、仅悬停显示
    --------------------------------------------------------------------------
@@ -5647,23 +5634,6 @@ html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
                > h3.lfe-h3.main-title / div.row.lfe-caption > div.title / div.content
    做法：背面容器（.card 与 .brief）默认 opacity:0，:hover / :focus-within 才显示；
         .wrap 自己的封面背景图**不动**（它是正面那层，原本的交互会把它隐掉）。 */
-/* ★★ 只隐藏**背面文字**（.brief），封面（.card）保持可见 ——
-   上一版把 .card 也设成 opacity:0，等于连封面一起藏了，卡上就空了
-   （用户：「上面文字怎么全没了」）。
-   现在：不悬停 = 只有封面；悬停/聚焦 = 封面之上浮出背面文字（与它们原本的交互一致）。 */
-.home-wrapper .wrap .brief,
-.home-wrapper .wrap .card > .brief {
-    opacity: 0;
-    transition: opacity .22s ease;
-}
-
-.home-wrapper .wrap:hover .brief,
-.home-wrapper .wrap:hover .card > .brief,
-.home-wrapper .wrap:focus-within .brief,
-.home-wrapper .wrap:focus-within .card > .brief {
-    opacity: 1;
-}
-
 /* ==========================================================================
    ㊲ 网校首页「学习体系」大图：用**用户抠好的图**替换，并给玻璃承载层
    --------------------------------------------------------------------------
