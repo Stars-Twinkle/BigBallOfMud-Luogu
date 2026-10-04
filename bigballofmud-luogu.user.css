@@ -5637,6 +5637,31 @@ html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
     -webkit-backdrop-filter: none !important;
 }
 
+/* --------------------------------------------------------------------------
+   ★★ 分类卡（.wrap）的「背面」默认隐藏、仅悬停显示
+   --------------------------------------------------------------------------
+   用户连着两次指出同一件事：
+     「他这个的结构是鼠标悬浮消失露出后面的文字，重写逻辑让鼠标不在的时候后面隐藏不就得了」
+   我上一版把这条逻辑**只写给了 .item.course**（"最近在学"那张卡），而你截图里这两排
+   （洛谷入门计划【前期/后期】、信奥入门训练营【前期/后期】）其实是 **.wrap 分类卡** ——
+   所以"没用"。这里把同一条逻辑补到 .wrap 家族。
+   实证 DOM：div.course-container > div.wrap > div.card > div.brief
+               > h3.lfe-h3.main-title / div.row.lfe-caption > div.title / div.content
+   做法：背面容器（.card 与 .brief）默认 opacity:0，:hover / :focus-within 才显示；
+        .wrap 自己的封面背景图**不动**（它是正面那层，原本的交互会把它隐掉）。 */
+.home-wrapper .wrap .card,
+.home-wrapper .wrap .card > .brief {
+    opacity: 0;
+    transition: opacity .22s ease;
+}
+
+.home-wrapper .wrap:hover .card,
+.home-wrapper .wrap:hover .card > .brief,
+.home-wrapper .wrap:focus-within .card,
+.home-wrapper .wrap:focus-within .card > .brief {
+    opacity: 1;
+}
+
 /* ==========================================================================
    ㊲ 网校首页「学习体系」大图：抠掉底板，改由玻璃承载
    --------------------------------------------------------------------------
