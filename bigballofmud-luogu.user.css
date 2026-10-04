@@ -4170,9 +4170,17 @@ html, body, #app.lg-container, .lg-container, .lfe-body {
 
 html {
     background-color: light-dark(#eef1f7, #14161a) !important;
+    /* ★ 浅色要**洗白**：网校的壁纸（--sl-bg-image）本身偏暗，
+       不洗白的话浅色模式的玻璃压在暗壁纸上仍是暗灰 ——
+       用户看到的"浅色也不像玻璃"就是这一条引起的。
+       这里用 light-dark() 同时表达两件事：
+         浅色 → 叠一层 78% 的白（把壁纸压成浅底）
+         深色 → 换成原来的 84% 黑压暗
+       background 是"非颜色"，不能直接被 light-dark() 切换，
+       但里面的**颜色值**可以 —— 所以写成同一个 linear-gradient 的两个分支。 */
     background-image:
-        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
-                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
+        linear-gradient(light-dark(rgba(255, 255, 255, .78), rgba(0, 0, 0, .84)),
+                        light-dark(rgba(255, 255, 255, .78), rgba(0, 0, 0, .84))),
         var(--sl-bg-image) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
@@ -4748,6 +4756,74 @@ html[data-sl-theme="light"] .player-wrap.class-room table.stripped tbody tr:nth-
 html[data-sl-theme="dark"] .player-wrap.class-room table.stripped tbody tr:nth-of-type(odd) {
     background-color: rgba(255, 255, 255, .05) !important;
 }
+
+/* ==========================================================================
+   ㉗ 网校（yugu）：**由源码自动生成**的深色覆盖
+   --------------------------------------------------------------------------
+   生成方式（可复现）：evidence/脚本与语料/一次性脚本/gen_school_dark_overrides.mjs
+   数据源：evidence/网校语料/css/ 下 **38 份** chunk CSS（由 loader.js 的哈希映射解出并全量下载），
+           共 156 KB；凡"背景/文字色"取值为中性浅色
+           （#fff / #fafafa / #f8f8f8 / #eee / #e8e8e8 / #e7e7e7 / #ddd / #333 / #000 …）的规则，
+           全部挑出来做覆盖 —— 彩色值（如进度条的 #4caf50）一律保留，那是语义色。
+   ★ 选择器：原产物每条都带 [data-v-…] 作用域哈希，本项目**不引用**它；
+     这里去掉哈希、只留类/属性选择器，并统一加 #app 前缀 ——
+     既避免泄露到别的页面，又能以 (1,2,x) 的特异性稳稳压过原来的 (0,2,0)。
+   ========================================================================== */
+html[data-sl-theme="dark"] :is(
+    #app .CodeMirror,
+    #app .CodeMirror-gutter-filler,
+    #app .CodeMirror-scrollbar-filler,
+    #app .CodeMirror-gutters,
+    #app .hljs,
+    #app .bottom-bar,
+    #app .item,
+    #app table.stripped tbody tr:nth-of-type(odd),
+    #app table.stripped tbody tr:nth-of-type(2n),
+    #app .float-bottom,
+    #app .info-card,
+    #app .bottom-container,
+    #app .mobile-info .select-list-container .title,
+    #app .progress-frame,
+    #app .add-group-code,
+    #app .panel,
+    #app .bar-wrapper,
+    #app .progress-wrapper,
+    #app .dot:after,
+    #app .checkpoint:after,
+    #app .checkpoint.viewed:after,
+    #app .pointer-hint,
+    #app .controller,
+    #app .controller .control-group .control-popup,
+    #app .lg-video,
+    #app tr.replay-selection:hover,
+    #app tr.replay-selection.active,
+    #app .main,
+    #app .side
+) {
+    background-color: var(--lg-panel-dark) !important;
+    border-color: var(--lg-border) !important;
+}
+
+html[data-sl-theme="dark"] :is(
+    #app .CodeMirror,
+    #app .CodeMirror-guttermarker,
+    #app .fa-inverse,
+    #app .container,
+    #app .header-link,
+    #app .icon,
+    #app .notice i,
+    #app .notice span,
+    #app .teacher-action,
+    #app .volume-num,
+    #app .pointer-hint,
+    #app .controller,
+    #app .control-menu-item,
+    #app .vote-root,
+    #app .side>div
+) {
+    color: var(--lg-text);
+}
+
 
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
