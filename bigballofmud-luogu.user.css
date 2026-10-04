@@ -5055,6 +5055,50 @@ html[data-sl-theme="dark"] :is(.main-container, .wrapped.lfe-body, main.wrapped.
 
 /* ⑥ 兼容：带 .player-wrap/.class-room 的那套页面（另一支课堂模板）继续沿用 ㉓㉖ */
 
+/* ==========================================================================
+   ㉙ 网校课程信息卡：**内部不再各铺一层玻璃**（用户：「这块多层玻璃」）
+   --------------------------------------------------------------------------
+   实证 DOM（用户 DevTools）：
+       main.wrapped.lfe-body
+         div.full-container[currenttemplate="LessonClassroom"]
+           div.card.padding-default
+             div[slot="header"]
+               div.category          ← 选中的「课程信息」（蓝条，状态色，保留）
+             div
+   我给 .full-container .card 铺了玻璃，而它内部的头部 / 分类条又各有一层底，
+   于是叠成"多层玻璃"。按本项目一贯做法：玻璃只留**最外层**，内部一律透明。
+   ★ 例外：.category 的蓝底/字色是**状态色**（当前选中的标签页），不透明化。
+   ========================================================================== */
+.full-container .card > div,
+.full-container .card [slot="header"],
+.full-container .card > div > div:not(.category),
+.full-container .card :is(header, footer, section, ul, li, .content:not(.category)) {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下一并保持透明 */
+html[data-sl-theme="light"] .full-container .card > div,
+html[data-sl-theme="dark"] .full-container .card > div,
+html[data-sl-theme="light"] .full-container .card [slot="header"],
+html[data-sl-theme="dark"] .full-container .card [slot="header"] {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 卡片本身只保留一层玻璃（去掉 ㉗ 生成块可能带来的重复底） */
+.full-container .card {
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
