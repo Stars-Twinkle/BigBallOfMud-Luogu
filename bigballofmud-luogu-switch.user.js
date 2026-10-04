@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261004.26
+// @version      20261004.27
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
