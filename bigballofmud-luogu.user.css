@@ -5412,10 +5412,18 @@ html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selecte
      结论：这里必须用 !important（背景可以，项目不变式只禁 color !important），
      同时由脚本 stripInlineTheme 把内联 background-color / color 剥掉（已覆盖 main.wrapped.lfe-body）。
    ========================================================================== */
-/* ① 白色挡板一律透明：露出壁纸（浅色即"壁纸原样"） */
+/* ① 白色挡板一律透明：露出壁纸。
+   ★ 踩过的坑：同一个 <main> 在两次 DevTools 截图里**一次带 class、一次不带** ——
+       第一次：<main class="wrapped lfe-body" style="background-color: rgb(255,255,255)">
+       第二次：<main data-v-ad70ac82 style="background-color: rgb(255, 255, 255)">
+     所以这里必须用**结构选择器**（不依赖 class）：#app > main / .homepage-main > main 等，
+     带 class 的形态也照样列上（两条路都覆盖）。 */
+#app.lfe-vars > main,
 #app.lfe-vars > main.wrapped.lfe-body,
-.lfe-body.homepage-main,
+.lfe-body.homepage-main > main,
 .homepage-main > main.wrapped.lfe-body,
+.homepage-main > main:not([class]),
+.lfe-body.homepage-main,
 .home-wrapper,
 .footer-container,
 .fix {
@@ -5424,14 +5432,16 @@ html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selecte
 }
 
 /* ② 深色：这一整块覆盖暗层（用面板暗色，与全站深色玻璃同一档） */
-html[data-sl-theme="dark"] #app.lfe-vars > main.wrapped.lfe-body,
-html[data-sl-theme="dark"] .homepage-main > main.wrapped.lfe-body {
+html[data-sl-theme="dark"] #app.lfe-vars > main,
+html[data-sl-theme="dark"] .lfe-body.homepage-main > main,
+html[data-sl-theme="dark"] .homepage-main > main {
     background-color: var(--lg-panel-dark) !important;
 }
 
 /* ③ 浅色：不铺任何底色，只留极淡的一层玻璃光（壁纸透出来） */
-html[data-sl-theme="light"] #app.lfe-vars > main.wrapped.lfe-body,
-html[data-sl-theme="light"] .homepage-main > main.wrapped.lfe-body {
+html[data-sl-theme="light"] #app.lfe-vars > main,
+html[data-sl-theme="light"] .lfe-body.homepage-main > main,
+html[data-sl-theme="light"] .homepage-main > main {
     background-color: color-mix(in srgb, #ffffff 22%, transparent) !important;
     background-image:
         radial-gradient(86% 54% at 13% -16%,
@@ -5440,7 +5450,8 @@ html[data-sl-theme="light"] .homepage-main > main.wrapped.lfe-body {
 }
 
 /* ④ 无属性（跟随系统）时按主题走 */
-.homepage-main > main.wrapped.lfe-body {
+#app.lfe-vars > main,
+.homepage-main > main {
     background-color: color-mix(in srgb, light-dark(#ffffff, #12151b) 22%, transparent) !important;
 }
 

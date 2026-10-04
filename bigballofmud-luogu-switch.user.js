@@ -315,7 +315,11 @@
            浅色模式下会变成"浅字浅底"。这里一并剥掉，颜色交给样式表按属性给。
            注意**排除 .selected**：它的内联背景/文字色是状态色，必须原样保留。 */
         '.tab .items > li:not(.selected)',
-        '.category .items > li:not(.selected)'
+        '.category .items > li:not(.selected)',
+        /* ★ 首页那个 <main> 有时**没有 class**（两次 DevTools 截图不一致），
+           所以除了 main.wrapped.lfe-body，还要按结构再列两条。 */
+        '#app.lfe-vars > main',
+        '.homepage-main > main'
     ].join(',');
 
     function stripInlineTheme() {
