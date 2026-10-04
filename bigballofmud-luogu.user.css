@@ -4645,6 +4645,11 @@ html[data-sl-theme="dark"] .player-wrap.class-room :is(.lfe-h1, .lfe-h2, .lfe-h3
      提示气泡 .pointer-hint 的黑底白字、视频本体 .lg-video/video 的深底 —— 这些是"设计语义"，不动。
    ========================================================================== */
 /* ① 浅色：整套面走同一份浅色玻璃 */
+/* ★ 完整玻璃配方（不是只染一层色）。
+   用户："把这个换成玻璃" —— 上一版属性驱动只写了 background-color，
+   看着就是"平的一层白"，没有玻璃感。这里补齐与全站一致的五件：
+     ① 镜面光斑 ② 斜向缎面 ③ 亮上缘/暗下缘/内发光 ④ 描边 ⑤ 背景模糊 + 圆角。
+   覆盖对象包含聊天面板（.side-content / .chats-wrap / .chats）—— 用户指的就是它。 */
 html[data-sl-theme="light"] :is(
     .player-wrap.class-room .main,
     .player-wrap.class-room .side,
@@ -4670,7 +4675,15 @@ html[data-sl-theme="light"] :is(
             var(--lg-spec-color) 0%,
             rgba(255, 255, 255, 0) 58%),
         linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
-    border-color: var(--lg-border) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     color: #1f2329;
 }
 
@@ -4714,7 +4727,15 @@ html[data-sl-theme="dark"] :is(
             var(--lg-spec-color) 0%,
             rgba(255, 255, 255, 0) 58%),
         linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
-    border-color: var(--lg-border) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     color: #f2f5f8;
 }
 
@@ -4730,6 +4751,15 @@ html[data-sl-theme="dark"] :is(
     .player-wrap.class-room .functional
 ) {
     color: #f2f5f8;
+}
+
+/* ★ 聊天列表里的每条消息不铺底 —— 玻璃只给面板这一层，
+   否则每条 <p> 都变成一块玻璃（用户此前对"每条消息都成卡片"提过同样的问题）。 */
+.chats > p,
+.chats-wrap > .chats > p {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
 }
 
 /* ③ 两侧面板进场/滚动容器（原产物给的是不透明底） */
