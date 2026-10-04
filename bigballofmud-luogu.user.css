@@ -4762,6 +4762,55 @@ html[data-sl-theme="dark"] :is(
     box-shadow: none !important;
 }
 
+/* ★ 聊天输入区（用户："这个框在浅色下也是黑的，修掉"）
+   实证 DOM（用户 DevTools）：div.side-content > … > div.input-group.operation
+        > input[placeholder]
+        > button.lfe-form-sz-middle style="border-color: rgb(76,175,80);
+                                        color: rgb(76,175,80);
+                                        background-color: rgba(76,175,80,0)"
+   那个发送按钮的绿是**内联语义色**，保留；只修输入框本身（此前完全没覆盖过，所以一直跟着洛谷的深色底）。
+   ★ 特异性写深一层（.side-content .input-group input = 0,3,1），压过原产物的 [data-v-*] 规则，
+     并且**不用** color !important（项目不变式）。 */
+.player-wrap.class-room .side-content .input-group,
+.player-wrap.class-room .input-group.operation {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 46%, transparent),
+        var(--lg-field-dark)
+    ) !important;
+    background-image: linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow: inset 0 1px 0 var(--lg-highlight) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+.player-wrap.class-room .side-content .input-group input,
+.player-wrap.class-room .input-group.operation input {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--lg-text);
+}
+
+.player-wrap.class-room .side-content .input-group input::placeholder,
+.player-wrap.class-room .input-group.operation input::placeholder {
+    color: light-dark(rgba(0, 0, 0, .40), rgba(231, 234, 238, .50));
+}
+
+/* 属性驱动兜底：输入框也跟着切换 */
+html[data-sl-theme="light"] :is(.player-wrap.class-room .side-content .input-group, .player-wrap.class-room .input-group.operation) {
+    background-color: color-mix(in srgb, #ffffff 52%, transparent) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] :is(.player-wrap.class-room .side-content .input-group, .player-wrap.class-room .input-group.operation) {
+    background-color: var(--lg-field-dark) !important;
+    color: #f2f5f8;
+}
+
 /* ③ 两侧面板进场/滚动容器（原产物给的是不透明底） */
 html[data-sl-theme="light"] .player-wrap.class-room .main-container,
 html[data-sl-theme="light"] .player-wrap.class-room .lfe-vars {
