@@ -75,7 +75,7 @@
 :root {
     color-scheme: light dark;
     color-scheme: [[colorMode]];
-    --sl-style-version: 20261004.06;   /* ★ 样式版本：更新后请与 Stylus 里的值对照，见文件开头说明 */
+    --sl-style-version: 20261004.08;   /* ★ 样式版本：更新后请与 Stylus 里的值对照，见文件开头说明 */
 
     /* ----------------------------------------------------------------------
        ② 玻璃参数
@@ -3995,7 +3995,7 @@ rect.highcharts-point.highcharts-color-1 {
 :root {
     color-scheme: light dark;
     color-scheme: [[colorMode]];
-    --sl-style-version: 20261004.06;   /* ★ 样式版本：更新后请与 Stylus 里的值对照，见文件开头说明 */
+    --sl-style-version: 20261004.08;   /* ★ 样式版本：更新后请与 Stylus 里的值对照，见文件开头说明 */
 
     /* ----------------------------------------------------------------------
        ② 玻璃参数
@@ -4560,7 +4560,13 @@ nav.lfe-body {
     color: var(--lg-text);
 }
 
-nav.lfe-body a {
+/* ★ 只给"普通"导航项上色，**放行选中态** ——
+   原产物用 .route-link-active（用户 DevTools 实证：<a class="route-link-active color-none">）
+   标记当前页，颜色是强调色。之前这条写成了 nav.lfe-body a（不带排除），
+   把选中态的绿色一起压成了正文色，看起来"灰蒙蒙的、不知道当前在哪"。
+   这里按既有纪律加 :not(...) 排除，不用 !important。 */
+nav.lfe-body a:not(.route-link-active):not([class*="active"]),
+nav.lfe-body a.color-none:not(.route-link-active) {
     color: var(--lg-text);
 }
 
