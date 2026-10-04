@@ -5301,6 +5301,39 @@ html[data-sl-theme="dark"] :is(
     color: var(--lg-text-weak);
 }
 
+/* ==========================================================================
+   ㉜ 网校聊天消息文字：浅色下看不清（用户：「聊天框文字在浅色下看不清」）
+   --------------------------------------------------------------------------
+   实证 DOM（用户 DevTools）：
+       div.player-wrap.class-room > div.side > div > … > div.side-content
+         > div.chats-wrap > div.chats > p
+   消息正文用的是网校自己的**浅灰**（原本配深底），放到浅色玻璃上就发白。
+   处理：只给**消息正文**（p）明确前景色；
+   ★ 用户名是 <a>（蓝/绿链接色）—— 那是语义色，**不覆盖**；
+     ★ 被 @ 引用时那一行会有浅蓝高亮底，同样属于语义，不动。
+   ========================================================================== */
+html[data-sl-theme="light"] .player-wrap.class-room .chats > p {
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .player-wrap.class-room .chats > p {
+    color: #eef2f7;
+}
+
+/* 无属性（跟随系统）时也有兜底 */
+.player-wrap.class-room .chats > p {
+    color: var(--lg-text);
+}
+
+/* 用户名/提及这些 <a> 一律放行（语义色），并给一点可读的对比 */
+html[data-sl-theme="light"] .player-wrap.class-room .chats > p a {
+    color: #1a6fd4;
+}
+
+html[data-sl-theme="dark"] .player-wrap.class-room .chats > p a {
+    color: #6cb2ff;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
