@@ -5706,6 +5706,40 @@ html[data-sl-theme="dark"] .home-wrapper img[src*="course-level"] {
     background-color: var(--lg-panel-dark) !important;
 }
 
+/* ==========================================================================
+   ㊳ 网校首页：去掉几条**整行白条**（用户连发三张图：「去除白块」「是这些」）
+   --------------------------------------------------------------------------
+   实证（用户 DevTools，2026-10-04，Home 模板，选中项尺寸都写明了）：
+       a.link-bottom.color-default        1200 × 56   ← 「查看更多」/「查看所有课程」
+       div.container                      1264 × 64   ← 顶栏那一行（header-layout.tiny > .container）
+       div.link-container                              ← 顶栏里的链接容器
+   这三条都是**整幅宽度的白条**，把壁纸挡成一横条一横条的。
+   ★ 只点这几个类名，且 .container 必须带 .header-layout 前缀 ——
+     .container 是全站通用的类名，裸写会波及所有页面（本项目踩过同类坑）。
+   ========================================================================== */
+.home-wrapper a.link-bottom,
+.home-wrapper a.link-bottom.color-default,
+.homepage-main .header-layout .container,
+.homepage-main .header-layout .link-container,
+.homepage-main .header-layout .left,
+.homepage-main .header-layout .mobile-action {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下都是透明（属性驱动兜底） */
+html[data-sl-theme="light"] .home-wrapper a.link-bottom,
+html[data-sl-theme="dark"] .home-wrapper a.link-bottom,
+html[data-sl-theme="light"] .homepage-main .header-layout .container,
+html[data-sl-theme="dark"] .homepage-main .header-layout .container {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
