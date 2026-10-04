@@ -337,6 +337,51 @@
     }
 
     /* ======================================================================
+       二·六、网校首页「学习体系」大图：**抠掉底板**
+       ----------------------------------------------------------------------
+       实证（SVG 已下到 evidence/网校语料/course-level.svg，457 KB，文字都转成了 path）：
+         · <rect width="1200" height="320" fill="white"/>                ← 白底板（唯一整幅 rect）
+         · 短路径（500~900 字符）用平板色 #9DC3E6 / #5B9BD5 / #70AD47   ← 蓝绿面板衬底
+         · 几千字符的 fill="white" / "black" 路径 = 文字笔画（不能动）
+         · fill="url(#paint0_linear_…)" 只有一处 = 彩虹进度带（语义，保留）
+       做法：fetch 下来 → 去掉白底板与「平板色 + 短路径」的衬底 → 换成 blob 写回 img.src。
+             457 KB 不进仓库/样式表，也不依赖图床（同源 blob）。
+       ★ 幂等：处理过的图片打 data-sl-cut；SPA 重建节点后由低频纠偏再补。
+       ====================================================================== */
+    var CUT_SEL = 'img[src*="course-level"]';
+    var CUT_FLAT_FILLS = ["#9DC3E6", "#5B9BD5", "#70AD47"];
+    var CUT_SHORT_PATH = 2000;
+
+    function cutLevelPanel() {
+        if (!isSchool) return;
+        var imgs = document.querySelectorAll(CUT_SEL);
+        for (var i = 0; i < imgs.length; i++) {
+            (function (img) {
+                if (img.getAttribute('data-sl-cut') === '1') return;
+                img.setAttribute('data-sl-cut', '1');   // 先打标，避免并发重复处理
+                var src = img.getAttribute('src') || img.src;
+                if (!src || src.indexOf('blob:') === 0) return;
+                fetch(src, { credentials: 'omit' })
+                    .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+                    .then(function (svg) {
+                        var out = svg
+                            .replace(/<rect[^>]*width="1200"[^>]*height="320"[^>]*fill="white"[^>]*\/?>/i, '')
+                            .replace(/<path\b[^>]*>/gi, function (tag) {
+                                if (tag.length > CUT_SHORT_PATH) return tag;
+                                for (var k = 0; k < CUT_FLAT_FILLS.length; k++) {
+                                    if (tag.indexOf('fill="' + CUT_FLAT_FILLS[k] + '"') >= 0) return '';
+                                }
+                                return tag;
+                            });
+                        var url = URL.createObjectURL(new Blob([out], { type: 'image/svg+xml' }));
+                        img.src = url;
+                    })
+                    .catch(function () { img.removeAttribute('data-sl-cut'); });
+            })(imgs[i]);
+        }
+    }
+
+    /* ======================================================================
        三、切换：统一短过渡 + 切完立刻校准
        为什么不能直接切：本样式给大量元素挂了 0.25~0.5s 的 transition，
        各元素时长不一，切深浅时会"糊"好几帧，看起来又慢又像字色延迟。
@@ -522,6 +567,9 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
+
+        // 网校：抠掉「学习体系」大图的底板（SPA 重建节点，低频纠偏）
+        if (isSchool) { cutLevelPanel(); setInterval(cutLevelPanel, 1000); }
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }

@@ -5604,6 +5604,57 @@ html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
     -webkit-backdrop-filter: none !important;
 }
 
+/* ==========================================================================
+   ㊲ 网校首页「学习体系」大图：抠掉底板，改由玻璃承载
+   --------------------------------------------------------------------------
+   用户：「把这个抠图后用玻璃承载替换」。
+   实证（用户 DevTools + 我把 SVG 下下来逐层看过）：
+       div.home-wrapper > img[src="https://fecdn.luogu.com.cn/yugu/course-level.svg?b1265f3"]
+       尺寸 1200 × 320，style="max-width: 100%; width: 100%"
+   SVG 内部结构（evidence/网校语料/course-level.svg，457 KB，文字已转 path）：
+     · <rect width="1200" height="320" fill="white"/>   ← **白底板**（唯一一个整幅尺寸的 rect）
+     · 若干**短路径**（500~900 字符）用平板色 #9DC3E6 / #5B9BD5 / #70AD47
+       —— 它们是蓝色/绿色的**面板衬底**（圆角矩形，路径短）
+     · 其余几千字符的 fill="white" / "black" 路径全是**文字笔画**，必须保留
+     · fill="url(#paint0_linear_7969_84)" 只有一个元素：彩虹进度带（#FF4400→…→#9254DE，
+       fill-opacity=".8"）—— 那是语义图形，保留
+   ★ 结论：**抠图**＝去掉「白底板 + 平板色短路径」，保留文字 / 色块 / 彩虹带；
+     这一步由脚本在网校页 fetch 改写 SVG 完成（457 KB 不适合内嵌进样式表），
+     CSS 这边只负责给它一个**玻璃承载层**。
+   ========================================================================== */
+.home-wrapper > img[src*="course-level"],
+.home-wrapper img[src*="course-level"] {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 38%, transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+}
+
+/* 属性驱动兜底（深浅各给一次明确值） */
+html[data-sl-theme="light"] .home-wrapper img[src*="course-level"] {
+    background-color: color-mix(in srgb, #ffffff 38%, transparent) !important;
+}
+
+html[data-sl-theme="dark"] .home-wrapper img[src*="course-level"] {
+    background-color: var(--lg-panel-dark) !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
