@@ -11,10 +11,16 @@
 
 | 要装的东西 | 装到哪 | 点这里安装 |
 |---|---|---|
-| **美化样式**（必需） | [Stylus](https://add0n.com/stylus.html) | **[⬇ 安装美化样式](https://userstyles.world/style/30507)** |
+| **美化样式**（必需） | [Stylus](https://add0n.com/stylus.html) | **[⬇ 安装美化样式](https://userstyles.world/api/style/30507.user.css)** |
 | **配色开关 + 对比度守卫**（可选） | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
 
 先装上面两个管理器扩展，再点对应的安装链接 —— 管理器会自己弹出安装界面，确认即可。
+
+> **样式那个链接是什么**：`https://userstyles.world/api/style/30507.user.css` 是 userstyles.world
+> 给这个样式提供的**直装地址** —— 返回的就是一份带 `==UserStyle==` 头的 UserCSS（实测 HTTP 200、
+> `Content-Type: text/css`，内容与仓库里的 `bigballofmud-luogu.user.css` 逐字一致）。
+> 它同时是**更新检查地址**：从它安装的样式，Stylus 会按 `@version` 发现新版。
+> 想打分、看评论或翻旧版本，去[样式主页](https://userstyles.world/style/30507)。
 
 > **以后怎么更新**：从这两个链接装的，管理器会自己检查更新
 > （Stylus 在样式页点「检查更新」；篡改猴默认每 24 小时查一次，也可在管理面板手动「检查更新」）。
@@ -41,8 +47,9 @@
 **方式 A：点安装链接（推荐，方便以后更新）**
 
 1. 装 [Stylus](https://add0n.com/stylus.html) 扩展
-2. 点 **[⬇ 安装美化样式](https://userstyles.world/style/30507)** → Stylus 会弹出安装页 → 确认
-   （userstyles.world 是 UserCSS 的托管站，样式页上也有「Install style」按钮）
+2. 点 **[⬇ 安装美化样式](https://userstyles.world/api/style/30507.user.css)** → Stylus 弹出安装页 → 确认
+   （这是 userstyles.world 的直装地址，返回的是标准 UserCSS；同页也是更新检查地址）
+3. 或者打开[样式主页](https://userstyles.world/style/30507)点「Install style」，效果一样
 
 **方式 B：从 raw 文件安装**
 
