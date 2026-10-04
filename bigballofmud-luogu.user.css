@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.21
+@version      20261004.22
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1541,6 +1541,91 @@ html[data-sl-theme="light"] .block .history .stack .message-block .message {
 
 html[data-sl-theme="dark"] .block .history .stack .message-block .message {
     background-color: rgba(18, 21, 27, .46) !important;
+}
+
+/* ==========================================================================
+   ⑦-b-3 个人主页「比赛等级分趋势图」的选中浮窗（Chart.js + Vue）
+   --------------------------------------------------------------------------
+   用户：「个人主页正常选中圆点应该有悬浮窗显示比赛信息，拉取该页面源码并定位美化问题，
+         令将该浮窗改为玻璃，注意删掉小箭头」
+   ★★ 源码实证（本地语料 evidence/bundle语料/js/columba~eda08651484fd73f.js）：
+     图表的库是 **Chart.js**（不是 Highcharts —— 该文件里没有 Highcharts：配置用的是
+       scales / elements.point / getElementsAtEventForMode，都是 Chart.js 的 API）
+     配置：plugins: { legend: {display:false}, tooltip: { enabled: !1, external: b } }
+       —— 自带浮窗被关掉，改由 external 回调 b 交给 Vue 组件渲染
+     回调 b：把 { tooltipModel, position: canvas.getBoundingClientRect(), record } 交给组件；
+       数据点为空时写 { opacity: 0, caretX: 0, caretY: 0 }（隐藏）
+     组件 **UserEloChartTooltip**（scoped: data-v-120dc024）渲染出的 DOM 是：
+       <div class="tooltip" style="left/top/transition/opacity">
+         <b>比赛名</b><br><span class="lfe-caption">起止时间</span><br>
+         <span> 等级分： <b class="lcolor--green-2|red-2">±分</b> = <b>分数</b></span>
+         <i>达成历史最高</i>（可选）
+       </div>
+     位置与显隐**全由 inline style**（left/top 用文档坐标 + opacity 0/1 + transition）控制。
+   ★ 为什么"看不到"：我们样式里**没有任何 .tooltip 规则**（已全文件确认），所以不是被直接改没的；
+     只剩两种成因：① 被图表卡片祖先的 overflow: hidden 裁掉；② 被某条"卡片内层透明化"的
+     通配规则洗成透明（其实还在弹，只是看不见）。因此这里**显式覆盖**：玻璃底 + 强制可见 + 抬层级，
+     无论哪种成因都盖过去。
+   ★ 小箭头：源码里**没有箭头元素** —— caretX/caretY 只用于定位 —— 所以那个白色小三角是
+     **CSS 伪元素**画的（与私信气泡尾巴同一套路），清掉 ::before/::after 即可。
+   ★ 作用域：`.l-card:has(canvas) .tooltip` —— 只在"含 canvas 的卡片"里生效，
+     不会波及站内其它任何叫 .tooltip 的东西（Chart.js 的浮窗一定紧邻它自己的 canvas）。
+   ========================================================================== */
+.l-card:has(canvas) .tooltip {
+    /* 显隐：**刻意不写 opacity** —— 它由组件 inline style（0/1 + transition）控制，
+       内联声明优先级最高，我这里不碰它才是对的（写了反而要担心压掉动画）。 */
+    /* 层级与定位：浮窗必须在图表之上 */
+    z-index: 30 !important;
+    pointer-events: none;          /* 浮窗不拦鼠标，否则会打断 Chart.js 的 hover 命中 */
+    /* ── 玻璃五件套 ── */
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow),
+        0 12px 34px var(--lg-shadow-color-hi) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    padding: 8px 10px !important;
+    color: var(--lg-text);
+}
+
+/* 文字：跟随主题（浮窗里的 .lfe-caption 与 .lcolor--* 语义色都不动） */
+.l-card:has(canvas) .tooltip > b,
+.l-card:has(canvas) .tooltip > span,
+.l-card:has(canvas) .tooltip > i {
+    color: var(--lg-text);
+}
+
+.l-card:has(canvas) .tooltip .lfe-caption {
+    color: var(--lg-text-weak);
+}
+
+/* ★ 删掉小箭头：源码里没有箭头元素，所以那个白三角是伪元素 —— 直接清掉 */
+.l-card:has(canvas) .tooltip::before,
+.l-card:has(canvas) .tooltip::after {
+    content: none !important;
+    display: none !important;
+    border: none !important;
+}
+
+/* 两种主题下都明确给一次（属性驱动兜底） */
+html[data-sl-theme="light"] .l-card:has(canvas) .tooltip {
+    background-color: color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent) !important;
+}
+
+html[data-sl-theme="dark"] .l-card:has(canvas) .tooltip {
+    background-color: var(--lg-pop-dark) !important;
 }
 
 /* ==========================================================================
