@@ -105,6 +105,14 @@
         if (!root) return;
         if (mode === 'auto') root.removeAttribute('data-sl-theme');
         else root.setAttribute('data-sl-theme', mode);
+        /* ★ 双保险：**直接写内联 color-scheme**。
+           样式里那两条 :root[data-sl-theme] 规则负责主题三态，但一旦它们因为任何原因失效
+           （历史上真的发生过：规则被嵌进 :root { } 里，解析成后代选择器后永不匹配），
+           内联值仍然能驱动 light-dark()，不至于"点了没反应"。 */
+        try {
+            if (mode === 'auto') root.style.removeProperty('color-scheme');
+            else root.style.setProperty('color-scheme', mode);
+        } catch (e) { /* 忽略：个别环境不允许写内联也就算了 */ }
     }
 
     function saveMode(mode) {
