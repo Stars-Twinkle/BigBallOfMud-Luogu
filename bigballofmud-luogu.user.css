@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.32
+@version      20261004.33
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3136,6 +3136,86 @@ footer a:hover {
    这里按容器限定补一条：只覆盖卡片（及其 header）内的裸标题，正文与列表不受影响。
    ★ 两个主题各给一次明确值，不依赖继承；不使用裸标签选择器（一律带 .l-card 前缀）。
    ========================================================================== */
+
+/* ==========================================================================
+   ⑯-c-3 由「浏览器实测」查出来的两族暗字（个人主页面包屑 + 统计行）
+   --------------------------------------------------------------------------
+   验证方式（可复现）：用 Chrome 的 DevTools 协议打开真实页面 → 注入本样式 →
+   设 html[data-sl-theme=dark] → 遍历所有纯文字叶子节点算对比度。实测输出：
+       [C] 对比度 < 4.5 的文字节点: 9
+           a.router-link-active  「洛谷 - 个人中心」 rgb(38,38,38) on rgb(18,21,27) → 1.21
+           span                  「/」            rgb(38,38,38)                  → 1.21
+           a.router-link-active  「主页」          rgb(38,38,38)                  → 1.21
+           span.stat-text.name   「关注 / 粉丝 / 排名」     rgba(0,0,0,.75)         → 1.15
+           span.stat-text.value  「0 / 54.17k / 27.74k」  rgba(0,0,0,.75)         → 1.15
+   ⇒ rgb(38,38,38) 正是洛谷写死的深灰（#262626），压在暗玻璃上等于看不见；
+     统计行用的 rgba(0,0,0,.75) 同理。
+   ★ 修法与项目既有惯例一致：用**更高特异性**取胜，不写 color: … !important
+     （⑫ 节的不变式）；同时排除自带语义色类（lcolor-*）的元素，避免盖掉洛谷的语义色。
+   ★ 限定 html[data-sl-theme]：只有用户显式选了浅/深主题时才生效，跟着系统时不插手。
+   ========================================================================== */
+
+/* ==========================================================================
+   ⑯-c-4 「做题趋势热度图」的格子：深色下不再是白板
+   --------------------------------------------------------------------------
+   来源：真实页面浏览器实测（Chrome + DevTools 协议，evidence/个人主页语料/real_page.png）——
+   深色主题下热力图是一大片白格子，非常刺眼。
+   源码实证（bundle 语料 columba~eda08651484fd73f.js）：
+       R = (count, colorKey) => { const i = a[u.color] || a["grey-3"];
+           return count === 0 ? i[0] : count <= 3 ? i[1] : count <= 5 ? i[2]
+                : count <= 8 ? i[3] : i[4]; }
+       —— 颜色由洛谷的**运行时颜色表**算好后**直接写进内联 style**：
+          实测 181 个格子是 background-color: rgb(232,232,232)（0 档灰），
+          另四档是 rgb(181,245,236) / rgb(135,232,222) / rgb(92,219,211) / rgb(54,207,201)。
+   ★ 因为它是**内联**样式，本项目的"令牌重映射"（⑰ 段）管不到它 ——
+     所以这里用属性选择器按色值精确命中，只改深色（含"跟随系统且系统为深色"）时：
+       · 0 档 → 近透明的白（暗底上的"空"）；
+       · 其余四档 → 同一青绿色系的深→亮四阶，档位语义（越多越亮）完整保留。
+   ★ 不写 !important 会输给内联，所以这几条必须带 !important（内联 style 也用 !important 覆盖不了）。
+   ========================================================================== */
+html:not([data-sl-theme="light"]) .heat-map-cell[style*="232, 232, 232"] {
+    background-color: rgba(255, 255, 255, .08) !important;
+}
+html:not([data-sl-theme="light"]) .heat-map-cell[style*="181, 245, 236"] {
+    background-color: #0e3b38 !important;
+}
+html:not([data-sl-theme="light"]) .heat-map-cell[style*="135, 232, 222"] {
+    background-color: #12564f !important;
+}
+html:not([data-sl-theme="light"]) .heat-map-cell[style*="92, 219, 211"] {
+    background-color: #17756c !important;
+}
+html:not([data-sl-theme="light"]) .heat-map-cell[style*="54, 207, 201"] {
+    background-color: #1d968c !important;
+}
+/* 浅色主题保持洛谷原色（本来就合适），不插手 */
+/* 面包屑容器（div.breadcrumb，含 a.router-link-active + 无类名 <span>/</span> 分隔符）：
+   实测剩下的那 1 处就是它 —— 分隔符没有类名，只能靠容器继承上色。 */
+html[data-sl-theme] .breadcrumb:not([class*="lcolor"]),
+html[data-sl-theme] .breadcrumb > span:not([class*="lcolor"]),
+html[data-sl-theme] .breadcrumb > a:not([class*="lcolor"]),
+html[data-sl-theme] .router-link-active:not([class*="lcolor"]),
+html[data-sl-theme] .router-link:not([class*="lcolor"]),
+html[data-sl-theme] .stat-text:not([class*="lcolor"]),
+html[data-sl-theme] .stat-text.name:not([class*="lcolor"]),
+html[data-sl-theme] .stat-text.value:not([class*="lcolor"]) {
+    color: var(--lg-text);
+}
+
+/* 两个主题各给一次明确值（属性驱动兜底，避免依赖继承） */
+html[data-sl-theme="light"] .breadcrumb:not([class*="lcolor"]),
+html[data-sl-theme="light"] .router-link-active:not([class*="lcolor"]),
+html[data-sl-theme="light"] .router-link:not([class*="lcolor"]),
+html[data-sl-theme="light"] .stat-text:not([class*="lcolor"]) {
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .breadcrumb:not([class*="lcolor"]),
+html[data-sl-theme="dark"] .router-link-active:not([class*="lcolor"]),
+html[data-sl-theme="dark"] .router-link:not([class*="lcolor"]),
+html[data-sl-theme="dark"] .stat-text:not([class*="lcolor"]) {
+    color: #f2f5f8;
+}
 .l-card .header > h1, .l-card .header > h2, .l-card .header > h3, .l-card .header > h4,
 .l-card .header h1, .l-card .header h2, .l-card .header h3, .l-card .header h4,
 .l-card > h1, .l-card > h2, .l-card > h3, .l-card > h4 {
