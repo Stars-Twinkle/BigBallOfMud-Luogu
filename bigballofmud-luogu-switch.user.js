@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261004.28
+// @version      20261004.29
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -529,31 +529,74 @@
                其它页面与组件零影响。
        ====================================================================== */
     function fixEloTooltip() {
-        var px = 0;
-        var py = 0;
-        var seen = null;
-        document.addEventListener("mousemove", function (e) {
-            px = e.clientX;
-            py = e.clientY;
-        }, true);
-        setInterval(function () {
-            var t = document.querySelector("div.tooltip");
-            if (!t) { seen = null; return; }
-            var cs = getComputedStyle(t);
-            if (cs.opacity === "0" || cs.display === "none" || cs.visibility === "hidden") return;
-            if (seen !== t) {
-                seen = t;
-                t.setAttribute("data-sl-pointer-fixed", "1");
-                t.style.setProperty("position", "fixed", "important");
-                t.style.setProperty("pointer-events", "none", "important");
-            }
-            if (!px && !py) return;   // 还没收到过指针事件
+        /* ★ 位置策略（第二版）：**贴住数据点**，不是跟着鼠标。
+           洛谷组件写进 inline style 的 left/top 本来就是"贴数据点"的**文档坐标**
+           （canvas.rect + pageXOffset/pageYOffset + caretX/caretY），
+           只是因为 .tooltip 的 absolute 包含块是图表卡片，被当成"卡内坐标"而整体错位。
+           所以这里：原样保留洛谷算好的坐标，把它换算成视口坐标，再用 position: fixed 落位 ——
+           既贴点，又不受包含块影响（fixed 的包含块是视口）。
+           ★ 与洛谷自身的写值互不打架：用 data-sl-mine 记住"我们自己写下去的值"，
+             MutationObserver 回调里若发现当前 inline 值正是我们写的，就跳过（避免自激循环）。
+           ★ 只认 div.tooltip（站内只有该组件用它），对其它页面与组件零影响。 */
+        var PAD = 6;
+        var mine = "";
+        var obs = null;
+
+        function place(t) {
+            var raw = t.getAttribute("data-sl-raw");
+            if (!raw) return;
+            var p = raw.split(",");
+            var docX = parseFloat(p[0]);
+            var docY = parseFloat(p[1]);
+            if (!isFinite(docX) || !isFinite(docY)) return;
             var r = t.getBoundingClientRect();
-            var x = Math.min(px + 14, Math.max(8, innerWidth - r.width - 8));
-            var y = Math.max(8, Math.min(py - r.height / 2, innerHeight - r.height - 8));
+            var x = docX - window.scrollX;
+            var y = docY - window.scrollY - r.height / 2;
+            x = Math.max(PAD, Math.min(x, innerWidth - r.width - PAD));
+            y = Math.max(PAD, Math.min(y, innerHeight - r.height - PAD));
+            var key = x + "," + y;
+            if (mine === key) return;
+            mine = key;
+            t.style.setProperty("position", "fixed", "important");
+            t.style.setProperty("pointer-events", "none", "important");
             t.style.setProperty("left", x + "px", "important");
             t.style.setProperty("top", y + "px", "important");
-        }, 120);
+        }
+
+        function watch(t) {
+            if (t.getAttribute("data-sl-observed") === "1") return;
+            t.setAttribute("data-sl-observed", "1");
+            if (!obs) {
+                obs = new MutationObserver(function (muts) {
+                    var el = muts[0].target;
+                    var l = parseFloat(el.style.left);
+                    var tp = parseFloat(el.style.top);
+                    if (!isFinite(l) || !isFinite(tp)) return;
+                    if ((l + "," + tp) === mine) return;   // 我们自己写的，跳过
+                    el.setAttribute("data-sl-raw", l + "," + tp);   // 洛谷刚写的原始（文档）坐标
+                    place(el);
+                });
+            }
+            obs.observe(t, { attributes: true, attributeFilter: ["style"] });
+        }
+
+        setInterval(function () {
+            var t = document.querySelector("div.tooltip");
+            if (!t) { mine = ""; return; }
+            var cs = getComputedStyle(t);
+            if (cs.opacity === "0" || cs.display === "none") return;
+            watch(t);
+            /* 兜底：元素刚出现、或坐标没通过 MutationObserver 送来时，也主动摆一次 */
+            var raw = t.getAttribute("data-sl-raw");
+            if (!raw) {
+                var l = parseFloat(t.style.left);
+                var tp = parseFloat(t.style.top);
+                if (isFinite(l) && isFinite(tp)) {
+                    t.setAttribute("data-sl-raw", l + "," + tp);
+                    place(t);
+                }
+            }
+        }, 150);
     }
 
     function whenRoot(fn) {
