@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.15
+@version      20261004.16
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4207,6 +4207,42 @@ rect.highcharts-point.highcharts-color-1 {
         inset -1px -1px 0 var(--lg-shade),
         inset 0 0 26px var(--lg-glow) !important;
     background-position: 34% 12%, 0 0 !important;
+}
+
+/* ★★ 旧首页的「最近比赛 / 最近讨论」卡片（用户：「讨论块和比赛还是死的」）
+   实证 DOM（用户 DevTools 两张图，都是**旧首页** www 的 AmazeUI 结构 —— 不是我先前猜的 SPA 卡片）：
+     比赛：div.lg-article > h2 + section.am-panel.lg-index-contest.am-panel-success
+             > header.am-panel-hd + div.am-panel-bd          （270 × 113）
+     讨论：div.lg-article > h2 + section.am-panel.lg-index-contest.am-panel-primary
+             > div.am-panel-bd > div.lg-inline-up ×N        （270 × 132.5，每条讨论一个）
+   所以悬停要挂在这两个真实载体上：.lg-article 里的 .am-panel（栏目卡片）与
+   它内部的 .lg-inline-up（讨论条目）。**限定在 .lg-article 之内**，
+   避免波及个人中心等其它页面同样叫 .am-panel 的卡片。 */
+.lg-article .am-panel {
+    transition: translate .26s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .3s ease,
+                background-position .6s cubic-bezier(.4, 0, .2, 1);
+}
+
+.lg-article .am-panel:hover {
+    translate: 0 -2px;
+    box-shadow:
+        0 16px 46px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 24px var(--lg-glow) !important;
+    background-position: 34% 12%, 0 0 !important;
+}
+
+/* 讨论条目（.lg-inline-up）本身也当作可悬停的小卡：幅度同为 2px、不放大 */
+.lg-article .am-panel-bd > .lg-inline-up {
+    transition: translate .26s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .26s ease;
+}
+
+.lg-article .am-panel-bd > .lg-inline-up:hover {
+    translate: 0 -2px;
+    box-shadow: 0 12px 30px var(--lg-shadow-color-hi) !important;
 }
 
 /* 比赛行：玻璃铺在 .wrapper 上（含左侧状态列），所以悬停也挂在它身上 */
