@@ -341,12 +341,12 @@
        ----------------------------------------------------------------------
        最初我打算自己抠（fetch SVG → 去白底板与平板色短路径 → blob 写回），
        但用户实测后指出「你抠图扣错了」，并自己抠好上传到：
-           https://cdn.luogu.com.cn/upload/image_hosting/0sldamx5.webp
+           https://cdn.luogu.com.cn/upload/image_hosting/uwaykoav.webp
        所以这里改成：**直接把 img.src 指到那张图**（幂等：已是该地址就跳过）。
        CSS 那边再用 content: url(...) 兜一层 —— 没装脚本时也是对的（见 ㊲ 段）。
        玻璃承载层仍在 CSS 里，不受影响。
        ====================================================================== */
-    var CUT_URL = 'https://cdn.luogu.com.cn/upload/image_hosting/0sldamx5.webp';
+    var CUT_URL = 'https://cdn.luogu.com.cn/upload/image_hosting/uwaykoav.webp';
     var CUT_SEL = 'img[src*="course-level"]';
 
     function cutLevelPanel() {
