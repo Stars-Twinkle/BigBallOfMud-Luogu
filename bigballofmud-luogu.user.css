@@ -5604,9 +5604,16 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
    让说明文字**直接落在分类卡上** —— 还是那条原则：一层区域只留一个承载体。
    ★ 只作用于 `.wrap` 内部的 .card，不碰首页其它位置的 .card（避免误伤）。
    ========================================================================== */
-.home-wrapper .wrap .card,
-.home-wrapper .wrap .card > .brief,
-.home-wrapper .wrap .card > div {
+/* ★★ 结构澄清（用户两次反馈后定论）：
+       div.wrap                      ← 分类卡（红/绿/蓝底 + 玻璃）
+         div.card                    ← **封面那层**（正面）—— 完全不动，含它自己的背景图
+           div.brief                 ← **背面文字**（标题 + 说明 + 标签 + 了解详情）
+   之前我把 .card 与 .brief 一起透明化、又一起 opacity:0，于是卡上**什么都没有**
+   （用户：「上面文字怎么全没了」）。
+   现在只处理 .brief：它是"白色卡片"本体（用户最早说「还有这个白色卡片，直接移除」），
+   背景交回外层，自己不留底。 */
+.home-wrapper .wrap .brief,
+.home-wrapper .wrap .card > .brief {
     background-color: transparent !important;
     background-image: none !important;
     border: none !important;
@@ -5617,8 +5624,8 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
 }
 
 /* 两种主题下都透明（逐条列出，不用 :is()，避免撞"不许进玻璃名单"的守卫） */
-html[data-sl-theme="light"] .home-wrapper .wrap .card,
-html[data-sl-theme="dark"] .home-wrapper .wrap .card,
+html[data-sl-theme="light"] .home-wrapper .wrap .brief,
+html[data-sl-theme="dark"] .home-wrapper .wrap .brief,
 html[data-sl-theme="light"] .home-wrapper .wrap .card > .brief,
 html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
     background-color: transparent !important;
@@ -5640,15 +5647,19 @@ html[data-sl-theme="dark"] .home-wrapper .wrap .card > .brief {
                > h3.lfe-h3.main-title / div.row.lfe-caption > div.title / div.content
    做法：背面容器（.card 与 .brief）默认 opacity:0，:hover / :focus-within 才显示；
         .wrap 自己的封面背景图**不动**（它是正面那层，原本的交互会把它隐掉）。 */
-.home-wrapper .wrap .card,
+/* ★★ 只隐藏**背面文字**（.brief），封面（.card）保持可见 ——
+   上一版把 .card 也设成 opacity:0，等于连封面一起藏了，卡上就空了
+   （用户：「上面文字怎么全没了」）。
+   现在：不悬停 = 只有封面；悬停/聚焦 = 封面之上浮出背面文字（与它们原本的交互一致）。 */
+.home-wrapper .wrap .brief,
 .home-wrapper .wrap .card > .brief {
     opacity: 0;
     transition: opacity .22s ease;
 }
 
-.home-wrapper .wrap:hover .card,
+.home-wrapper .wrap:hover .brief,
 .home-wrapper .wrap:hover .card > .brief,
-.home-wrapper .wrap:focus-within .card,
+.home-wrapper .wrap:focus-within .brief,
 .home-wrapper .wrap:focus-within .card > .brief {
     opacity: 1;
 }
