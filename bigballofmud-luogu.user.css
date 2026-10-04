@@ -75,7 +75,6 @@
 :root {
     color-scheme: light dark;
     color-scheme: [[colorMode]];
-    --sl-style-version: 20261004.08;   /* ★ 样式版本：更新后请与 Stylus 里的值对照，见文件开头说明 */
 
     /* ----------------------------------------------------------------------
        ② 玻璃参数
@@ -3965,10 +3964,7 @@ rect.highcharts-point.highcharts-color-1 {
      2) Ctrl+A 全选  →  Ctrl+V 粘贴（剪贴板里是最新版）
      3) **Ctrl+S 保存**（没有这一步等于没更新）
      4) 回到页面 **Ctrl+F5 硬刷新**
-   怎么确认"到底有没有更新成功"？在页面控制台跑这一行：
-       getComputedStyle(document.documentElement).getPropertyValue("--sl-style-version")
-   它应该打印当前样式版本号（见两个令牌块里的 --sl-style-version）。
-   打印出**空字符串** = Stylus 里还是旧版（这就是"改了没反应"的最常见原因）。
+   改了没反应时，**先怀疑这一格没粘贴/没保存** —— 历史上多次如此。
    ========================================================================== */
 
 
@@ -3995,7 +3991,6 @@ rect.highcharts-point.highcharts-color-1 {
 :root {
     color-scheme: light dark;
     color-scheme: [[colorMode]];
-    --sl-style-version: 20261004.08;   /* ★ 样式版本：更新后请与 Stylus 里的值对照，见文件开头说明 */
 
     /* ----------------------------------------------------------------------
        ② 玻璃参数
@@ -4570,12 +4565,29 @@ nav.lfe-body a.color-none:not(.route-link-active) {
     color: var(--lg-text);
 }
 
-/* ② 属性驱动的兜底（不经过 light-dark()，保证一看就知道换了） */
+/* ② 属性驱动的兜底：**走完整玻璃配方**，不是一块实心板。
+   ★ 第一版这里图省事写了 rgba(255,255,255,.74)（74% 白 ≈ 不透明），
+     用户一眼看出"浅色不像玻璃"。现在改成与全站同一套：
+     底层半透明 + 镜面光斑 + 斜向柔光 + 亮上缘/暗下缘/内发光 + 背景模糊。 */
 html[data-sl-theme="light"] nav.lfe-body,
 html[data-sl-theme="light"] .player-wrap.class-room .main,
 html[data-sl-theme="light"] .player-wrap.class-room .side,
 html[data-sl-theme="light"] .player-wrap.class-room .controller {
-    background-color: rgba(255, 255, 255, .74) !important;
+    background-color: color-mix(in srgb, #ffffff 38%, transparent) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     color: #1f2329;
 }
 
@@ -4583,7 +4595,21 @@ html[data-sl-theme="dark"] nav.lfe-body,
 html[data-sl-theme="dark"] .player-wrap.class-room .main,
 html[data-sl-theme="dark"] .player-wrap.class-room .side,
 html[data-sl-theme="dark"] .player-wrap.class-room .controller {
-    background-color: rgba(18, 21, 27, .62) !important;
+    background-color: var(--lg-panel-dark) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     color: #f2f5f8;
 }
 
