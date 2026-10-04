@@ -5548,44 +5548,36 @@ html[data-sl-theme="dark"] .footer-container,
     z-index: 1;
 }
 
-/* ③ 分类卡：**保留分类色**，只叠玻璃层与模糊。
-   ★★ 关键（用户 DevTools 实证后定论）：
+/* ③ 分类卡：**保留分类色**，只叠玻璃的"面"。
+   ★★★ 这一步是把前面三次失败一次解决的地方（用户 DevTools 实证）：
       实证结构 = div.course-container > div.wrap > div.card > div.brief
-      其中 .brief（360 × 156）是**文字块**（标题 / 三行说明 / 按钮），
-      **封面是它的兄弟或底层元素**，靠 position/z-index 盖在文字之上，悬停时让开 ——
-      这就是用户说的「鼠标悬浮消失露出后面的文字」。
-      而我之前在 **.wrap 上写了 backdrop-filter** ✗：**backdrop-filter 会创建层叠上下文**，
-      于是封面的 z-index 被重新排序、盖不住文字了 ——
-      表现就是"不悬停时文字也全露着"（用户：「这啥名堂」「这啥东西」）。
-      修法：把玻璃的"面"与模糊挪到 **::after**（绝对定位 + pointer-events:none），
-      .wrap 自身只留 border-radius 与 box-shadow（这两条**不创建层叠上下文**），
-      于是卡片内部的层叠完全交回网校自己的交互。 */
+        · .brief（360 × 156）＝ **文字块**（标题 / 三行说明 / 按钮）
+        · 封面是它的底层/兄弟元素，靠 position/z-index 盖在文字上，悬停时让开
+          —— 即用户说的「鼠标悬浮消失露出后面的文字」。
+      ❌ 我先后踩了三个坑：
+         ① 在 .wrap 上写 backdrop-filter  → 它**创建层叠上下文**，封面的 z-index 被重排，
+            盖不住文字（文字一直露着）；
+         ② 把玻璃挪到 .wrap::after          → 伪元素带 z-index 盖在内容之上，
+            它的 backdrop-filter **把卡片自己的封面和文字一起糊掉**（用户：「emmmm」+ 满屏糊）；
+         ③ 试图用 opacity 隐藏文字          → 方向本身就错了。
+      ✅ 正解：**玻璃的面放回 .wrap 自己的 background-image** ——
+            background-image 在内容之下绘制（正是玻璃该在的位置），
+            而且它**不创建层叠上下文**（不像 backdrop-filter / filter / isolation）。
+            同时**去掉模糊**：这一族卡片不做 backdrop-filter，换取层叠正确。
+            分类色仍在 .wrap 的 background-color 上，我们**不碰**它。 */
 .home-wrapper .wrap {
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    background-repeat: no-repeat !important;
+    border: 1px solid var(--lg-border) !important;
     border-radius: var(--lg-radius) !important;
     box-shadow:
         inset 0 1.5px 0 var(--lg-rim-color),
         inset -1px -1px 0 var(--lg-shade),
         0 8px 30px var(--lg-shadow-color) !important;
-    position: relative;
-}
-
-.home-wrapper .wrap::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: 0;
-    background-image:
-        radial-gradient(86% 54% at 13% -16%,
-            var(--lg-spec-color) 0%,
-            rgba(255, 255, 255, 0) 58%),
-        linear-gradient(160deg, var(--lg-sheen), transparent 42%);
-    background-repeat: no-repeat;
-    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
-    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat));
-    border: 1px solid var(--lg-border);
-    box-sizing: border-box;
 }
 
 /* ★ 撤回了：这里曾经把 .item.course 的"背面文字"默认设为 opacity:0 —— 错了。
