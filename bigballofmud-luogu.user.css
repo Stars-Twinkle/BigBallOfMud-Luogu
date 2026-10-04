@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.18
+@version      20261004.19
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4346,10 +4346,17 @@ rect.highcharts-point.highcharts-color-1 {
     background-position: 34% 12%, 0 0 !important;
 }
 
-/* ★ 讨论条目（.lg-inline-up）**不做**单独悬浮（用户：「这个文字框不应该单独悬浮」）。
-   实证 DOM：section.am-panel.lg-index-contest.am-panel-primary > div.am-panel-bd
-               > div.lg-inline-up ×N（159 × 58.5，每条讨论一行文字）
-   每行文字各自浮起会很吵；悬停反馈**只由整张卡片**（上面的 .lg-article .am-panel）承担。 */
+/* ★ .lg-inline-up **不做**单独悬浮（用户两次反馈：「这个文字框不应该单独悬浮」「还有这个」）。
+   实证 DOM（两张图，旧首页）——
+     讨论栏：section.am-panel.lg-index-contest.am-panel-primary > div.am-panel-bd
+               > div.lg-inline-up ×N          （159 × 58.5，每条讨论一行文字）
+     比赛栏：section.am-panel.lg-index-contest.am-panel-success
+               > header.am-panel-hd + div.am-panel-bd
+                   > span.lg-small.lg-inline-up                  （108 × 30，未开始 / 时间 / 团队）
+                   > span.lg-small.lg-inline-up.lg-right.lg-md-hide
+   ★ 注意这个类名在**两处、两种标签**上复用（div 与 span）：选择器用后代关系 + 标签无关，
+     一次覆盖两种；每行文字各自浮起都很吵，悬停反馈**只由整张卡片**承担
+     （即上面的 .lg-article .am-panel）。 */
 
 /* 比赛行：玻璃铺在 .wrapper 上（含左侧状态列），所以悬停也挂在它身上 */
 .wrapper:has(.contest-card) {
