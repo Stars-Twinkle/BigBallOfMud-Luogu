@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.25
+@version      20261004.26
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1645,9 +1645,21 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
    ★ 由此得到一条通则：**承载「用文档坐标绝对定位的自绘浮层」的容器，不能加 backdrop-filter / filter / transform。**
      项目里已写进编辑器须知（见文件开头第 4 条同类坑）。
    ========================================================================== */
-.l-card:has(canvas) {
+/* ★ 第五轮（用户实测第四轮无效）：把**一切**会创建包含块/层叠上下文的来源一次清干净，
+   并把特异性拉到 (0,3,x) 级别（html body 前缀）确保赢过 ⑥ 段那条一长串卡片列表里的 .l-card。
+   涉及属性（规范里都会让元素成为「所有后代的包含块」或以其它方式改变绝对定位基准）：
+     backdrop-filter / -webkit-backdrop-filter / filter / transform / perspective /
+     contain / will-change / isolation
+   只作用于"含 canvas 的图表卡"；其余卡片玻璃一律不动。 */
+html body .l-card:has(canvas) {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    transform: none !important;
+    perspective: none !important;
+    contain: none !important;
+    will-change: auto !important;
+    isolation: auto !important;
     /* 补偿：卡片底色比常规卡片稍实一点（原来是靠模糊+透明透出壁纸） */
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) calc(var(--lg-alpha-pop) + 8%), transparent),
