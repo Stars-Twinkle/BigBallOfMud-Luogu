@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.26
+@version      20261004.27
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1652,6 +1652,20 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
      contain / will-change / isolation
    只作用于"含 canvas 的图表卡"；其余卡片玻璃一律不动。 */
 html body .l-card:has(canvas) {
+    /* ★★★ 第六轮 —— 真正的最后一块（用户提供的 13 条实采数据反推出来的）：
+       把每条记录的 inline left/top 与 视口 rect / scrollY 联立，可解出**包含块原点的文档坐标**：
+         例：left/top = (87.71, 1861.44)，视口 rect = (168, 2066)，scrollY = 1586
+             → 浮窗文档坐标 = (168, 3652) → 包含块原点 = (168-87.71, 3652-1861.44) = (80.3, 1790.6)
+         13 条记录解出来的原点都落在 (≈80, ≈1790) —— 正是图表卡片 .l-card 的位置。
+       ⇒ 结论：.tooltip 的包含块**仍然是 .l-card**。
+       而 absolute 的包含块只由「最近的 positioned 祖先」决定 —— 所以前几轮清掉
+       backdrop-filter / filter / transform / contain / willChange / isolation 全都无效：
+       **我一直漏查了 .l-card 自己的 position**（它是 relative，卡片常规写法）。
+       这里把图表卡改回 static，.tooltip 的包含块就回到「初始包含块（文档）」，
+       与洛谷 JS 传进来的文档坐标（canvas.getBoundingClientRect() + pageXOffset/pageYOffset + caret）终于一致。
+       ★ 安全性：该卡片内部结构极简（div.header + canvas#rating-chart + div.tooltip），
+         唯一的 absolute 后代就是这个浮窗，把它改成 static 不会影响别的布局。 */
+    position: static !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     filter: none !important;
