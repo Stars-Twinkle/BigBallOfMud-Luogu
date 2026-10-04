@@ -4840,7 +4840,21 @@ html[data-sl-theme="dark"] :is(
    ★ 这些背景与文字色**全是内联**：background 我们用 !important 压；
      color 按项目不变式**不允许** !important，改由脚本在网校页剥掉内联 color（见 switch.user.js 的 stripInlineTheme）。
    ========================================================================== */
-/* ① 结构层透明：底交给画布（浅色已洗白 / 深色已压暗） */
+/* ★ 浅色 = 明确的浅底，不铺壁纸。
+   用户："但背景还是偏暗" —— 你选的那张壁纸本身偏暗，78% 白洗过之后仍是灰调。
+   浅色的诉求就是"亮底"，所以这里在**显式浅色**时直接给纯浅底、不铺图；
+   深色与"跟随系统"不受影响（照旧走画布上的壁纸 + 压暗）。 */
+html[data-sl-theme="light"] {
+    background-color: #eef1f7 !important;
+    background-image: none !important;
+}
+
+/* ② 结构层透明：底交给画布（浅色已洗白 / 深色已压暗） */
+html,
+body,
+#app,
+#app.lfe-vars,
+.lfe-vars,
 .main-container,
 .wrapped.lfe-body,
 main.wrapped.lfe-body,
@@ -4849,6 +4863,19 @@ main.wrapped.lfe-body,
     background-color: transparent !important;
     background-image: none !important;
     color: var(--lg-text);
+}
+
+/* 例外：html 自己是画布，必须保留背景（见上面那条浅底 / 深色的壁纸规则） */
+html {
+    background-color: light-dark(#eef1f7, #14161a) !important;
+    background-image:
+        linear-gradient(light-dark(rgba(255, 255, 255, .78), rgba(0, 0, 0, .84)),
+                        light-dark(rgba(255, 255, 255, .78), rgba(0, 0, 0, .84))),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
 }
 
 /* ② 侧栏 / 顶栏：内联深色压掉，换成玻璃 */
