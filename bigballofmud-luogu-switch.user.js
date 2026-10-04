@@ -28,7 +28,8 @@
  *     同样靠 color-scheme 驱动样式里的 light-dark()，所以模式要写进去。
  *   · 切换按钮两个站点都有，但落点不同：
  *       主站 → 顶栏右侧（私信/通知的右面）
- *       网校 → 侧边栏 nav.lfe-body 里"学习"（a[href$="/learn"]）的下面
+ *       网校 → 有侧边栏时：nav.lfe-body 里"学习"（a[href$="/learn"]）的下面
+ *              无侧边栏（主页）时：nav.user-nav 里客服（a[href$="/service"]）的左边
  *   · 对比度守卫仍只跑主站（它按计算值改内联色，网校那套 DOM 未做验证）。
  *   · 切换那一帧往 <html> 加 .sl-theme-switching（样式里定义了一段"统一短过渡"）
  *   · 深色下给个别元素写内联 color（对比度守卫）
@@ -172,24 +173,42 @@
         return { parent: right, before: null };
     }
 
-    /* 网校侧边栏的落点（用户 DevTools 实证）：
-         <nav class="lfe-body" style="background-color: rgb(52,73,94); color: rgb(221,221,221);">
-           <a href="/"       class="route-link-active color-none">
-           <a href="/course" class="color-none">
-           <a href="/learn"  class="color-none">      ← 学习
-       要求放在"学习"图标的下面 → 取 a[href$="/learn"] 的下一个位置；
-       找不到就退到最后一个链接之后，再不行就挂到 nav 末尾。 */
+    /* 网校有**两种布局**，落点分别按用户 DevTools 实证：
+       ── 布局 A：带侧边栏（学习中心 /learn、播放页 /classroom）
+          <nav class="lfe-body" style="background-color: rgb(52,73,94); color: rgb(221,221,221);">
+            <a href="/"       class="route-link-active color-none">
+            <a href="/course" class="color-none">
+            <a href="/learn"  class="color-none">        ← 学习
+          要求：放在"学习"图标的**下面**。
+       ── 布局 B：主页（无侧边栏）
+          <div class="header-layout tiny"><div class="container">
+            <nav class="user-nav">
+              <a href="/service">    <svg class="svg-inline--fa fa-headset">   ← 客服（耳机）
+              <a href="/order/cart"> …
+              …头像…
+          要求：放在**客服图标的左边**（用户："主页没有侧边栏，放在客服图标的左边"）。
+       返回 layout 字段，供调用处决定竖排/横排样式。 */
     function findSpotSchool() {
+        // 布局 A：侧边栏
         var nav = document.querySelector('nav.lfe-body');
-        if (!nav) return null;
-        var learn = nav.querySelector('a[href$="/learn"]');
-        if (learn && learn.parentElement) return { parent: learn.parentElement, before: learn.nextSibling };
-        var links = nav.querySelectorAll('a[href]');
-        if (links.length) {
-            var last = links[links.length - 1];
-            return { parent: last.parentElement, before: last.nextSibling };
+        if (nav) {
+            var learn = nav.querySelector('a[href$="/learn"]');
+            if (learn && learn.parentElement) return { parent: learn.parentElement, before: learn.nextSibling, layout: 'side' };
+            var links = nav.querySelectorAll('a[href]');
+            if (links.length) {
+                var last = links[links.length - 1];
+                return { parent: last.parentElement, before: last.nextSibling, layout: 'side' };
+            }
+            return { parent: nav, before: null, layout: 'side' };
         }
-        return { parent: nav, before: null };
+        // 布局 B：顶栏 user-nav（主页）—— 插到客服（/service）左边
+        var userNav = document.querySelector('nav.user-nav');
+        if (userNav) {
+            var svc = userNav.querySelector('a[href$="/service"]');
+            if (svc && svc.parentElement) return { parent: svc.parentElement, before: svc, layout: 'top' };
+            return { parent: userNav, before: userNav.firstChild, layout: 'top' };
+        }
+        return null;
     }
 
     function makeButton() {
@@ -223,19 +242,28 @@
     function ensureButton() {
         if (!CONFIG.showToggle) return;
 
-        // —— 网校：挂在侧边栏"学习"下面 ——
+        // —— 网校：侧边栏（学习下面）或顶栏（客服左边），两套布局都覆盖 ——
         if (isSchool) {
-            var nav = document.querySelector('nav.lfe-body');
-            if (!nav) return;
-            var sb = nav.querySelector('[data-sl-theme-toggle]');
-            if (!sb) { sb = makeButton(); sb.className = 'sl-theme-toggle sl-theme-toggle-school'; }
-            // 侧边栏是竖排的图标列，按钮改成块级并居中
-            sb.style.display = 'flex';
-            sb.style.margin = '.5rem auto';
-            sb.style.width = '2.2rem';
-            sb.style.height = '2.2rem';
             var sp = findSpotSchool();
-            if (sp && (sb.parentElement !== sp.parent || sb.nextSibling !== sp.before)) {
+            if (!sp) return;                                   // 两套宿主都没出现，下一轮再试
+            var host = sp.parent;
+            var sb = host.querySelector('[data-sl-theme-toggle]') ||
+                     document.querySelector('[data-sl-theme-toggle]');
+            if (!sb) { sb = makeButton(); sb.className = 'sl-theme-toggle sl-theme-toggle-school'; }
+            if (sp.layout === 'side') {
+                // 竖排图标列：块级 + 居中
+                sb.style.display = 'flex';
+                sb.style.margin = '.5rem auto';
+                sb.style.width = '2.2rem';
+                sb.style.height = '2.2rem';
+            } else {
+                // 顶栏横排：跟旁边的图标按钮同一尺寸与间距
+                sb.style.display = 'inline-flex';
+                sb.style.margin = '0 .35rem';
+                sb.style.width = '2rem';
+                sb.style.height = '2rem';
+            }
+            if (sb.parentElement !== sp.parent || sb.nextSibling !== sp.before) {
                 sp.parent.insertBefore(sb, sp.before);
             }
             if (sb.getAttribute('data-mode') !== getMode()) paint(sb, getMode());
