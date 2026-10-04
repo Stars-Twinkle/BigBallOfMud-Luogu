@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.22
+@version      20261004.23
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1617,6 +1617,29 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
     content: none !important;
     display: none !important;
     border: none !important;
+}
+
+/* ★★ 第二轮（用户反馈：「还是看不见，但控制台里有东西动」+ DevTools 实证）：
+   实证 DOM ——
+       div.l-card > div.header + canvas#rating-chart + div.tooltip[data-v-120dc024]
+         style="opacity: 1; transition: opacity 150ms ease-out; left: 124.919px; top: 1869.19px;"
+         > b 比赛名 / br / span.lfe-caption / br / span
+   布局面板显示 content 278.563 × 63、padding 8、border 1 —— **尺寸与内容都正常**，
+   而且 inline 的 opacity 已经是 1。所以"看不见"只剩两种成因：
+     ① 被裁：left/top 是**文档坐标**（源码里是 position.top + window.pageYOffset + caretY），
+        若包含块是卡片这类 positioned 祖先，1869px 就飞到卡片外，被祖先的 overflow 裁掉；
+     ② 被盖：若 .tooltip 的 position 不是 absolute/fixed，z-index 不生效，被图表或卡片压住。
+   两条都堵上（都不改变洛谷自己的 JS 定位逻辑）：
+     · .l-card:has(canvas) 放开裁剪 —— 含 canvas 的卡片里没有需要裁剪的圆角溢出色块；
+     · .tooltip 钉成 position: absolute —— 与"left/top 用文档坐标"这一事实自洽，
+       同时让 z-index 生效（此前若 position: static，30 是空写的）。
+   ★ 刻意**不接管 left/top**：正确坐标由 JS 按 caret 算，我只保证它不被裁、不被盖、能显示。 */
+.l-card:has(canvas) {
+    overflow: visible !important;
+}
+
+.l-card:has(canvas) .tooltip {
+    position: absolute !important;
 }
 
 /* 两种主题下都明确给一次（属性驱动兜底） */
