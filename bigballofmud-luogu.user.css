@@ -5099,6 +5099,53 @@ html[data-sl-theme="dark"] .full-container .card [slot="header"] {
     -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
 }
 
+/* ==========================================================================
+   ㉚ 网校页脚：浅色下的白字（用户：「底下这些文字浅色模式下仍为白色导致看不清」）
+   --------------------------------------------------------------------------
+   实证 DOM（用户 DevTools，课堂页底部）：
+       div#app.lfe-vars > div.main-container > div.wrapped.lfe-body
+         div.footer
+           p > a[href="…/manual/class"] class="color-none" 用户协议
+             | a … 售后政策 | a … 报名帮助 | a … 系统技术要求
+           p 2013 - 2026 ，洛谷 © Developed by the Luogu Dev Team
+           p All rights reserved. 沪ICP备18008322号-1
+   这些文字是**白色**（.footer 自己的颜色），浅色模式下等于白底白字。
+   处理：.footer 及其 p / a 统一走主题正文色与次要色。
+   ★ 特异性写深一层（.main-container .footer …）以压过原产物的 a.color-none[data-v-*]；
+     color 一律不用 !important（项目不变式）。
+   ========================================================================== */
+.main-container .footer,
+.wrapped.lfe-body .footer,
+.footer p,
+.footer a,
+.footer a.color-none,
+.main-container .footer a.color-none {
+    color: var(--lg-text-weak);
+}
+
+.footer a:hover {
+    color: var(--lg-text);
+}
+
+/* 版权行比链接再弱一档 */
+.footer p:not(:first-child),
+.footer p:nth-of-type(n+2) {
+    color: var(--lg-text-weak);
+}
+
+/* 属性驱动兜底：两种主题都明确给色 */
+html[data-sl-theme="light"] .main-container .footer,
+html[data-sl-theme="light"] .footer p,
+html[data-sl-theme="light"] .footer a {
+    color: #4a5560;
+}
+
+html[data-sl-theme="dark"] .main-container .footer,
+html[data-sl-theme="dark"] .footer p,
+html[data-sl-theme="dark"] .footer a {
+    color: #c9d1db;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
