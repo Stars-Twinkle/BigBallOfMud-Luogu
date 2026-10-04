@@ -63,55 +63,14 @@
    把主站这套玻璃 + 深色强加过去会把它们的排版和配色整体带崩，所以不收进来。
    需要覆盖子站的话，要按它们各自的产物单独适配（见 README「已知范围」）。
    ========================================================================== */
-@-moz-document domain("www.luogu.com.cn") {
-
-/* ★ 关键约定（第二十三轮）：**壁纸与深色压暗都画在 html 上，body 保持透明**。
-   为什么必须这样：
-     · 签名水印是负 z-index，它只能落在"画布背景"之上；
-     · 而"body 的背景是否传播到画布"取决于 html 有没有自己的背景 —— 一旦某页的壁纸被
-       画在 html / 内容层上，body 的背景就不再传播、退化成普通块背景，于是把签名整块盖住。
-       这正是"签名仅首页在内容之下"的原因（首页旧前端把壁纸画在 body 上，一直正常）。
-     · 把壁纸改画在 html（也就是画布本身）之后，两边机制一致，不再依赖传播行为。
-   注：以前这里是一条 html { background: transparent }，与本约定正好相反，已删除。 */
-/* 画布背景：壁纸 + 深色压暗都画在这里（签名水印落在它之上、内容之下）。 */
-html {
-    background-color: light-dark(#eef1f7, #14161a) !important;
-    background-image:
-        /* 深色压暗（补回原来 .theme-page::before 那层 58%，合成后约 .84） */
-        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
-                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
-        var(--sl-bg-image) !important;
-    background-repeat: no-repeat, no-repeat !important;
-    background-size: cover, cover !important;
-    background-position: center, center !important;
-    background-attachment: fixed, fixed !important;
-}
-
-/* 内容整体抬到签名（z-index: 1）之上，于是签名落在"背景图之上、内容之下"。
-   ★ 为什么是这里：负 z-index 在 SPA 页面会被某个内容层盖住且定位不到，
-     所以反过来用"抬内容"来实现同样的层叠结果。这些容器自身背景都是透明的
-     （见 ⑥/⑦ 段的透明化规则），不会挡住签名。 */
-:is(#app, #app-old, .lfe-body, .theme-page, .main-container, main, footer) {
-    position: relative;
-    z-index: 2;
-}
-
-/* --------------------------------------------------------------------------
-   ① 配色模式：三态，两个来源（JS 优先）
-   · 装了 bigballofmud-luogu-switch.user.js → 由它在 <html> 上写 data-sl-theme，
-     顶栏按钮可点、选择被记住（推荐）
-   · 没装脚本 → 用 Stylus 面板的「配色模式」下拉（[[colorMode]]）
-   两种都靠 color-scheme 驱动本文件全部 light-dark()，同时让浏览器原生控件
-   （滚动条、输入框、光标）跟着变浅/变深。
-   属性选择器特异性 (0,2,0) 高于下面的 :root (0,1,0)，所以 JS 一写属性就接管。
-   -------------------------------------------------------------------------- */
-:root[data-sl-theme="light"] {
-    color-scheme: light;
-}
-
-:root[data-sl-theme="dark"] {
-    color-scheme: dark;
-}
+/* ==========================================================================
+   共用令牌层（域块）：主站 + 网校
+   --------------------------------------------------------------------------
+   为什么单独拎出来：@-moz-document 是按域生效的，变量声明在 www 的块里，
+   网校（class.luogu.com.cn）就完全拿不到 —— 那边会连颜色都不变。
+   这里用一个域块（逗号 = OR）同时覆盖两个域名，令牌只有一份，避免复制两份后走偏。
+   ========================================================================== */
+@-moz-document domain("www.luogu.com.cn"), domain("class.luogu.com.cn") {
 
 :root {
     color-scheme: light dark;
@@ -241,6 +200,60 @@ html {
        带 mask 的 backdrop-filter，滚动时每帧重算，导致"一直在抖"。
        边缘厚度现在完全由 --lg-rim（亮上缘）与 --lg-shade（暗下缘）表达。 */
 }
+
+}
+
+@-moz-document domain("www.luogu.com.cn") {
+
+/* ★ 关键约定（第二十三轮）：**壁纸与深色压暗都画在 html 上，body 保持透明**。
+   为什么必须这样：
+     · 签名水印是负 z-index，它只能落在"画布背景"之上；
+     · 而"body 的背景是否传播到画布"取决于 html 有没有自己的背景 —— 一旦某页的壁纸被
+       画在 html / 内容层上，body 的背景就不再传播、退化成普通块背景，于是把签名整块盖住。
+       这正是"签名仅首页在内容之下"的原因（首页旧前端把壁纸画在 body 上，一直正常）。
+     · 把壁纸改画在 html（也就是画布本身）之后，两边机制一致，不再依赖传播行为。
+   注：以前这里是一条 html { background: transparent }，与本约定正好相反，已删除。 */
+/* 画布背景：壁纸 + 深色压暗都画在这里（签名水印落在它之上、内容之下）。 */
+html {
+    background-color: light-dark(#eef1f7, #14161a) !important;
+    background-image:
+        /* 深色压暗（补回原来 .theme-page::before 那层 58%，合成后约 .84） */
+        linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
+                        light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
+        var(--sl-bg-image) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-size: cover, cover !important;
+    background-position: center, center !important;
+    background-attachment: fixed, fixed !important;
+}
+
+/* 内容整体抬到签名（z-index: 1）之上，于是签名落在"背景图之上、内容之下"。
+   ★ 为什么是这里：负 z-index 在 SPA 页面会被某个内容层盖住且定位不到，
+     所以反过来用"抬内容"来实现同样的层叠结果。这些容器自身背景都是透明的
+     （见 ⑥/⑦ 段的透明化规则），不会挡住签名。 */
+:is(#app, #app-old, .lfe-body, .theme-page, .main-container, main, footer) {
+    position: relative;
+    z-index: 2;
+}
+
+/* --------------------------------------------------------------------------
+   ① 配色模式：三态，两个来源（JS 优先）
+   · 装了 bigballofmud-luogu-switch.user.js → 由它在 <html> 上写 data-sl-theme，
+     顶栏按钮可点、选择被记住（推荐）
+   · 没装脚本 → 用 Stylus 面板的「配色模式」下拉（[[colorMode]]）
+   两种都靠 color-scheme 驱动本文件全部 light-dark()，同时让浏览器原生控件
+   （滚动条、输入框、光标）跟着变浅/变深。
+   属性选择器特异性 (0,2,0) 高于下面的 :root (0,1,0)，所以 JS 一写属性就接管。
+   -------------------------------------------------------------------------- */
+:root[data-sl-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-sl-theme="dark"] {
+    color-scheme: dark;
+}
+
+/* 令牌层已上移到文件开头的"共用域块"（主站 + 网校共用同一套变量）。 */
 
 /* 老浏览器没有 light-dark() 时退化为固定浅色玻璃（深色模式不生效） */
 @supports not (color: light-dark(#fff, #000)) {
@@ -3935,4 +3948,24 @@ rect.highcharts-point.highcharts-color-1 {
     }
 }
 /* 下划线由 ⑯ 节给 .lg-article a:not(.center) 的 ::after 提供，这里不再屏蔽它。*/
+}
+
+
+/* ==========================================================================
+   ㉒ 洛谷网校（class.luogu.com.cn）
+   --------------------------------------------------------------------------
+   用户要求："适配洛谷网校，严格按照源码写，适配深浅色和液态玻璃"。
+   现状：
+     · 网校是**独立域名**（www.luogu.com.cn/school 是 404，已实测），
+       所以它不在原来两个 @-moz-document 的范围内 —— 以前那边等于"完全没被美化"；
+     · 令牌层已由文件开头的"共用域块"覆盖，深浅色与玻璃变量在那边是可用的；
+     · 这一块现在还**没有元素规则**：网校前端是 SPA，抓不到静态类名，
+       而本项目的铁律是"不猜类名"（每一次猜都换来过回归）。
+   待补：拿到网校页面的 DevTools 面包屑（容器 / 卡片 / 侧栏 / 按钮 / 输入框几行）后，
+         在这里按 ⑥（卡片）· ⑨（输入框）· ⑪（按钮）三套既有配方逐条写入。
+   ========================================================================== */
+@-moz-document domain("class.luogu.com.cn") {
+
+    /* 占位：等网校 DOM 证据后填入元素规则（配方复用 ⑥ / ⑨ / ⑪ 段，保证观感一致）。 */
+
 }

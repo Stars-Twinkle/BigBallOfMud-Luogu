@@ -6,6 +6,7 @@
 // @author       acerkaio
 // @license      CC BY-NC-SA
 // @match        https://www.luogu.com.cn/*
+// @match        https://class.luogu.com.cn/*
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==
@@ -23,6 +24,9 @@
  *
  * 与样式表的分工：本脚本**不注入任何 CSS**，只做三件事：
  *   · 往 <html> 写 data-sl-theme（样式里三条 color-scheme 规则接管外观）
+ *   · 覆盖主站与**网校**（class.luogu.com.cn）：网校是独立域名、独立前端，
+ *     但同样靠 color-scheme 驱动样式里的 light-dark()，所以只需要把模式写进去。
+ *     网校那边的顶栏按钮与对比度守卫仍**不介入**（那套 DOM 与主站不同）。
  *   · 切换那一帧往 <html> 加 .sl-theme-switching（样式里定义了一段"统一短过渡"）
  *   · 深色下给个别元素写内联 color（对比度守卫）
  */
