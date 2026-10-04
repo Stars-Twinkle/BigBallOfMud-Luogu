@@ -4655,7 +4655,6 @@ html[data-sl-theme="light"] :is(
     .player-wrap.class-room .side,
     .player-wrap.class-room .side > div,
     .player-wrap.class-room .side-content,
-    .player-wrap.class-room .tab,
         .player-wrap.class-room .note-wrap,
     .player-wrap.class-room .questions-wrap,
     .player-wrap.class-room .settings-wrap,
@@ -4705,7 +4704,6 @@ html[data-sl-theme="dark"] :is(
     .player-wrap.class-room .side,
     .player-wrap.class-room .side > div,
     .player-wrap.class-room .side-content,
-    .player-wrap.class-room .tab,
         .player-wrap.class-room .note-wrap,
     .player-wrap.class-room .questions-wrap,
     .player-wrap.class-room .settings-wrap,
@@ -4831,6 +4829,39 @@ html[data-sl-theme="light"] .player-wrap.class-room .chats-wrap,
 html[data-sl-theme="light"] .player-wrap.class-room .chats,
 html[data-sl-theme="dark"] .player-wrap.class-room .chats-wrap,
 html[data-sl-theme="dark"] .player-wrap.class-room .chats {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ★ 侧栏标签栏（用户：「这块也多层玻璃」）
+   实证 DOM（用户 DevTools，课堂页右侧栏）：
+       div.side > div > div[slot="header"].tab
+                          > div.category > ul.items   ← 聊天 / 笔记 / 提问 / 设置
+   玻璃名单里同时有 .side 与 .tab，于是叠成两层。这里把 .tab 及其内部一律透明，
+   玻璃只由 .side 承担；选中的那个标签（li 上的状态色）不动。 */
+.player-wrap.class-room .tab,
+.player-wrap.class-room .tab .category,
+.player-wrap.class-room .tab .items,
+.player-wrap.class-room .tab .items > li {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下都保持透明（逐条列出，不用 :is()，避免撞"不许进玻璃名单"的守卫） */
+html[data-sl-theme="light"] .player-wrap.class-room .tab,
+html[data-sl-theme="dark"] .player-wrap.class-room .tab,
+html[data-sl-theme="light"] .player-wrap.class-room .tab .category,
+html[data-sl-theme="dark"] .player-wrap.class-room .tab .category,
+html[data-sl-theme="light"] .player-wrap.class-room .tab .items,
+html[data-sl-theme="dark"] .player-wrap.class-room .tab .items {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
