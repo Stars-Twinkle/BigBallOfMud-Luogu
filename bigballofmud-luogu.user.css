@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.06
+@version      20261004.07
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -245,14 +245,9 @@ html {
     background-attachment: fixed, fixed !important;
 }
 
-/* 内容整体抬到签名（z-index: 1）之上，于是签名落在"背景图之上、内容之下"。
-   ★ 为什么是这里：负 z-index 在 SPA 页面会被某个内容层盖住且定位不到，
-     所以反过来用"抬内容"来实现同样的层叠结果。这些容器自身背景都是透明的
-     （见 ⑥/⑦ 段的透明化规则），不会挡住签名。 */
-:is(#app, #app-old, .lfe-body, .theme-page, .main-container, main, footer) {
-    position: relative;
-    z-index: 2;
-}
+/* ★★ 已删除（第三十三轮）：这里曾把内容整体抬到 z-index: 2，用于把签名压在内容之下。
+   代价见上面 --sl-signature-z 的说明 —— 它会创建层叠上下文，导致 AmazeUI 举报弹窗
+   被遮罩盖住、点任何地方都收回。现在签名自己用 -1，内容层不再需要任何 z-index。 */
 
 /* --------------------------------------------------------------------------
    ① 配色模式：三态，两个来源（JS 优先）
@@ -330,7 +325,17 @@ html {
        ★ 代价：background-image 不能用 light-dark() 切色，所以用一张**中灰**版本
          （128,128,128 + 46% 不透明度），浅色与深色背景下都看得见。 */
 
-    --sl-signature-z: 1;         /* 1 = 可见层；内容被抬到 2，于是它就落在内容之下 */
+    /* ★★ 改回 -1（第三十三轮，用户：「现在点任何地方弹窗会直接收回，根本用不了」）：
+       之前为了让签名"在内容之下"，走的是**抬升内容层**（给 #app/#app-old/.theme-page/main… 写
+       position: relative + z-index: 2）。代价是给这些容器**创建了层叠上下文** ——
+       页面上任何挂在它们内部的浮层（AmazeUI 的举报窗口就是）其 z-index 都只在上下文内有效，
+       而遮罩 .am-dimmer 是 body 的直接子元素（在上下文之外），于是遮罩永远盖住弹窗：
+       点任何地方都先命中遮罩 → AmazeUI 判定"点了遮罩" → 弹窗直接收回。
+       现在改成签名自己用 -1：它排在画布（html 背景）之后、所有正常内容之前，
+       既在内容之下，又**不需要给任何容器加 z-index** —— 浮层层叠从此恢复正常。
+       注：早期 -1 看不见是因为另外两个原因（mask 取色模式用了黑色画笔 + 内容层又画了一层整屏壁纸），
+           那两个问题后来都已修掉（白色画笔 + mask-mode: alpha；内容层不再画壁纸）。 */
+    --sl-signature-z: -1;        /* -1 = 画布之上、内容之下（不需要抬内容层） */
 }
 
 /* ── 签名水印：html::after + mask 上色（第十九轮）──
@@ -3929,14 +3934,8 @@ rect.highcharts-point.highcharts-color-1 {
    修法：**弹窗打开时临时取消那层 z-index**（用 :has() 判定，单独成规则，遵守"不与普通选择器混写"的不变式），
         弹窗关掉后 z-index 自动恢复，签名水印的层叠不受影响。
    ========================================================================== */
-/* ① 取消层叠上下文（只在这一刻生效）——必须单独成规则（不变式：:has() 不与普通选择器混写） */
-body:has(.am-dimmer.am-active) :is(#app, #app-old, .lfe-body, .theme-page, .main-container) {
-    z-index: auto !important;
-}
-
-body:has(.am-modal.am-modal-active) :is(#app, #app-old, .lfe-body, .theme-page, .main-container) {
-    z-index: auto !important;
-}
+/* ① 层叠上下文已从根上去掉（签名改用 -1，内容层不再有 z-index），
+   所以这里**不再需要**用 :has() 临时取消 z-index 的补救规则。留此说明以免被重新加回来。 */
 
 /* ② 遮罩：只改颜色，**不加模糊**。
    ★ 上一轮我在这里加了 backdrop-filter: blur(6px)，用户反馈"上轮没修好"时整页是糊的
