@@ -5393,6 +5393,65 @@ html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selecte
     color: var(--lg-text);
 }
 
+/* ==========================================================================
+   ㉞ 网校首页（/，Home 模板）：去掉白色挡板，露出壁纸；深色覆盖暗层
+   --------------------------------------------------------------------------
+   用户：「拉取网校首页的源代码，开始适配，把这个白色挡板去掉，露出壁纸，深色模式覆盖暗层」。
+   实证 DOM（用户 DevTools，2026-10-04）：
+       div#app.lfe-vars
+         div.lfe-body.homepage-main
+           div.header-layout.tiny
+           main.wrapped.lfe-body style="background-color: rgb(255, 255, 255)"   ← ★ 白色挡板（内联）
+             div.home-wrapper[currenttemplate="Home"]
+           div.footer-container
+           div.fix
+   ★ 源码侧的实证（这一步很重要）：
+     把 evidence/网校语料/css/ 下 **38 份** chunk CSS 与 loader.css 全文 grep 了
+     `home-wrapper` / `homepage-main` / `footer-container` / `header-layout` / `lfe-vars` / `wrapped`，
+     结果是 **0 条规则**（两边都是 0）—— 说明首页这几层的底色**不是样式表给的，而是内联 style**。
+     结论：这里必须用 !important（背景可以，项目不变式只禁 color !important），
+     同时由脚本 stripInlineTheme 把内联 background-color / color 剥掉（已覆盖 main.wrapped.lfe-body）。
+   ========================================================================== */
+/* ① 白色挡板一律透明：露出壁纸（浅色即"壁纸原样"） */
+#app.lfe-vars > main.wrapped.lfe-body,
+.lfe-body.homepage-main,
+.homepage-main > main.wrapped.lfe-body,
+.home-wrapper,
+.footer-container,
+.fix {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* ② 深色：这一整块覆盖暗层（用面板暗色，与全站深色玻璃同一档） */
+html[data-sl-theme="dark"] #app.lfe-vars > main.wrapped.lfe-body,
+html[data-sl-theme="dark"] .homepage-main > main.wrapped.lfe-body {
+    background-color: var(--lg-panel-dark) !important;
+}
+
+/* ③ 浅色：不铺任何底色，只留极淡的一层玻璃光（壁纸透出来） */
+html[data-sl-theme="light"] #app.lfe-vars > main.wrapped.lfe-body,
+html[data-sl-theme="light"] .homepage-main > main.wrapped.lfe-body {
+    background-color: color-mix(in srgb, #ffffff 22%, transparent) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%) !important;
+}
+
+/* ④ 无属性（跟随系统）时按主题走 */
+.homepage-main > main.wrapped.lfe-body {
+    background-color: color-mix(in srgb, light-dark(#ffffff, #12151b) 22%, transparent) !important;
+}
+
+/* ⑤ 页脚容器与右上角固定层不铺底 */
+html[data-sl-theme="light"] .footer-container,
+html[data-sl-theme="dark"] .footer-container,
+.homepage-main .fix {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
