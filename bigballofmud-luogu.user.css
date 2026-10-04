@@ -5565,20 +5565,11 @@ html[data-sl-theme="dark"] .footer-container,
     -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
 }
 
-/* ★ 背面文字：**默认隐藏，仅悬停显示**（用户要求「鼠标不在的时候后面隐藏」）。
-   按元素类型隐藏（h1-h6 / p / span / a / button / 标签 / 徽章）——
-   封面是 <img> 或带背景图的 <div>，不受影响，仍然默认可见。 */
-.home-wrapper .item.course :is(h1, h2, h3, h4, h5, h6, p, span, a[href], button, .tag, .badge, .caption) {
-    opacity: 0;
-    transition: opacity .22s ease;
-}
-
-/* 悬停（或键盘聚焦）时才露出来 —— 与它们原本"悬浮露出背面"的交互一致 */
-.home-wrapper .item.course:hover :is(h1, h2, h3, h4, h5, h6, p, span, a[href], button, .tag, .badge, .caption),
-.home-wrapper .item.course:focus-within :is(h1, h2, h3, h4, h5, h6, p, span, a[href], button, .tag, .badge, .caption) {
-    opacity: 1;
-}
-
+/* ★ 撤回了：这里曾经把 .item.course 的"背面文字"默认设为 opacity:0 —— 错了。
+   实证（用户：「最近在学应该改回去啊，现在看不见字了」）：
+     「最近在学」那一排是**普通卡片**（缩略图 + 标题 + 回放截止 + 「去学习」按钮 **一直可见**），
+     不是"封面盖住背面"那种交互卡；只有**筛选课程**那一排（.wrap）才是悬浮露背面的。
+   所以"默认隐藏、悬停显示"这条逻辑**只作用于 .wrap 家族**（见 ㊱ 段末尾）。 */
 /* ④ 属性驱动兜底：深浅两态都明确给一次（白卡） */
 html[data-sl-theme="light"] .home-wrapper .item.course {
     background-color: color-mix(in srgb, #ffffff 40%, transparent) !important;
