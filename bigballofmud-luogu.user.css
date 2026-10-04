@@ -4838,10 +4838,15 @@ html[data-sl-theme="dark"] .player-wrap.class-room .chats {
                           > div.category > ul.items   ← 聊天 / 笔记 / 提问 / 设置
    玻璃名单里同时有 .side 与 .tab，于是叠成两层。这里把 .tab 及其内部一律透明，
    玻璃只由 .side 承担；选中的那个标签（li 上的状态色）不动。 */
+/* ★ 关键：li 排除 .selected。
+   实证：ul.items > li.selected[style="background-color: rgb(76,175,80); color: rgb(76,175,80)"] > a。
+   选中态是**内联**样式，而 background-color: transparent !important 连内联都能压掉 ——
+   上一版就是这么把「选中效果」抹掉的（用户：「这块的选中效果消失」）。
+   只要排除它，就没有任何规则会碰它，内联值自然保留（无需再用 !important 去救）。 */
 .player-wrap.class-room .tab,
 .player-wrap.class-room .tab .category,
 .player-wrap.class-room .tab .items,
-.player-wrap.class-room .tab .items > li {
+.player-wrap.class-room .tab .items > li:not(.selected) {
     background-color: transparent !important;
     background-image: none !important;
     border: none !important;
@@ -5129,7 +5134,7 @@ html[data-sl-theme="dark"] :is(.main-container, .wrapped.lfe-body, main.wrapped.
 .full-container .card > div,
 .full-container .card [slot="header"],
 .full-container .card > div > div:not(.category),
-.full-container .card :is(header, footer, section, ul, li, .content:not(.category)) {
+.full-container .card :is(header, footer, section, ul, li:not(.selected), .content:not(.category)) {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;
