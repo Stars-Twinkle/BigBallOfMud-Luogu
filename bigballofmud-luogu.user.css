@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.23
+@version      20261004.24
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1619,27 +1619,35 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
     border: none !important;
 }
 
-/* ★★ 第二轮（用户反馈：「还是看不见，但控制台里有东西动」+ DevTools 实证）：
-   实证 DOM ——
-       div.l-card > div.header + canvas#rating-chart + div.tooltip[data-v-120dc024]
-         style="opacity: 1; transition: opacity 150ms ease-out; left: 124.919px; top: 1869.19px;"
-         > b 比赛名 / br / span.lfe-caption / br / span
-   布局面板显示 content 278.563 × 63、padding 8、border 1 —— **尺寸与内容都正常**，
-   而且 inline 的 opacity 已经是 1。所以"看不见"只剩两种成因：
-     ① 被裁：left/top 是**文档坐标**（源码里是 position.top + window.pageYOffset + caretY），
-        若包含块是卡片这类 positioned 祖先，1869px 就飞到卡片外，被祖先的 overflow 裁掉；
-     ② 被盖：若 .tooltip 的 position 不是 absolute/fixed，z-index 不生效，被图表或卡片压住。
-   两条都堵上（都不改变洛谷自己的 JS 定位逻辑）：
-     · .l-card:has(canvas) 放开裁剪 —— 含 canvas 的卡片里没有需要裁剪的圆角溢出色块；
-     · .tooltip 钉成 position: absolute —— 与"left/top 用文档坐标"这一事实自洽，
-       同时让 z-index 生效（此前若 position: static，30 是空写的）。
-   ★ 刻意**不接管 left/top**：正确坐标由 JS 按 caret 算，我只保证它不被裁、不被盖、能显示。 */
-.l-card:has(canvas) {
+/* ★★ 第二轮改动**已回滚**（用户：「还是不行，注意不能影响到其他地方改好的东西」）：
+   当时加了 ① .l-card:has(canvas){overflow:visible} ② .tooltip{position:absolute!important}，
+   实测没有解决问题，而 overflow:visible 有可能波及含 canvas 卡片的布局 —— 既然无效，先撤干净，
+   只保留第一轮里"无争议"的部分（玻璃底 + 显隐交给 inline + pointer-events:none + 去伪元素箭头）。
+   下一步：去 bundle 里找洛谷给 .tooltip 的**原始 CSS**（Vue SFC 样式常被 style-loader 注入进 JS），
+   拿到 position / z-index / 伪元素的真值后再对症下药，不再靠推测。 */
+/* ★★ 第三轮（用户：「还是不行，注意不能影响到其他地方改好的东西」+ 洛谷原始 CSS 实证）：
+   原始样式出处：evidence/bundle语料/MOD2765~fbf5f606ab564ee8.css ——
+       [data-v-120dc024]{font-size:.875rem;color:#fff;padding:.4em;position:absolute;
+                          background-color:rgba(0,0,0,.8);border-radius:.3em;pointer-events:none;opacity:0}
+       [data-v-120dc024]>*{margin-bottom:1em}  [data-v-120dc024]>*:last-child{margin-bottom:0}
+   ⇒ 三条硬事实：① 它**本来就是 `position: absolute`**（我上一轮改它毫无意义，已回滚）；
+                  ② 默认 `opacity: 0` 由 JS 的 inline style 覆盖为 1；
+                  ③ **没有** ::before/::after 规则 —— 所以"小箭头"不是它画的（我们只是预防性清掉）。
+   ⇒ 与源码对照后可断定：既然 JS 传的是**文档坐标**（canvas 的 rect + pageXOffset/pageYOffset + caret），
+      而尺寸/内容/opacity 都正常，那么"看不见"就只剩**被祖先裁剪**这一条路（left/top 相对卡片时为 1869px，
+      远超卡片高度 → 被 overflow 裁掉）。上一轮只放开了 .l-card 一层，而 overflow 很可能在更上层
+      （.main / .sidebar-container / .main-content ），所以"还是不行"。
+   ★ 本轮的写法要点（既放开整条链、又**绝不波及别处**）：
+     全部用 `:has(canvas)` 限定 —— 只有"内部含 canvas 的那个容器"才放开裁剪，
+     其它页面、其它卡片一律不动（含 canvas 的容器本来也没有需要靠 overflow 裁剪的圆角溢出色块）。
+   ========================================================================== */
+.l-card:has(canvas),
+.main:has(canvas),
+.sidebar-container:has(canvas),
+.main-content:has(canvas),
+.columba-content-wrap:has(canvas),
+.reverse:has(canvas) {
     overflow: visible !important;
-}
-
-.l-card:has(canvas) .tooltip {
-    position: absolute !important;
 }
 
 /* 两种主题下都明确给一次（属性驱动兜底） */
