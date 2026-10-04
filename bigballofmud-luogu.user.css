@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.14
+@version      20261004.15
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4173,7 +4173,6 @@ rect.highcharts-point.highcharts-color-1 {
     .inquiry-feed,
     .am-comment-main) {
     transition: translate .26s cubic-bezier(.4, 0, .2, 1),
-                scale .26s cubic-bezier(.4, 0, .2, 1),
                 box-shadow .3s ease,
                 background-position .6s cubic-bezier(.4, 0, .2, 1);
 }
@@ -4182,6 +4181,9 @@ rect.highcharts-point.highcharts-color-1 {
    悬停反馈只靠"抬起 + 放大 + 阴影加深 + 光斑漂移"表达（更干净，也不会把
    原本的语义描边盖掉）。幅度同时调大一档（用户反馈比赛/讨论"没反应"，
    很大程度上是 2px / 0.6% 太小、在宽卡片上几乎看不出来）。 */
+/* ★ 幅度统一到「主页大卡片」那一档（用户：「所有悬浮动画不需要太大，跟主页的大卡片一致」）：
+   抬起 2px、**不放大**、阴影加深 —— 与 ⑥ 段的 .l-card:hover 与旧首页 .lg-article:hover 完全相同。
+   之前调到 3px/1.012 是为了让比赛/讨论"看得出反应"，但幅度过大反而晃眼，这里回到统一规格。 */
 :is(.l-card,
     .feed-card,
     .inner-card,
@@ -4198,8 +4200,7 @@ rect.highcharts-point.highcharts-color-1 {
     .reply-item,
     .inquiry-feed,
     .am-comment-main):hover {
-    translate: 0 -3px;
-    scale: 1.012;
+    translate: 0 -2px;
     box-shadow:
         0 18px 52px var(--lg-shadow-color-hi),
         inset 0 1.5px 0 var(--lg-rim-color),
@@ -4217,7 +4218,7 @@ rect.highcharts-point.highcharts-color-1 {
 }
 
 .wrapper:has(.contest-card):hover {
-    translate: 0 -3px;
+    translate: 0 -2px;
     box-shadow:
         0 16px 46px var(--lg-shadow-color-hi),
         inset 0 1.5px 0 var(--lg-rim-color),
