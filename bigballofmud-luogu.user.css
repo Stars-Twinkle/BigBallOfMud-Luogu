@@ -5436,28 +5436,30 @@ html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selecte
     background-image: none !important;
 }
 
-/* ② 深色：这一整块覆盖暗层（用面板暗色，与全站深色玻璃同一档） */
+/* ② 深色：这里**不铺面板色**（曾经铺 --lg-panel-dark，即一整块不透明深色），
+   否则显式深色会比"跟随系统的深色"明显更黑 —— 用户反馈「深色模式和跟随系统的深色暗层不一样黑」。
+   统一约定：**首页 main 在三种模式下都透明，暗层只由画布（html）承担**，
+   而画布里"跟随系统"和"显式深色"用的是同一个 72%，于是两者完全一致。 */
 html[data-sl-theme="dark"] #app.lfe-vars > main,
 html[data-sl-theme="dark"] .lfe-body.homepage-main > main,
 html[data-sl-theme="dark"] .homepage-main > main {
-    background-color: var(--lg-panel-dark) !important;
+    background-color: transparent !important;
+    background-image: none !important;
 }
 
-/* ③ 浅色：不铺任何底色，只留极淡的一层玻璃光（壁纸透出来） */
+/* ③ 浅色：一样透明（用户要的是「露出壁纸」，加白反而又成了一层挡板） */
 html[data-sl-theme="light"] #app.lfe-vars > main,
 html[data-sl-theme="light"] .lfe-body.homepage-main > main,
 html[data-sl-theme="light"] .homepage-main > main {
-    background-color: color-mix(in srgb, #ffffff 22%, transparent) !important;
-    background-image:
-        radial-gradient(86% 54% at 13% -16%,
-            var(--lg-spec-color) 0%,
-            rgba(255, 255, 255, 0) 58%) !important;
+    background-color: transparent !important;
+    background-image: none !important;
 }
 
-/* ④ 无属性（跟随系统）时按主题走 */
+/* ④ 无属性（跟随系统）同样透明 —— 三种模式一条口径，避免"暗层不一样黑" */
 #app.lfe-vars > main,
 .homepage-main > main {
-    background-color: color-mix(in srgb, light-dark(#ffffff, #12151b) 22%, transparent) !important;
+    background-color: transparent !important;
+    background-image: none !important;
 }
 
 /* ⑤ 页脚容器与右上角固定层不铺底 */
