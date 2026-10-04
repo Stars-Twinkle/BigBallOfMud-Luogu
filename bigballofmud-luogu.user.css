@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.24
+@version      20261004.25
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1625,29 +1625,34 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
    只保留第一轮里"无争议"的部分（玻璃底 + 显隐交给 inline + pointer-events:none + 去伪元素箭头）。
    下一步：去 bundle 里找洛谷给 .tooltip 的**原始 CSS**（Vue SFC 样式常被 style-loader 注入进 JS），
    拿到 position / z-index / 伪元素的真值后再对症下药，不再靠推测。 */
-/* ★★ 第三轮（用户：「还是不行，注意不能影响到其他地方改好的东西」+ 洛谷原始 CSS 实证）：
-   原始样式出处：evidence/bundle语料/MOD2765~fbf5f606ab564ee8.css ——
-       [data-v-120dc024]{font-size:.875rem;color:#fff;padding:.4em;position:absolute;
-                          background-color:rgba(0,0,0,.8);border-radius:.3em;pointer-events:none;opacity:0}
-       [data-v-120dc024]>*{margin-bottom:1em}  [data-v-120dc024]>*:last-child{margin-bottom:0}
-   ⇒ 三条硬事实：① 它**本来就是 `position: absolute`**（我上一轮改它毫无意义，已回滚）；
-                  ② 默认 `opacity: 0` 由 JS 的 inline style 覆盖为 1；
-                  ③ **没有** ::before/::after 规则 —— 所以"小箭头"不是它画的（我们只是预防性清掉）。
-   ⇒ 与源码对照后可断定：既然 JS 传的是**文档坐标**（canvas 的 rect + pageXOffset/pageYOffset + caret），
-      而尺寸/内容/opacity 都正常，那么"看不见"就只剩**被祖先裁剪**这一条路（left/top 相对卡片时为 1869px，
-      远超卡片高度 → 被 overflow 裁掉）。上一轮只放开了 .l-card 一层，而 overflow 很可能在更上层
-      （.main / .sidebar-container / .main-content ），所以"还是不行"。
-   ★ 本轮的写法要点（既放开整条链、又**绝不波及别处**）：
-     全部用 `:has(canvas)` 限定 —— 只有"内部含 canvas 的那个容器"才放开裁剪，
-     其它页面、其它卡片一律不动（含 canvas 的容器本来也没有需要靠 overflow 裁剪的圆角溢出色块）。
+/* ★★★ 第四轮 —— 真凶（用户提供的控制台诊断，逐条实证）：
+   输出里的祖先链是（从 .tooltip 往上）：
+       div.tooltip   ← position: absolute, backdrop-filter
+       div.l-card    ← backdrop-filter          ★★ 就是这一条
+       div.main → div.sidebar-container.reverse → div.full-container.columba-content-wrap.main
+                 → main.lcolor-bg-background.main → div.main-container.lside-nav → div.lfe-body → body
+       html/body overflow: visible / visible
+   ⇒ **一个 overflow: hidden 都没有**（所以前三轮"被裁"的判断全错，已回滚），
+     **一个 positioned 祖先都没有** —— 那 .tooltip 的唯一包含块来源就只剩 backdrop-filter。
+   ⇒ 规范如此：**`backdrop-filter`（以及 filter / transform / perspective / contain: paint 等）非 none 时，
+     元素会成为「所有后代的包含块」**，不只是负责 fixed。于是 .tooltip 的 absolute 变成**相对卡片**，
+     而洛谷 JS 传进来的是**文档坐标**（canvas.getBoundingClientRect() + pageXOffset/pageYOffset + caret），
+     两者错位 → 浮窗被扔到视口外：诊断里 rect(视口) y = 2023，而触发点只有 cy = 322；
+     elementFromPoint(中心点) = null 也正是因为中心点在视口之外。
+   ⇒ 这也解释了"以前能看见"：那时 .l-card 上还没有这条 backdrop-filter。
+   修法：**只对"含 canvas 的图表卡"撤掉 backdrop-filter**（canvas 本身不透明，模糊几乎看不出效果），
+        并用略实一档的底色补偿观感 —— 其它卡片的玻璃一律不动。
+   ★ 由此得到一条通则：**承载「用文档坐标绝对定位的自绘浮层」的容器，不能加 backdrop-filter / filter / transform。**
+     项目里已写进编辑器须知（见文件开头第 4 条同类坑）。
    ========================================================================== */
-.l-card:has(canvas),
-.main:has(canvas),
-.sidebar-container:has(canvas),
-.main-content:has(canvas),
-.columba-content-wrap:has(canvas),
-.reverse:has(canvas) {
-    overflow: visible !important;
+.l-card:has(canvas) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    /* 补偿：卡片底色比常规卡片稍实一点（原来是靠模糊+透明透出壁纸） */
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) calc(var(--lg-alpha-pop) + 8%), transparent),
+        color-mix(in srgb, var(--lg-pop-dark) 100%, #000 4%)
+    ) !important;
 }
 
 /* 两种主题下都明确给一次（属性驱动兜底） */
