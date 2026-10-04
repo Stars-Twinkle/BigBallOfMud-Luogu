@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.01
+@version      20261005.02
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3149,6 +3149,73 @@ footer a:hover {
      · 颜色直接复用 --lg-text（它本身就是 light-dark(#1f2329, #f7fafc)）；
      · 仍排除带 lcolor-* 语义色的元素，也不写 color: … !important（守 §12 不变式）。
    ========================================================================== */
+
+/* ==========================================================================
+   ⑯-c-6 Tag / 题目难度 / 置顶 这类标签：叠一层「较深的液态玻璃」
+   --------------------------------------------------------------------------
+   用户要求：「把 Tag 和题目难度、置顶什么的这类标签用底色较深的液态玻璃显示，注意深浅色适配」
+   ★ 结构实证（Chrome + DevTools 协议抓真实页面，题目列表 https://www.luogu.com.cn/problem/list）：
+       难度胶囊：div.difficulty > span > span
+           <span style="background-color: rgb(254,76,97); border-color: rgb(233,64,84);
+                        color: rgb(255,255,255);">入门</span>
+       Tag 胶囊：div.tag > div.tags > span
+           <span style="background-color: rgb(19,194,194); border-color: rgb(33,159,159);
+                        color: rgb(255,255,255);">NOIP 提高组</span>
+   ★ 三条硬约束，全部来自上面的实证：
+     ① **胶囊是无类名的内层 span**，而 div.tag / div.difficulty 是**列容器**（99×42 / 166×42，透明）——
+        本项目在 ⑲-b 踩过：「.tag 既是小标签也是行容器」，给类名加样式会把题目列表整行变成大胶囊。
+        所以这里一律用**结构选择器**（.difficulty > span > span、.tag .tags > span），绝不出现裸 .tag / .difficulty。
+     ② **语义色写在内联 style 里**（红=入门、黄=普及、青=提高 …）⇒ 绝不能改 background-color
+        （那会毁掉语义），改用 **background-image 叠一层深色玻璃**：压深的半透明黑 + 镜面光斑 + 斜向缎面。
+     ③ 内联样式只能用 !important 压过；项目不变式只禁「color 加 !important」，背景/边框允许。
+   ★ 深浅适配：压深与描边全部用 light-dark()，与脚本、data-sl-theme 都无关（脚本没跑也对）。
+   ★ 旧首页徽章（置顶 / Rated / 官方比赛 / IOI 那些）是 .am-badge + .lg-bg-*（luogu3.css 实证 13 种色），
+     同为「有语义底色的徽章」，一并处理。
+   ========================================================================== */
+/* ① 新前端题目列表：难度胶囊与 Tag 胶囊（结构选择器，只命中内层胶囊） */
+.difficulty > span > span,
+/* Tag 胶囊：允许 .tags 下有多层包装，但最内层必须是 span ——
+   这样既命中胶囊，又绝不会命中 div.tag / div.tags 这两个列容器（⑲-b 的教训）。 */
+.tag .tags span,
+.tags > span,
+.tag > span,
+/* ② 旧首页徽章（含「置顶」「Rated」「官方比赛」等） */
+.am-badge,
+[class*="lg-bg-"],
+/* ③ 新前端通用徽章 */
+.badge {
+    background-image:
+        linear-gradient(
+            light-dark(rgba(12, 16, 24, .22), rgba(6, 9, 14, .42)),
+            light-dark(rgba(12, 16, 24, .22), rgba(6, 9, 14, .42))),
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid light-dark(rgba(255, 255, 255, .38), rgba(255, 255, 255, .18)) !important;
+    box-shadow:
+        inset 0 1px 0 light-dark(rgba(255, 255, 255, .34), rgba(255, 255, 255, .20)),
+        inset 0 -1px 0 rgba(0, 0, 0, .24),
+        0 2px 10px light-dark(rgba(31, 41, 55, .16), rgba(0, 0, 0, .42)) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    backdrop-filter: blur(8px) saturate(150%);
+}
+
+/* 悬停：玻璃再亮一点（与全站悬停语言一致：抬 2px、不放大） */
+.difficulty > span > span:hover,
+.tag .tags span:hover,
+.tags > span:hover,
+.tag > span:hover,
+.tags > span.tag:hover,
+.am-badge:hover,
+[class*="lg-bg-"]:hover,
+.badge:hover {
+    translate: 0 -2px;
+    box-shadow:
+        inset 0 1px 0 light-dark(rgba(255, 255, 255, .48), rgba(255, 255, 255, .30)),
+        inset 0 -1px 0 rgba(0, 0, 0, .24),
+        0 6px 18px light-dark(rgba(31, 41, 55, .22), rgba(0, 0, 0, .50)) !important;
+}
 :root .stat-text:not([class*="lcolor"]),
 :root .stat-text.name:not([class*="lcolor"]),
 :root .stat-text.value:not([class*="lcolor"]),
