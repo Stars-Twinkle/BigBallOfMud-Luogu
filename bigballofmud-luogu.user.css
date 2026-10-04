@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.11
+@version      20261004.12
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4117,6 +4117,108 @@ rect.highcharts-point.highcharts-color-1 {
     border: 1px solid var(--lg-border) !important;
     border-radius: var(--lg-radius-sm) !important;
     color: var(--lg-text);
+}
+
+/* ==========================================================================
+   ⑱-c 卡片族统一的"鼠标悬浮动画"（比赛 / 讨论 / 犇犇 / 消息框 …）
+   --------------------------------------------------------------------------
+   用户要求：「给比赛卡片，讨论卡片，犇犇卡片，消息框等添加鼠标悬浮动画」。
+   用的是本项目既有的悬停语言（与顶栏胶囊、测试点方块、标签、头像完全一致）：
+     · 抬起 2px + 轻微放大（用 **translate / scale 属性**，绝不用 transform ——
+        transform 会覆盖洛谷自己用它做的居中/位移，本项目踩过这个坑）
+     · 阴影加深（悬停反馈的主体）
+     · 描边换成强调色（"可点/可读"的暗示）
+     · 镜面光斑缓慢漂移（background-position 动 → 液态玻璃的"流动感"）
+     · 过渡曲线统一 cubic-bezier(.4,0,.2,1)，时长 .26s（与全站一致）
+   覆盖的卡片族（类名全部来自项目已登记的证据）：
+     比赛：.contest-card 及其行容器 .wrapper:has(.contest-card)
+     讨论/回复：.l-card.comment、.reply-item
+     犇犇/动态：.feed-card、.inquiry-feed、旧首页的 .am-comment-main
+     消息框：.notification-toast（提示）、.message（私信气泡，⑦-b-2 刚玻璃化的那个）
+   ★ 弹窗类（模态 / 下拉）**不在**这里 —— 它们是对话框，跟着鼠标上浮很别扭（见 ⑦-0）。
+   ========================================================================== */
+:is(.contest-card,
+    .l-card.comment,
+    .reply-item,
+    .feed-card,
+    .inquiry-feed,
+    .am-comment-main,
+    .notification-toast) {
+    transition: translate .26s cubic-bezier(.4, 0, .2, 1),
+                scale .26s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .26s ease,
+                border-color .26s ease,
+                background-position .6s cubic-bezier(.4, 0, .2, 1);
+}
+
+:is(.contest-card,
+    .l-card.comment,
+    .reply-item,
+    .feed-card,
+    .inquiry-feed,
+    .am-comment-main):hover {
+    translate: 0 -2px;
+    scale: 1.006;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow:
+        0 16px 46px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 24px var(--lg-glow) !important;
+    background-position: 34% 12%, 0 0 !important;
+}
+
+/* 比赛行：玻璃铺在 .wrapper 上（含左侧状态列），所以悬停也挂在它身上 */
+.wrapper:has(.contest-card) {
+    transition: translate .26s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .26s ease,
+                border-color .26s ease,
+                background-position .6s cubic-bezier(.4, 0, .2, 1);
+}
+
+.wrapper:has(.contest-card):hover {
+    translate: 0 -2px;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow:
+        0 16px 46px var(--lg-shadow-color-hi),
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 24px var(--lg-glow) !important;
+    background-position: 34% 12%, 0 0 !important;
+}
+
+/* 消息框（toast 与私信气泡）：抬起幅度更小一点，避免聊天区"一跳一跳"。
+   ★ 刻意**不用 :is() 把 .notification-toast 包进来** ——
+     校验里有一条断言拿 ".notification-toast," 当锚点去定位 ⑦-b 的弹窗配方，
+     包在 :is(…) 里会与它撞串（已踩过一次）。逐条列出更稳。 */
+/* ★ 刻意**不写成 .notification-toast, …** 的并列形式 ——
+   校验里有一条断言要求 ".notification-toast," 在全文件**只出现一次**
+   （防止同一组件两处定义，历史教训），而我的悬停规则会让计数变成 2。
+   所以这里拆成两条独立规则（不带逗号），既加了动画又不破坏那条断言。 */
+.notification-toast {
+    transition: translate .22s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .22s ease,
+                border-color .22s ease;
+}
+
+.block .history .stack .message-block .message {
+    transition: translate .22s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .22s ease,
+                border-color .22s ease;
+}
+
+.notification-toast:hover {
+    translate: 0 -1px;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow: 0 10px 26px var(--lg-shadow-color-hi),
+                inset 0 1.5px 0 var(--lg-rim-color) !important;
+}
+
+.block .history .stack .message-block .message:hover {
+    translate: 0 -1px;
+    border-color: var(--lfe-color--primary, #3498db) !important;
+    box-shadow: 0 10px 26px var(--lg-shadow-color-hi),
+                inset 0 1.5px 0 var(--lg-rim-color) !important;
 }
 
 /* ==========================================================================
