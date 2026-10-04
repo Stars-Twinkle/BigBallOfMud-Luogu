@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.09
+@version      20261004.10
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1039,7 +1039,18 @@ nav.sidebar {
     box-shadow: none !important;
 }
 
-.l-card:has(:is(.contest-card, .ticket-card, .notice-card, .l-card.log)) {
+/* 通知中心（用户：「主站通知中心的玻璃又不对了，应该显示外面的大玻璃而不是里面」）：
+   实证结构（DevTools）——
+       main > div.columba-content-wrap.main-content
+         > div.l-card.wrapper                       ← ★ 外层大卡（603 × 2829），**保留它的玻璃**
+             > div.side（@我的 / 回复我的 / 系统通知）
+             > div.main > div.list.notice-body > div.list-scroll
+                 > div.list-wrap.block.border（⑥-e 已透明）
+                     > div.row-wrap > div.row > div.notice-card   ← 每条通知（456 × 142）
+                         > div.card-row / div.lfe-marked-wrap.content > div.lfe-marked > p
+   所以把 .notice-card **从本名单移除**：外层 .l-card 继续当唯一承载体；
+   每条的 .notice-card 由 ⑥-g 显式清成透明。 */
+.l-card:has(:is(.contest-card, .ticket-card, .l-card.log)) {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;
@@ -1048,6 +1059,36 @@ nav.sidebar {
     -webkit-backdrop-filter: none !important;
 }
 
+
+/* ==========================================================================
+   ⑥-g 通知中心：每条通知透明，玻璃只留外层大卡
+   --------------------------------------------------------------------------
+   用户要求：「应该显示外面的大玻璃而不是里面」。
+   实证（DevTools 面包屑）：
+       div.l-card.wrapper > div.main > div.list.notice-body > div.list-scroll
+         > div.list-wrap.block.border > div.row-wrap > div.row > div.notice-card
+             > div.card-row / div.lfe-marked-wrap.content > div.lfe-marked > p
+   与"比赛列表"方向相反、原则相同：**一个区域只留一个承载体** ——
+   这里承载体是外层 .l-card.wrapper（⑥ 段已给玻璃），所以每条 .notice-card 一律透明。
+   ========================================================================== */
+.notice-card,
+.notice-card > .card-row,
+.notice-card .lfe-marked-wrap,
+.notice-card .lfe-marked-wrap.content,
+.notice-card .content {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 悬停不再加深阴影（那会看成又一层卡片） */
+.notice-card:hover {
+    box-shadow: none !important;
+}
 
 /* ==========================================================================
    ⑥-e 比赛列表：外层列表容器不铺底，玻璃只留给每个比赛
