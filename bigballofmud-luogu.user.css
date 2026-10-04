@@ -4295,6 +4295,58 @@ html {
 
 /* ⑦ 视频本体保持深色（原 #333）—— 视频需要暗底，交回原样 */
 
+/* ==========================================================================
+   ㉔ 网校学习中心（/learn）列表里的写死文字色
+   --------------------------------------------------------------------------
+   用户反馈："某些文字和图标没有适配"（截图里的课程名、图标、时间/讲师行仍是黑的）。
+   ★ 依据**本地爬下来的产物**（evidence/网校语料/chunks/ ✗ 49 个 chunk ✗ 全量 ✗）：
+     含这些类名的是 module.8.js / module.10.js / module.14.js，
+     其中与颜色有关的规则**只有四条**（逐字摘录）：
+         .icon[data-v-24d62e7e]  { color: rgba(0,0,0,.5) }   ← 左侧图标（视频/直播）
+         .name[data-v-24d62e7e]  { color: #000 }             ← 课程名
+         .time[data-v-24d62e7e]  { color: rgba(0,0,0,.5) }   ← 时间 / 讲师行
+         .disabled-list-container .current-item .time[data-v-15d3efdb] { color: rgba(0,0,0,.25) }
+   ★ 这些 CSS 是运行时随 chunk 注入的 ✗ 加载在本样式**之后** ✗
+     所以不能只靠"源码顺序"取胜 —— 这里把特异性提到 (0,3,0) 稳稳压过它们的 (0,2,0)。
+   ★ 不碰 .tag / 那个绿色"直播中"胶囊：它用的是**内联**的 color/background，属于语义色。
+   ========================================================================== */
+.lesson-item .row .name,
+.lesson-item .column .name,
+.lesson-item a.name {
+    color: var(--lg-text);
+}
+
+/* 图标（span.icon 里的 FA svg 用 fill="currentColor"，改父级色即可） */
+.lesson-item .row .icon,
+.lesson-item .row .icon svg {
+    color: var(--lg-text);
+    fill: currentColor;
+}
+
+/* 时间 / 讲师行 */
+.lesson-item .row .time,
+.lesson-item .column .time,
+.lesson-item .disabled-list-container .current-item .time {
+    color: var(--lg-text-weak);
+}
+
+/* 列表本身的底与分隔线：跟着主题走（原产物是白底 + #ddd 系边框） */
+.lesson-item,
+.lesson-item .row,
+.lesson-item .column {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: var(--lg-border) !important;
+    color: var(--lg-text);
+}
+
+/* 整块列表容器（ul.padding-default）不铺底，让卡片玻璃透上来 */
+ul.padding-default,
+.disabled-list-container {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
