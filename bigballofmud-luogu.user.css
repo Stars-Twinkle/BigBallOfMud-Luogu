@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.05
+@version      20261004.06
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3938,12 +3938,13 @@ body:has(.am-modal.am-modal-active) :is(#app, #app-old, .lfe-body, .theme-page, 
     z-index: auto !important;
 }
 
-/* ② 遮罩：用全站同一档遮罩色 + 轻模糊（原来的黑色遮罩在深色下偏脏） */
+/* ② 遮罩：只改颜色，**不加模糊**。
+   ★ 上一轮我在这里加了 backdrop-filter: blur(6px)，用户反馈"上轮没修好"时整页是糊的
+     —— 遮罩是全屏层，一旦模糊就把**底下的页面**全糊掉，观感比原来更糟。已撤回。
+   想更暗/更浅就调 --lg-mask 那一个变量。 */
 .am-dimmer,
 .am-dimmer.am-active {
     background-color: var(--lg-mask) !important;
-    -webkit-backdrop-filter: blur(6px) saturate(120%);
-    backdrop-filter: blur(6px) saturate(120%);
 }
 
 /* ③ 举报窗口本体：换成与卡片同一套液态玻璃 */
@@ -3967,7 +3968,9 @@ body:has(.am-modal.am-modal-active) :is(#app, #app-old, .lfe-body, .theme-page, 
     backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
     -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
     color: var(--lg-text);
-    overflow: hidden;
+    /* ★ 这里**不能**写 overflow: hidden —— AmazeUI 的下拉菜单是绝对定位在对话框内部的，
+       裁掉之后就"点不开下拉"（用户反馈的"举报不能正常使用"很可能就是这一条）。
+       上一轮我为了圆角不溢出色块顺手加过它，现在撤回。 */
 }
 
 /* ④ 内部各层透明（底与描边只由窗口承担），文字跟随主题 */

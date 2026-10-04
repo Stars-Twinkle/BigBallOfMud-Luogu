@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261004.04
+// @version      20261004.05
 // @description  配合 bigballofmud-luogu.user.css 使用（样式仍由 Stylus 提供，本脚本只管"行为"）。两件事：① 在顶栏"私信、通知"右边放一个可点的三态配色开关（跟随系统/深色/浅色，选择被记住）；② 深色下运行"对比度守卫"，自动修掉洛谷写死的浅字浅底/深字深底。
 // @author       acerkaio
 // @license      CC BY-NC-SA
