@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.04
+@version      20261004.05
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -5861,6 +5861,28 @@ html[data-sl-theme="dark"] .home-wrapper > img[src*="course-level"] {
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+}
+
+/* ★★ 补漏（用户：「这上边这个大白块怎么还在」）：
+   上一轮我只清了 .header-layout 的**子元素**（.container / .link-container / .left / .mobile-action），
+   漏了**它自己** —— 而早期 ㉕ 段有一条 `.header-layout { 导航玻璃 }`（--lg-nav-alpha 34% 白），
+   于是首页头部仍是一条 1264 × 64 的白带（DevTools 选中项尺寸就是它）。
+   这里把首页头部本体也设成透明（只针对 .homepage-main 里的头部，其它页面的导航玻璃不受影响）。 */
+.homepage-main > .header-layout,
+.homepage-main .header-layout.tiny,
+.lfe-body.homepage-main > .header-layout.tiny {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下都是透明（属性驱动兜底） */
+html[data-sl-theme="light"] .homepage-main .header-layout.tiny,
+html[data-sl-theme="dark"] .homepage-main .header-layout.tiny {
+    background-color: transparent !important;
+    background-image: none !important;
 }
 
 /* 两种主题下都是透明（属性驱动兜底） */
