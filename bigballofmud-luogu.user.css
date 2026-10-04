@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.03
+@version      20261004.04
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4802,7 +4802,6 @@ html[data-sl-theme="light"] :is(
     .player-wrap.class-room .main,
     .player-wrap.class-room .side,
         .player-wrap.class-room .note-wrap,
-    .player-wrap.class-room .questions-wrap,
     .player-wrap.class-room .settings-wrap,
     .player-wrap.class-room .panel,
     .player-wrap.class-room .content,
@@ -4849,7 +4848,6 @@ html[data-sl-theme="dark"] :is(
     .player-wrap.class-room .main,
     .player-wrap.class-room .side,
         .player-wrap.class-room .note-wrap,
-    .player-wrap.class-room .questions-wrap,
     .player-wrap.class-room .settings-wrap,
     .player-wrap.class-room .panel,
     .player-wrap.class-room .content,
@@ -5011,6 +5009,40 @@ html[data-sl-theme="light"] .player-wrap.class-room .tab .category,
 html[data-sl-theme="dark"] .player-wrap.class-room .tab .category,
 html[data-sl-theme="light"] .player-wrap.class-room .tab .items,
 html[data-sl-theme="dark"] .player-wrap.class-room .tab .items {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ★ 提问面板（网校播放页侧栏的「提问」标签）多了两块玻璃。
+   实证 DOM（用户 DevTools，网校课堂页，面包屑）：
+       div.side > div > div.side-content
+         > div.questions-wrap        ← 外层容器（此前在 ㉖ 的玻璃名单里）
+           > div.questions           ← 再一层容器
+             > div.panel             ← 每一条问答（㉓ 已给玻璃）★ 保留这一层
+               > header
+   于是"外层 + 每条"各铺一层 → 看起来多了两块。按本项目一贯做法收敛：
+   **玻璃只留给每一条 .panel，外层 .questions-wrap / .questions 一律透明**。
+   ★ 只作用于网校播放页的 .player-wrap.class-room 前缀（本段位于网校域块内，不影响主站）。 */
+.player-wrap.class-room .questions-wrap,
+.player-wrap.class-room .questions,
+.player-wrap.class-room .questions-wrap > .questions {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下同样透明（逐条列出，不用 :is()，避免撞"不许进玻璃名单"的守卫） */
+html[data-sl-theme="light"] .player-wrap.class-room .questions-wrap,
+html[data-sl-theme="dark"] .player-wrap.class-room .questions-wrap,
+html[data-sl-theme="light"] .player-wrap.class-room .questions,
+html[data-sl-theme="dark"] .player-wrap.class-room .questions {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
