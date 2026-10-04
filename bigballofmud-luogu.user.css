@@ -4825,6 +4825,84 @@ html[data-sl-theme="dark"] :is(
 }
 
 
+/* ==========================================================================
+   ㉘ 网校播放页（课堂）：**按真实 DOM** 覆盖（用户 DevTools 2026-10-04）
+   --------------------------------------------------------------------------
+   实证结构（这一页**没有** .player-wrap / .class-room，所以 ㉓㉖ 那两套选择器全落空）：
+       div#app.lfe-vars
+         div.top-progress
+         nav.lfe-body   style="background-color: rgb(52,73,94); color: rgb(221,221,221)"
+         div.main-container
+           div.wrapped.lfe-body.header-layout.player
+         main.wrapped.lfe-body   style="background-color: rgb(239,239,239)"   ← 课程信息所在的整块
+         div.wrapped.lfe-body    style="background-color: rgb(51,51,51)"
+         div.full-container      ← 里面是 .card.padding-default（课程信息 / 相关文件）
+   ★ 这些背景与文字色**全是内联**：background 我们用 !important 压；
+     color 按项目不变式**不允许** !important，改由脚本在网校页剥掉内联 color（见 switch.user.js 的 stripInlineTheme）。
+   ========================================================================== */
+/* ① 结构层透明：底交给画布（浅色已洗白 / 深色已压暗） */
+.main-container,
+.wrapped.lfe-body,
+main.wrapped.lfe-body,
+.header-layout.player,
+.full-container {
+    background-color: transparent !important;
+    background-image: none !important;
+    color: var(--lg-text);
+}
+
+/* ② 侧栏 / 顶栏：内联深色压掉，换成玻璃 */
+nav.lfe-body {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 60%, transparent),
+        var(--lg-nav-dark)
+    ) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+/* ③ 课程信息卡片（.card.padding-default）：走卡片玻璃 */
+.full-container .card,
+.full-container .padding-default {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 40%, transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        0 8px 30px var(--lg-shadow-color) !important;
+    color: var(--lg-text);
+}
+
+/* ④ 属性驱动兜底：整页几个面一起换（不经过 light-dark()） */
+html[data-sl-theme="light"] :is(.main-container, .wrapped.lfe-body, main.wrapped.lfe-body, .full-container .card) {
+    background-color: color-mix(in srgb, #ffffff 42%, transparent) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] :is(.main-container, .wrapped.lfe-body, main.wrapped.lfe-body, .full-container .card) {
+    background-color: var(--lg-panel-dark) !important;
+    color: #f2f5f8;
+}
+
+/* ⑤ 顶部进度条容器不铺底 */
+.top-progress {
+    background-color: transparent !important;
+}
+
+/* ⑥ 兼容：带 .player-wrap/.class-room 的那套页面（另一支课堂模板）继续沿用 ㉓㉖ */
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;

@@ -287,6 +287,37 @@
     }
 
     /* ======================================================================
+       二·五、网校：剥掉"内联主题色"
+       ----------------------------------------------------------------------
+       网校把主题色写在**内联 style** 上（用户 DevTools 实证）：
+           <nav class="lfe-body" style="background-color: rgb(52,73,94); color: rgb(221,221,221)">
+           <main class="wrapped lfe-body" style="background-color: rgb(239,239,239)">
+           <div  class="wrapped lfe-body" style="background-color: rgb(51,51,51)">
+       内联样式只有 !important 能压，而本项目**不允许对 color 用 !important**
+       （那会把彩底标签的白字压黑）。所以在网校这一侧改由脚本把这两个内联属性**删掉**，
+       让样式表（含 light-dark()）接手 —— 这是"两边各做该做的事"。
+       ★ 只删 background-color / background-image / color 这三个属性，其它内联样式不碰。
+       ====================================================================== */
+    var SCHOOL_STRIP_SEL = [
+        'nav.lfe-body',
+        '.main-container',
+        '.wrapped.lfe-body',
+        'main.wrapped.lfe-body'
+    ].join(',');
+
+    function stripInlineTheme() {
+        if (!isSchool) return;
+        var nodes = document.querySelectorAll(SCHOOL_STRIP_SEL);
+        for (var i = 0; i < nodes.length; i++) {
+            var el = nodes[i], st = el.style;
+            if (!st) continue;
+            if (st.backgroundColor) st.removeProperty('background-color');
+            if (st.backgroundImage) st.removeProperty('background-image');
+            if (st.color) st.removeProperty('color');
+        }
+    }
+
+    /* ======================================================================
        三、切换：统一短过渡 + 切完立刻校准
        为什么不能直接切：本样式给大量元素挂了 0.25~0.5s 的 transition，
        各元素时长不一，切深浅时会"糊"好几帧，看起来又慢又像字色延迟。
@@ -472,6 +503,9 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
+
+        // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
+        if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }
 
         // 切换按钮：主站与网校都要（网校挂在侧边栏"学习"下面）
         if (CONFIG.showToggle && (isMain || isSchool)) {
