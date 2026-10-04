@@ -337,31 +337,6 @@
     }
 
     /* ======================================================================
-       二·六、网校首页「学习体系」大图：换成**用户抠好的那张**
-       ----------------------------------------------------------------------
-       最初我打算自己抠（fetch SVG → 去白底板与平板色短路径 → blob 写回），
-       但用户实测后指出「你抠图扣错了」，并自己抠好上传到：
-           https://cdn.luogu.com.cn/upload/image_hosting/uwaykoav.webp
-       所以这里改成：**直接把 img.src 指到那张图**（幂等：已是该地址就跳过）。
-       CSS 那边再用 content: url(...) 兜一层 —— 没装脚本时也是对的（见 ㊲ 段）。
-       玻璃承载层仍在 CSS 里，不受影响。
-       ====================================================================== */
-    var CUT_URL = 'https://cdn.luogu.com.cn/upload/image_hosting/uwaykoav.webp';
-    var CUT_SEL = 'img[src*="course-level"]';
-
-    function cutLevelPanel() {
-        if (!isSchool) return;
-        var imgs = document.querySelectorAll(CUT_SEL);
-        for (var i = 0; i < imgs.length; i++) {
-            // ★ 先打标记：CSS 那边靠 [data-sl-level="1"] 认出它
-            //   —— 换了 src 之后，原来的 [src*="course-level"] 就不再匹配了（踩过）。
-            imgs[i].setAttribute('data-sl-level', '1');
-            if (imgs[i].getAttribute('src') === CUT_URL) continue;
-            imgs[i].setAttribute('src', CUT_URL);
-        }
-    }
-
-    /* ======================================================================
        三、切换：统一短过渡 + 切完立刻校准
        为什么不能直接切：本样式给大量元素挂了 0.25~0.5s 的 transition，
        各元素时长不一，切深浅时会"糊"好几帧，看起来又慢又像字色延迟。
@@ -547,9 +522,6 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
-
-        // 网校：抠掉「学习体系」大图的底板（SPA 重建节点，低频纠偏）
-        if (isSchool) { cutLevelPanel(); setInterval(cutLevelPanel, 1000); }
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }

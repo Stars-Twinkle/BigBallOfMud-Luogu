@@ -5667,16 +5667,10 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
      这一步由脚本在网校页 fetch 改写 SVG 完成（457 KB 不适合内嵌进样式表），
      CSS 这边只负责给它一个**玻璃承载层**。
    ========================================================================== */
-/* ★ 选择器加固的原因（用户：「这块玻璃承接没了」）：
-   脚本会把 img.src 换成用户那张图，于是 src 里不再含 "course-level"，
-   **我自己的 CSS 选择器就失效了**（自己拆了自己）。
-   现在三条路一起判：
-     · .home-wrapper > img[data-sl-level]   ← 脚本会打这个标记（最稳）
-     · .home-wrapper > img[src*="course-level"]  ← 没装脚本时（src 还没换）
-     · .home-wrapper > img[src*="image_hosting"] ← 已换成图床地址时 */
-.home-wrapper > img[data-sl-level="1"],
-.home-wrapper > img[src*="course-level"],
-.home-wrapper > img[src*="image_hosting"] {
+/* ★ 换图由下面那条 content: url(...) 完成（纯 CSS），所以脚本那块已删除 ——
+   img 的 src 属性始终是网校原来的 course-level.svg，选择器用 [src*="course-level"] 就够，
+   不需要 data-sl-level 标记或图床地址匹配（用户：「js 脚本里不用适配了吧，删掉那块」）。 */
+.home-wrapper > img[src*="course-level"] {
     background-color: light-dark(
         color-mix(in srgb, #ffffff 38%, transparent),
         var(--lg-panel-dark)
@@ -5702,19 +5696,15 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
          · 脚本把 img.src 直接指到这张（见 switch.user.js 的 cutLevelPanel）；
          · 这里再用 content: url(...) 覆盖一次 —— 即使没装脚本，图也是对的。
        两者指向同一个地址，同时生效也不冲突。 */
-    content: url("https://cdn.luogu.com.cn/upload/image_hosting/uwaykoav.webp") !important;
+    content: url("https://cdn.luogu.com.cn/upload/image_hosting/br4fvjz0.webp") !important;
 }
 
 /* 属性驱动兜底（深浅各给一次明确值） */
-html[data-sl-theme="light"] .home-wrapper > img[data-sl-level="1"],
-html[data-sl-theme="light"] .home-wrapper > img[src*="course-level"],
-html[data-sl-theme="light"] .home-wrapper > img[src*="image_hosting"] {
+html[data-sl-theme="light"] .home-wrapper > img[src*="course-level"] {
     background-color: color-mix(in srgb, #ffffff 38%, transparent) !important;
 }
 
-html[data-sl-theme="dark"] .home-wrapper > img[data-sl-level="1"],
-html[data-sl-theme="dark"] .home-wrapper > img[src*="course-level"],
-html[data-sl-theme="dark"] .home-wrapper > img[src*="image_hosting"] {
+html[data-sl-theme="dark"] .home-wrapper > img[src*="course-level"] {
     background-color: var(--lg-panel-dark) !important;
 }
 
