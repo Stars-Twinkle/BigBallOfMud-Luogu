@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.02
+@version      20261005.03
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3173,12 +3173,12 @@ footer a:hover {
      同为「有语义底色的徽章」，一并处理。
    ========================================================================== */
 /* ① 新前端题目列表：难度胶囊与 Tag 胶囊（结构选择器，只命中内层胶囊） */
-.difficulty > span > span,
+.list-wrap .row > .difficulty > span > span,
 /* Tag 胶囊：允许 .tags 下有多层包装，但最内层必须是 span ——
    这样既命中胶囊，又绝不会命中 div.tag / div.tags 这两个列容器（⑲-b 的教训）。 */
-.tag .tags span,
-.tags > span,
-.tag > span,
+.list-wrap .row > .tag .tags span,
+.list-wrap .row > .tags > span,
+.list-wrap .row > .tag > span,
 /* ② 旧首页徽章（含「置顶」「Rated」「官方比赛」等） */
 .am-badge,
 [class*="lg-bg-"],
@@ -3202,10 +3202,10 @@ footer a:hover {
 }
 
 /* 悬停：玻璃再亮一点（与全站悬停语言一致：抬 2px、不放大） */
-.difficulty > span > span:hover,
-.tag .tags span:hover,
-.tags > span:hover,
-.tag > span:hover,
+.list-wrap .row > .difficulty > span > span:hover,
+.list-wrap .row > .difficulty > span:hover,
+.list-wrap .row > .tag .tags span:hover,
+.list-wrap .row > .tag > span:hover,
 .tags > span.tag:hover,
 .am-badge:hover,
 [class*="lg-bg-"]:hover,
