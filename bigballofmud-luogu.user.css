@@ -5470,6 +5470,102 @@ html[data-sl-theme="dark"] .footer-container,
     background-image: none !important;
 }
 
+/* ==========================================================================
+   ㉟ 网校首页卡片：白色卡片换成玻璃 + 深浅适配（用户：「把这些白色卡片都换成玻璃，适配深浅色」）
+   --------------------------------------------------------------------------
+   实证 DOM（用户 DevTools，2026-10-04，Home 模板）：
+       div.home-wrapper[currenttemplate="Home"]
+         div.top
+         div.title.select-title 最近在学
+         div.course-container
+           div > div.courses.recent-courses
+             div.item.course        ← 白卡（课程）★ 换成完整玻璃
+           a.link-bottom.color-default 查看更多
+         div.title.select-title 筛选课程
+         div.course-section-select
+         div.course-container
+           div.wrap               ← 分类卡（红/绿/蓝，**分类色是语义**）★ 只加玻璃层，保留底色
+           a.link-bottom.color-default 查看所有课程
+   ★ 两类卡分开处理，是刻意的：
+     · .item.course 原本是白底 → 整块换成玻璃（浅 40% 白 / 深 --lg-panel-dark）；
+     · .wrap 原本带分类色（编程入门=红 / 算法基础=绿 / 算法进阶=蓝）→
+       只叠"玻璃三件"（镜面光斑 + 斜向缎面 + 亮上缘/内发光）与模糊，**不动它的底色**，
+       否则等于把分类语义抹掉。
+   ★ 容器（.course-container / .courses / .course-section-select / .top）一律透明，避免多层玻璃。
+   ========================================================================== */
+/* ① 容器透明（玻璃只给卡片） */
+.home-wrapper .course-container,
+.home-wrapper .courses,
+.home-wrapper .course-section-select,
+.home-wrapper .top,
+.home-wrapper > div {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ② 课程白卡 → 完整玻璃 */
+.home-wrapper .item.course {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 40%, transparent),
+        var(--lg-panel-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    color: var(--lg-text);
+}
+
+/* ③ 分类卡：**保留分类色**，只叠玻璃层与模糊 */
+.home-wrapper .wrap {
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        0 8px 30px var(--lg-shadow-color) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+}
+
+/* ④ 属性驱动兜底：深浅两态都明确给一次（白卡） */
+html[data-sl-theme="light"] .home-wrapper .item.course {
+    background-color: color-mix(in srgb, #ffffff 40%, transparent) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .home-wrapper .item.course {
+    background-color: var(--lg-panel-dark) !important;
+    color: #f2f5f8;
+}
+
+/* ⑤ 卡片里的标题与说明文字跟着主题走 */
+html[data-sl-theme="light"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3, h4, .name, .title) {
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3, h4, .name, .title) {
+    color: #f2f5f8;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
