@@ -25,8 +25,11 @@
  * 与样式表的分工：本脚本**不注入任何 CSS**，只做三件事：
  *   · 往 <html> 写 data-sl-theme（样式里三条 color-scheme 规则接管外观）
  *   · 覆盖主站与**网校**（class.luogu.com.cn）：网校是独立域名、独立前端，
- *     但同样靠 color-scheme 驱动样式里的 light-dark()，所以只需要把模式写进去。
- *     网校那边的顶栏按钮与对比度守卫仍**不介入**（那套 DOM 与主站不同）。
+ *     同样靠 color-scheme 驱动样式里的 light-dark()，所以模式要写进去。
+ *   · 切换按钮两个站点都有，但落点不同：
+ *       主站 → 顶栏右侧（私信/通知的右面）
+ *       网校 → 侧边栏 nav.lfe-body 里"学习"（a[href$="/learn"]）的下面
+ *   · 对比度守卫仍只跑主站（它按计算值改内联色，网校那套 DOM 未做验证）。
  *   · 切换那一帧往 <html> 加 .sl-theme-switching（样式里定义了一段"统一短过渡"）
  *   · 深色下给个别元素写内联 color（对比度守卫）
  */
@@ -76,6 +79,9 @@
 
     var root = document.documentElement;
     var isMain = location.hostname === 'www.luogu.com.cn';
+    // 网校（class.luogu.com.cn）是独立域名、独立前端：那里没有主站顶栏，
+    // 但**也需要切换按钮**（用户："切换按钮消失，需要重写，到侧边栏学习图标的下面"）。
+    var isSchool = location.hostname === 'class.luogu.com.cn';
 
     /* ======================================================================
        一、配色模式
@@ -166,6 +172,26 @@
         return { parent: right, before: null };
     }
 
+    /* 网校侧边栏的落点（用户 DevTools 实证）：
+         <nav class="lfe-body" style="background-color: rgb(52,73,94); color: rgb(221,221,221);">
+           <a href="/"       class="route-link-active color-none">
+           <a href="/course" class="color-none">
+           <a href="/learn"  class="color-none">      ← 学习
+       要求放在"学习"图标的下面 → 取 a[href$="/learn"] 的下一个位置；
+       找不到就退到最后一个链接之后，再不行就挂到 nav 末尾。 */
+    function findSpotSchool() {
+        var nav = document.querySelector('nav.lfe-body');
+        if (!nav) return null;
+        var learn = nav.querySelector('a[href$="/learn"]');
+        if (learn && learn.parentElement) return { parent: learn.parentElement, before: learn.nextSibling };
+        var links = nav.querySelectorAll('a[href]');
+        if (links.length) {
+            var last = links[links.length - 1];
+            return { parent: last.parentElement, before: last.nextSibling };
+        }
+        return { parent: nav, before: null };
+    }
+
     function makeButton() {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -195,7 +221,28 @@
     }
 
     function ensureButton() {
-        if (!CONFIG.showToggle || !isMain) return;
+        if (!CONFIG.showToggle) return;
+
+        // —— 网校：挂在侧边栏"学习"下面 ——
+        if (isSchool) {
+            var nav = document.querySelector('nav.lfe-body');
+            if (!nav) return;
+            var sb = nav.querySelector('[data-sl-theme-toggle]');
+            if (!sb) { sb = makeButton(); sb.className = 'sl-theme-toggle sl-theme-toggle-school'; }
+            // 侧边栏是竖排的图标列，按钮改成块级并居中
+            sb.style.display = 'flex';
+            sb.style.margin = '.5rem auto';
+            sb.style.width = '2.2rem';
+            sb.style.height = '2.2rem';
+            var sp = findSpotSchool();
+            if (sp && (sb.parentElement !== sp.parent || sb.nextSibling !== sp.before)) {
+                sp.parent.insertBefore(sb, sp.before);
+            }
+            if (sb.getAttribute('data-mode') !== getMode()) paint(sb, getMode());
+            return;
+        }
+
+        if (!isMain) return;
         var bar = document.querySelector('.top-bar');
         if (!bar) return;
 
@@ -398,13 +445,15 @@
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
 
-        if (!isMain) return;                       // 子站（有题/网校）另一套前端，不介入
-
-        if (CONFIG.showToggle) {
+        // 切换按钮：主站与网校都要（网校挂在侧边栏"学习"下面）
+        if (CONFIG.showToggle && (isMain || isSchool)) {
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureButton, { once: true });
             else ensureButton();
-            setInterval(ensureButton, 1000);       // SPA 会重建顶栏，低频纠偏
+            setInterval(ensureButton, 1000);       // SPA 会重建导航，低频纠偏
         }
+
+        // 对比度守卫只跑主站：它会按计算值改内联色，网校那套 DOM 没做过验证，不介入。
+        if (!isMain) return;
 
         resetGuardMarks();                         // 先撤掉旧版本写过的内联色（含误改的彩底标签）
         scheduleGuard(120);                        // 首屏尽早跑一次，别让文字晚一步才变亮
