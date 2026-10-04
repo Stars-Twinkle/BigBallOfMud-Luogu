@@ -4656,9 +4656,7 @@ html[data-sl-theme="light"] :is(
     .player-wrap.class-room .side > div,
     .player-wrap.class-room .side-content,
     .player-wrap.class-room .tab,
-    .player-wrap.class-room .chats-wrap,
-    .player-wrap.class-room .chats,
-    .player-wrap.class-room .note-wrap,
+        .player-wrap.class-room .note-wrap,
     .player-wrap.class-room .questions-wrap,
     .player-wrap.class-room .settings-wrap,
     .player-wrap.class-room .panel,
@@ -4708,9 +4706,7 @@ html[data-sl-theme="dark"] :is(
     .player-wrap.class-room .side > div,
     .player-wrap.class-room .side-content,
     .player-wrap.class-room .tab,
-    .player-wrap.class-room .chats-wrap,
-    .player-wrap.class-room .chats,
-    .player-wrap.class-room .note-wrap,
+        .player-wrap.class-room .note-wrap,
     .player-wrap.class-room .questions-wrap,
     .player-wrap.class-room .settings-wrap,
     .player-wrap.class-room .panel,
@@ -4809,6 +4805,37 @@ html[data-sl-theme="light"] :is(.player-wrap.class-room .side-content .input-gro
 html[data-sl-theme="dark"] :is(.player-wrap.class-room .side-content .input-group, .player-wrap.class-room .input-group.operation) {
     background-color: var(--lg-field-dark) !important;
     color: #f2f5f8;
+}
+
+/* ★ 聊天窗口本身**不再是一层窗口**（用户：「应该把聊天框本身的窗口去掉，
+   让它直接落在后面的玻璃上」）—— 又是本项目反复出现的「多了一层」：
+   外层 .side / .side-content 已是玻璃，里面的 .chats-wrap / .chats 再铺一层就叠成两层。
+   这里把它们连同每条消息一并设为完全透明：底 / 描边 / 阴影 / 模糊 / 圆角全部交回外层。 */
+.player-wrap.class-room .chats-wrap,
+.player-wrap.class-room .chats,
+.player-wrap.class-room .chats > p,
+.player-wrap.class-room .chats-wrap > .chats > p {
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 两种主题下都保持透明（属性驱动那两组里已经不含它们） */
+/* 注意：这里**不用 :is()** —— 校验里有一条"聊天窗口不许出现在 :is(...) 玻璃名单里"的守卫，
+   用 :is() 会被它（正确地）判为疑似进名单。逐条列出更直白。 */
+html[data-sl-theme="light"] .player-wrap.class-room .chats-wrap,
+html[data-sl-theme="light"] .player-wrap.class-room .chats,
+html[data-sl-theme="dark"] .player-wrap.class-room .chats-wrap,
+html[data-sl-theme="dark"] .player-wrap.class-room .chats {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 /* ③ 两侧面板进场/滚动容器（原产物给的是不透明底） */
