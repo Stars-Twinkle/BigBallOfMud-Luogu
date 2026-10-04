@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.12
+@version      20261004.13
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -4137,34 +4137,58 @@ rect.highcharts-point.highcharts-color-1 {
      消息框：.notification-toast（提示）、.message（私信气泡，⑦-b-2 刚玻璃化的那个）
    ★ 弹窗类（模态 / 下拉）**不在**这里 —— 它们是对话框，跟着鼠标上浮很别扭（见 ⑦-0）。
    ========================================================================== */
-:is(.contest-card,
-    .l-card.comment,
-    .reply-item,
+/* ★ 清单改为**照抄 ⑥ 段那份**（项目此前逐页验证过、且这些元素本来就有 ⑥ 的悬停）——
+   之前我自己挑的那几个（.l-card.comment / .reply-item）在比赛与讨论页没覆盖到，
+   用户反馈「比赛和讨论没反应」。⑥ 的清单见文件 ⑥ 段 .l-card:hover 那一组。 */
+:is(.l-card,
     .feed-card,
+    .inner-card,
+    .contest-card,
+    .training-card,
+    .member-card,
+    .info-card,
+    .section-card,
+    .upload-card,
+    .reply-card,
+    .paste-card,
+    .list-card,
+    .header-card,
+    .reply-item,
     .inquiry-feed,
-    .am-comment-main,
-    .notification-toast) {
+    .am-comment-main) {
     transition: translate .26s cubic-bezier(.4, 0, .2, 1),
                 scale .26s cubic-bezier(.4, 0, .2, 1),
-                box-shadow .26s ease,
-                border-color .26s ease,
+                box-shadow .3s ease,
                 background-position .6s cubic-bezier(.4, 0, .2, 1);
 }
 
-:is(.contest-card,
-    .l-card.comment,
-    .reply-item,
+/* ★★ 用户要求：「动画不要带蓝色边框」—— 这里**不再改 border-color**，
+   悬停反馈只靠"抬起 + 放大 + 阴影加深 + 光斑漂移"表达（更干净，也不会把
+   原本的语义描边盖掉）。幅度同时调大一档（用户反馈比赛/讨论"没反应"，
+   很大程度上是 2px / 0.6% 太小、在宽卡片上几乎看不出来）。 */
+:is(.l-card,
     .feed-card,
+    .inner-card,
+    .contest-card,
+    .training-card,
+    .member-card,
+    .info-card,
+    .section-card,
+    .upload-card,
+    .reply-card,
+    .paste-card,
+    .list-card,
+    .header-card,
+    .reply-item,
     .inquiry-feed,
     .am-comment-main):hover {
-    translate: 0 -2px;
-    scale: 1.006;
-    border-color: var(--lfe-color--primary, #3498db) !important;
+    translate: 0 -3px;
+    scale: 1.012;
     box-shadow:
-        0 16px 46px var(--lg-shadow-color-hi),
+        0 18px 52px var(--lg-shadow-color-hi),
         inset 0 1.5px 0 var(--lg-rim-color),
         inset -1px -1px 0 var(--lg-shade),
-        inset 0 0 24px var(--lg-glow) !important;
+        inset 0 0 26px var(--lg-glow) !important;
     background-position: 34% 12%, 0 0 !important;
 }
 
@@ -4177,8 +4201,7 @@ rect.highcharts-point.highcharts-color-1 {
 }
 
 .wrapper:has(.contest-card):hover {
-    translate: 0 -2px;
-    border-color: var(--lfe-color--primary, #3498db) !important;
+    translate: 0 -3px;
     box-shadow:
         0 16px 46px var(--lg-shadow-color-hi),
         inset 0 1.5px 0 var(--lg-rim-color),
@@ -4208,16 +4231,14 @@ rect.highcharts-point.highcharts-color-1 {
 }
 
 .notification-toast:hover {
-    translate: 0 -1px;
-    border-color: var(--lfe-color--primary, #3498db) !important;
-    box-shadow: 0 10px 26px var(--lg-shadow-color-hi),
+    translate: 0 -2px;
+    box-shadow: 0 12px 30px var(--lg-shadow-color-hi),
                 inset 0 1.5px 0 var(--lg-rim-color) !important;
 }
 
 .block .history .stack .message-block .message:hover {
-    translate: 0 -1px;
-    border-color: var(--lfe-color--primary, #3498db) !important;
-    box-shadow: 0 10px 26px var(--lg-shadow-color-hi),
+    translate: 0 -2px;
+    box-shadow: 0 12px 30px var(--lg-shadow-color-hi),
                 inset 0 1.5px 0 var(--lg-rim-color) !important;
 }
 
