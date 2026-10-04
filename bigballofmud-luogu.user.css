@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.02
+@version      20261004.03
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3908,6 +3908,105 @@ rect.highcharts-point.highcharts-color-1 {
 .am-slider {
     border-radius: var(--lg-radius);
     overflow: hidden;
+}
+
+/* ==========================================================================
+   ⑱-b 犇犇的「举报 / 反馈」窗口：修好可用性 + 改成玻璃
+   --------------------------------------------------------------------------
+   用户：「这个犇犇举报不能正常使用。另外把这个举报窗口改成玻璃」。
+   实证 DOM（用户 DevTools）：
+       <body class="… am-dimmer-active">
+         <div class="am-dimmer am-active" data-am-dimmer style="display:block">   642 × 613（遮罩）
+         …举报窗口：反馈 / 「辱骂与不友善内容」下拉 / 理由文本域 / 取消 · 确定
+   语料实证（evidence/legacy语料/amazeui.min.css）：
+       .am-modal{width:540px;margin-left:-270px}  .am-modal-dialog{border-radius:0;background:#f8f8f8}
+       .am-modal-hd  .am-modal-bd{border-bottom:1px solid #dedede}  .am-modal-footer  .am-modal-btn
+       .am-modal.am-modal-out / .am-modal-actions.am-modal-out{ z-index:1109 }
+   ★ 为什么"不能正常使用"：不是数值问题 —— AmazeUI 的弹窗 z-index 本来就在 1100 段，比我的 2 大得多；
+     真正的原因是**我为签名水印给内容层加过 `position: relative; z-index: 2`**，那会**创建层叠上下文**：
+     弹窗如果挂在这些容器**里面**，它的 1100 就只在这个上下文内有效，而遮罩 `.am-dimmer` 是
+     **body 的直接子元素**（在上下文之外），于是遮罩永远盖在弹窗之上 —— 看起来就是"弹窗灰蒙蒙、点不动"。
+   修法：**弹窗打开时临时取消那层 z-index**（用 :has() 判定，单独成规则，遵守"不与普通选择器混写"的不变式），
+        弹窗关掉后 z-index 自动恢复，签名水印的层叠不受影响。
+   ========================================================================== */
+/* ① 取消层叠上下文（只在这一刻生效）——必须单独成规则（不变式：:has() 不与普通选择器混写） */
+body:has(.am-dimmer.am-active) :is(#app, #app-old, .lfe-body, .theme-page, .main-container) {
+    z-index: auto !important;
+}
+
+body:has(.am-modal.am-modal-active) :is(#app, #app-old, .lfe-body, .theme-page, .main-container) {
+    z-index: auto !important;
+}
+
+/* ② 遮罩：用全站同一档遮罩色 + 轻模糊（原来的黑色遮罩在深色下偏脏） */
+.am-dimmer,
+.am-dimmer.am-active {
+    background-color: var(--lg-mask) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
+}
+
+/* ③ 举报窗口本体：换成与卡片同一套液态玻璃 */
+.am-modal-dialog {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-pop), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 22px var(--lg-glow),
+        0 18px 48px var(--lg-shadow-color-hi) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) !important;
+    color: var(--lg-text);
+    overflow: hidden;
+}
+
+/* ④ 内部各层透明（底与描边只由窗口承担），文字跟随主题 */
+.am-modal-hd,
+.am-modal-bd,
+.am-modal-footer {
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: light-dark(rgba(0, 0, 0, .08), rgba(255, 255, 255, .10)) !important;
+    color: var(--lg-text);
+}
+
+.am-modal-hd .am-close {
+    color: var(--lg-text-weak);
+}
+
+/* ⑤ 底部按钮：玻璃胶囊（取消 / 确定），并保留"确定"的强调色 */
+.am-modal-footer .am-modal-btn {
+    background-color: transparent !important;
+    background-image: linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    color: var(--lg-text);
+    transition: background-color .2s ease, color .2s ease;
+}
+
+.am-modal-footer .am-modal-btn:hover {
+    background-color: color-mix(in srgb, currentColor 10%, transparent) !important;
+}
+
+/* ⑥ 下拉与输入框（举报理由那个 select 与文本域）：跟全站控件一致 */
+.am-modal-bd select,
+.am-modal-bd textarea,
+.am-modal-prompt-input {
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-field), transparent),
+        var(--lg-field-dark)
+    ) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    color: var(--lg-text);
 }
 
 /* ==========================================================================
