@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.30
+@version      20261004.31
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1681,6 +1681,42 @@ html body .l-card:has(canvas) {
         color-mix(in srgb, var(--lg-pop-dark) 100%, #000 4%)
     ) !important;
 }
+
+/* ★ 浮窗被脚本搬到 <html> 下之后（见 userscript 的 fixEloTooltip 第三版），它不再是卡片后代，
+   上面的 .l-card:has(canvas) .tooltip 规则就匹配不到了。这里用 html > .tooltip 补一份完全相同的配方：
+   既覆盖"脚本已装"的情形，也保证"只装样式没装脚本"时原规则仍然有效（两个选择器都留着）。 */
+html > .tooltip {
+    z-index: 9999 !important;
+    pointer-events: none !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) calc(var(--lg-alpha-pop) + 8%), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow),
+        0 12px 34px var(--lg-shadow-color-hi) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    padding: 8px 10px !important;
+    font-size: .875rem;
+    color: var(--lg-text);
+}
+
+html > .tooltip > b,
+html > .tooltip > span,
+html > .tooltip > i { color: var(--lg-text); }
+html > .tooltip .lfe-caption { color: var(--lg-text-weak); }
+html > .tooltip::before,
+html > .tooltip::after { content: none !important; display: none !important; border: none !important; }
 
 /* 两种主题下都明确给一次（属性驱动兜底） */
 html[data-sl-theme="light"] .l-card:has(canvas) .tooltip {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BigBallOfMud Luogu — Theme Toggle + Contrast Guard
 // @namespace    bigballofmud-luogu
-// @version      20261004.29
+// @version      20261004.30
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -529,74 +529,28 @@
                其它页面与组件零影响。
        ====================================================================== */
     function fixEloTooltip() {
-        /* ★ 位置策略（第二版）：**贴住数据点**，不是跟着鼠标。
-           洛谷组件写进 inline style 的 left/top 本来就是"贴数据点"的**文档坐标**
-           （canvas.rect + pageXOffset/pageYOffset + caretX/caretY），
-           只是因为 .tooltip 的 absolute 包含块是图表卡片，被当成"卡内坐标"而整体错位。
-           所以这里：原样保留洛谷算好的坐标，把它换算成视口坐标，再用 position: fixed 落位 ——
-           既贴点，又不受包含块影响（fixed 的包含块是视口）。
-           ★ 与洛谷自身的写值互不打架：用 data-sl-mine 记住"我们自己写下去的值"，
-             MutationObserver 回调里若发现当前 inline 值正是我们写的，就跳过（避免自激循环）。
+        /* ★ 第三版（终结版）—— 不抢样式，改成"搬家"。
+           历史：
+             v1 跟着鼠标写 left/top → 用户「咋飞这么远」（Chart.js 的 caret 指数据点，不是鼠标）；
+             v2 保留洛谷原坐标再换算 → 仍不准，且实测出现"位置飘忽 / 挡住内容"，
+                根因是**在跟 Vue 抢 inline style**（洛谷每次 hover 都重写 left/top，我也写，胜负不定）。
+           v3 思路：不动样式，只把浮窗**搬出所有定位祖先**。
+             洛谷组件的坐标算法是：left/top = canvas.rect + pageXOffset/pageYOffset + caret
+             —— 也就是**文档坐标**，本来就完全正确；
+             只因 .tooltip 的 absolute 包含块是图表卡片（卡片带 position: relative），
+             这份文档坐标被当成"卡内坐标"用，才整体错位到视口之外。
+             把它移到 <html> 下（html 不是定位祖先）后，包含块就是初始包含块＝文档，
+             洛谷的坐标立刻正确 —— 我们一行样式都不需要改，也不会与 Vue 打架。
+           ★ 幂等 + 低频（200ms）：元素被 Vue 重建时会被再搬一次；已在 <html> 下则什么都不做。
            ★ 只认 div.tooltip（站内只有该组件用它），对其它页面与组件零影响。 */
-        var PAD = 6;
-        var mine = "";
-        var obs = null;
-
-        function place(t) {
-            var raw = t.getAttribute("data-sl-raw");
-            if (!raw) return;
-            var p = raw.split(",");
-            var docX = parseFloat(p[0]);
-            var docY = parseFloat(p[1]);
-            if (!isFinite(docX) || !isFinite(docY)) return;
-            var r = t.getBoundingClientRect();
-            var x = docX - window.scrollX;
-            var y = docY - window.scrollY - r.height / 2;
-            x = Math.max(PAD, Math.min(x, innerWidth - r.width - PAD));
-            y = Math.max(PAD, Math.min(y, innerHeight - r.height - PAD));
-            var key = x + "," + y;
-            if (mine === key) return;
-            mine = key;
-            t.style.setProperty("position", "fixed", "important");
-            t.style.setProperty("pointer-events", "none", "important");
-            t.style.setProperty("left", x + "px", "important");
-            t.style.setProperty("top", y + "px", "important");
-        }
-
-        function watch(t) {
-            if (t.getAttribute("data-sl-observed") === "1") return;
-            t.setAttribute("data-sl-observed", "1");
-            if (!obs) {
-                obs = new MutationObserver(function (muts) {
-                    var el = muts[0].target;
-                    var l = parseFloat(el.style.left);
-                    var tp = parseFloat(el.style.top);
-                    if (!isFinite(l) || !isFinite(tp)) return;
-                    if ((l + "," + tp) === mine) return;   // 我们自己写的，跳过
-                    el.setAttribute("data-sl-raw", l + "," + tp);   // 洛谷刚写的原始（文档）坐标
-                    place(el);
-                });
-            }
-            obs.observe(t, { attributes: true, attributeFilter: ["style"] });
-        }
-
-        setInterval(function () {
+        function hoist() {
             var t = document.querySelector("div.tooltip");
-            if (!t) { mine = ""; return; }
-            var cs = getComputedStyle(t);
-            if (cs.opacity === "0" || cs.display === "none") return;
-            watch(t);
-            /* 兜底：元素刚出现、或坐标没通过 MutationObserver 送来时，也主动摆一次 */
-            var raw = t.getAttribute("data-sl-raw");
-            if (!raw) {
-                var l = parseFloat(t.style.left);
-                var tp = parseFloat(t.style.top);
-                if (isFinite(l) && isFinite(tp)) {
-                    t.setAttribute("data-sl-raw", l + "," + tp);
-                    place(t);
-                }
+            if (!t) return;
+            if (t.parentNode !== document.documentElement) {
+                document.documentElement.appendChild(t);
             }
-        }, 150);
+        }
+        setInterval(hoist, 200);
     }
 
     function whenRoot(fn) {
