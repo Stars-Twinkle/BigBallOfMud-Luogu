@@ -4622,6 +4622,133 @@ html[data-sl-theme="dark"] .player-wrap.class-room :is(.lfe-h1, .lfe-h2, .lfe-h3
     color: #f2f5f8;
 }
 
+/* ==========================================================================
+   ㉖ 网校播放页：**整套面**的颜色覆盖（属性驱动）
+   --------------------------------------------------------------------------
+   用户反馈：「没有全部替换成浅色」—— 上一版属性驱动只覆盖了 4 个面
+   （.main / .side / .controller / 侧栏），播放页还有一堆容器是暗的。
+   ★ 依据：
+     · player.css（module.9 的同名产物 ✗ 9139 字符 ✗）里**全部 34 条**带颜色/背景的规则，
+       逐条核对后在这里覆盖（写死的 #fff / #eee / #fafafa / #f8f8f8 / #e8e8e8 / #e7e7e7 / #ddd / #333 / #000）
+     · 组件类名取自各 chunk 的 staticClass 清单（tab / side-content / chats / chats-wrap /
+       note-wrap / questions-wrap / settings-wrap / teacher-action(s) / send-buttons / util /
+       operation / functional / panel / content / notice / vote-root …）
+   ★ 保留的语义色：进度条与音量条的绿（#4caf50）、控制菜单选中态绿、.notice 在彩底上的白字、
+     提示气泡 .pointer-hint 的黑底白字、视频本体 .lg-video/video 的深底 —— 这些是"设计语义"，不动。
+   ========================================================================== */
+/* ① 浅色：整套面走同一份浅色玻璃 */
+html[data-sl-theme="light"] :is(
+    .player-wrap.class-room .main,
+    .player-wrap.class-room .side,
+    .player-wrap.class-room .side > div,
+    .player-wrap.class-room .side-content,
+    .player-wrap.class-room .tab,
+    .player-wrap.class-room .chats-wrap,
+    .player-wrap.class-room .chats,
+    .player-wrap.class-room .note-wrap,
+    .player-wrap.class-room .questions-wrap,
+    .player-wrap.class-room .settings-wrap,
+    .player-wrap.class-room .panel,
+    .player-wrap.class-room .content,
+    .player-wrap.class-room .controller,
+    .player-wrap.class-room .control-popup,
+    .player-wrap.class-room .control-menu,
+    .player-wrap.class-room header,
+    .player-wrap.class-room footer
+) {
+    background-color: color-mix(in srgb, #ffffff 40%, transparent) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border-color: var(--lg-border) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="light"] :is(
+    .player-wrap.class-room .teacher-action,
+    .player-wrap.class-room .teacher-actions a,
+    .player-wrap.class-room .volume-num,
+    .player-wrap.class-room .control-menu-item,
+    .player-wrap.class-room .vote-root,
+    .player-wrap.class-room .vote-edit-content,
+    .player-wrap.class-room .util,
+    .player-wrap.class-room .operation,
+    .player-wrap.class-room .functional
+) {
+    color: #1f2329;
+}
+
+/* ② 深色：同一整套面走深色玻璃 */
+html[data-sl-theme="dark"] :is(
+    .player-wrap.class-room .main,
+    .player-wrap.class-room .side,
+    .player-wrap.class-room .side > div,
+    .player-wrap.class-room .side-content,
+    .player-wrap.class-room .tab,
+    .player-wrap.class-room .chats-wrap,
+    .player-wrap.class-room .chats,
+    .player-wrap.class-room .note-wrap,
+    .player-wrap.class-room .questions-wrap,
+    .player-wrap.class-room .settings-wrap,
+    .player-wrap.class-room .panel,
+    .player-wrap.class-room .content,
+    .player-wrap.class-room .controller,
+    .player-wrap.class-room .control-popup,
+    .player-wrap.class-room .control-menu,
+    .player-wrap.class-room header,
+    .player-wrap.class-room footer
+) {
+    background-color: var(--lg-panel-dark) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border-color: var(--lg-border) !important;
+    color: #f2f5f8;
+}
+
+html[data-sl-theme="dark"] :is(
+    .player-wrap.class-room .teacher-action,
+    .player-wrap.class-room .teacher-actions a,
+    .player-wrap.class-room .volume-num,
+    .player-wrap.class-room .control-menu-item,
+    .player-wrap.class-room .vote-root,
+    .player-wrap.class-room .vote-edit-content,
+    .player-wrap.class-room .util,
+    .player-wrap.class-room .operation,
+    .player-wrap.class-room .functional
+) {
+    color: #f2f5f8;
+}
+
+/* ③ 两侧面板进场/滚动容器（原产物给的是不透明底） */
+html[data-sl-theme="light"] .player-wrap.class-room .main-container,
+html[data-sl-theme="light"] .player-wrap.class-room .lfe-vars {
+    background-color: transparent !important;
+}
+
+/* ④ 表格与斑马纹、选择态（player.css 的 #eee/#fff/#e7e7e7） */
+html[data-sl-theme="light"] .player-wrap.class-room table :is(td, th) {
+    border-color: var(--lg-border) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .player-wrap.class-room table :is(td, th) {
+    border-color: var(--lg-border) !important;
+    color: #f2f5f8;
+}
+
+html[data-sl-theme="light"] .player-wrap.class-room table.stripped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, .035) !important;
+}
+
+html[data-sl-theme="dark"] .player-wrap.class-room table.stripped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, .05) !important;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
