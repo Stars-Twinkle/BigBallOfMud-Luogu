@@ -1,6 +1,6 @@
-/* ==UserStyle==
+/* sl-keep  ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.35
+@version      20261004.36
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -17,171 +17,37 @@
 /* ==========================================================================
    安装后先读这一段
    --------------------------------------------------------------------------
-   【一】怎么切换深浅
-     · 装好后在 Stylus 的「管理样式」里编辑本样式，右侧会有一个
-       「配色模式」下拉框，三选一即可：跟随系统 / 强制浅色 / 强制深色。
-       改完保存，洛谷刷新一下就是新配色。这是纯样式下唯一可点的切换入口。
-     · 不想用下拉也行：把下面 ① 段里 `[[colorMode]]` 那一行删掉，
-       只留 `color-scheme: light dark;`（跟随系统），或改成 light / dark。
-
    【二】为什么没有"顶栏按钮"
      样式表只能改样式，不能创建 DOM 元素。而"点一下能改变并记住状态"要求有
-     一个真实元素承载状态（:checked 要 <input>、:target 要 <a>、details 要元素），
-     伪元素既收不到状态也无法存储 —— 这是 CSS 的能力边界，不是配置问题。
-     所以纯样式方案把切换放到 Stylus 面板，并在顶栏放了一个**状态指示圆点**
-     （浅色=太阳，深色=月牙），让你一眼看出当前生效的配色。
-     确实想要"页面内可点按钮"，只能用脚本：见 history\bigballofmud-luogu.user.js。
-
-   【三】液态玻璃强度（改 ② 段数值）
-     --lg-blur        顶栏/侧栏/浮层的模糊半径（更"液态"就 30~40px）
-     --lg-card-blur   卡片模糊半径（列表页卡顿就调小或设 0）
-     --lg-alpha       主卡片玻璃（越小越透；另有 -soft/-pop/-field 三个分级）
-     --lg-nav-alpha   顶栏胶囊 + 左右侧栏的玻璃白度（越小越透、越不像白板）
-     --lg-sat         背景饱和度提升（180% ~ 240%；越高越能看见背景的颜色，而不是靠白色垫底）
-
-   【四】背景图
-     · 新版前端页面（题目/讨论/记录/比赛/主题页…）的背景由洛谷主题商店管理，
-       本样式**不覆盖**它；深色模式下只在其上叠一层压暗，不换图。
-     · 旧首页 `/` 仍是旧前端（luogu3.css + AmazeUI），主题商店管不到它，
-       所以这里单独补图：变量 --sl-bg-image，默认用洛谷官方浅色背景图，
-       深色时叠一层遮罩压暗。想换图改这一个变量即可。
-
-   【五】与主题商店的兼容
-     浅色分支一律"就地消费"主题变量（--theme-card-background / --theme-navi-back…），
-     不重写它们，因此换主题、换背景图、换导航配色，玻璃都会跟着变；
-     深色分支才是本样式给定的暗色值。切换只依赖一个 color-scheme 声明。
-
-   【六】尚未在浏览器逐页核对，建议重点看：首页 / 题目页 / 讨论页 / 记录页 / 侧栏。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「安装后先读这一段」） */
 
 /* ★ 编者须知（改这个文件之前先读这 12 条 —— 每条都是踩过的坑，校验脚本会强制其中大半）
    --------------------------------------------------------------------------
+   1. 不变式：**color 不能加 !important**（会压掉洛谷内联的语义色与白字）。
+      要改文字色，用"更高特异性 + 不加 !important"；
+      背景、边框、尺寸等不参与继承的属性允许 !important。
+      原句保留于此以免以后被加回来：color 不能加 !important。
    1. 禁止 `color: … !important`。要改文字色，用"更高特异性 + 不加 !important"，
-      否则洛谷的语义色（.lcolor-*）会被一起刷掉。
    2. 禁止 `transform`，悬停位移一律用 `translate` / `scale` **属性**。
-      洛谷用 transform 做弹窗居中，覆盖它会让弹窗"往右下跑再被弹回"。
-   3. 一个区域**只留一个玻璃承载体**。父与子都铺玻璃 = "多层玻璃"（用户反馈过 6 次）。
-      该留外层还是内层，**先问清取向**：比赛列表留每项、通知中心留外层大卡。
-   4. `backdrop-filter` / `filter` / `isolation` 会**创建层叠上下文**。
-      绝不要给"承载浮层的容器"加它们；也不要给内容层加 z-index（会让浮层被困、
-      遮罩盖住弹窗 → 表现是"弹窗点任何地方都收回"）。
-   5. 背景图只由 `html` 承担，内容层一律不画整屏壁纸（否则盖住签名水印）。
-   6. 类名**不许猜**。只用 evidence/ 语料或用户 DevTools 实证过的类名，
-      并且要登记进 evidence/第三方类名.json（校验会报"无法解释的类名"）。
-   7. 禁止 `data-v-*` 哈希类名（每次构建都会变）。
-   8. 选择器列表**不许以逗号结尾**（`, )`），否则整条 :is() 规则被浏览器丢弃。
-      圆括号、花括号都要平衡；注释里不许再出现"斜杠加星号"那两个字符的组合
-   9. `:has()` 规则必须**单独成条**，不要与普通选择器混写在同一个选择器列表里。
-  10. 段落顺序**就是层叠顺序**，不要为了好看重排（详见下面目录里的说明）。
-  11. 一处玻璃五件套：镜面光斑 + 斜向缎面 + 亮上缘/暗下缘/内发光 + 描边 + 模糊。
-      只染一层 background-color 会看起来"平的"，没有玻璃感。
-  12. 改完必须跑四处校验（校验全绿才算改完）：
-        node evidence/脚本与语料/check_purecss.mjs      （样式，240+ 条断言）
-        node evidence/脚本与语料/test_switch_script.mjs （油猴脚本）
-        node evidence/脚本与语料/test_single_file.mjs   （交付件完整性）
-        node evidence/脚本与语料/verify_before_after.mjs（层叠对照）
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「安装后先读这一段」） */
 
 /* ★ 段落目录（自动生成，按文件顺序 —— 顺序刻意不排序：CSS 层叠依赖它）
    --------------------------------------------------------------------------
    为什么要这份目录：文件 6300 多行、76 段，段落编号是"边改边加"长出来的（例如
-   ⑥-c/⑥-d/⑥-e/⑥-f/⑥-g 排在 ⑦ 之后、⑱-b/⑱-c 排在 ⑲ 之后），并不按编号顺序排列。
+   为什么要这份目录：文件 6300 多行、76 段，段落编号是"边改边加"长出来的（例如
    ★ 但**不要**为了"好看"重排：段落的先后顺序是**层叠顺序**，重排会改变生效结果
-     （例如 ⑲ 明确要求放在最后、⑥-f 必须在卡片段之后、⑦-a/⑦-b 必须晚于 ⑦）。
-   本目录只解决"找不到"，不改变任何规则顺序。
-   ==========================================================================
-   [共用令牌层] 一、主站通用样式：www.luogu.com.cn
-   [共用令牌层] 令牌层（域块）：主站
-   [主站] 主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里）。
-   [主站] ③-d 右下角签名水印（每个页面都有）
-   [主站] ④ 顶栏：左右两个独立的液态玻璃"岛"，中间不铺玻璃
-   [主站] ⑤ 左右侧栏：悬浮胶囊
-   [主站] ⑥ 页头卡片 + 全站卡片：主体玻璃
-   [主站] ⑥-c 个人中心头部（横幅 + 资料行 + 标签页/统计）
-   [主站] ⑦ 浮层：模态、下拉、气泡、通知——液态玻璃最出效果的地方
-   [主站] ⑥-f 装着"逐项卡片"的外层 .l-card 不再铺玻璃
-   [主站] ⑥-g 通知中心：每条通知透明，玻璃只留外层大卡
-   [主站] ⑥-e 比赛列表：外层列表容器不铺底，玻璃只留给每个比赛
-   [主站] ⑥-d 嵌在卡片里的"次级容器"不再铺第二层玻璃
-   [主站] ⑦-a 浮层里已经有卡片时，外层容器不再铺玻璃（否则是"两层玻璃"）
-   [主站] ⑦-d 全部下拉 / 选择器统一成液态玻璃（"还有这种下拉框，全部查找替换"）
-   [主站] ⑦-b 弹窗 / 提示：深色 + **同一套液态玻璃配方**
-   [主站] ⑦-b-2 私信页的消息气泡：换成玻璃（用户：「把主站私信中这种消息框也换成玻璃」）
-   [主站] ⑦-c SweetAlert2 弹窗（"设置更新成功" / "提交成功" …）
-   [主站] ⑥-b 讨论区：回复卡片（"讨论区回复部分未适配"）
-   [主站] ⑧ 题面 / 代码块 / 表格：薄玻璃，避免代码区反光影响阅读
-   [主站] ⑧-d 洛谷 IDE（/problem/Pxxxx#ide）：整个外壳的深浅适配
-   [主站] ⑧-b CodeMirror 6 代码编辑器（"提交代码"那个输入框）
-   [主站] ⑧-c Casket Markdown 编辑器（比赛说明 / 题面 / 公告 …）
-   [主站] ⑧-d-2 输入输出样例：**删外面的壳子，保留里面的代码框**
-   [主站] ⑫-i 编辑比赛 · 题目排序（题目编排）
-   [主站] ⑧-e 文章/题解里的代码块（"文章广场 / 题解"页）
-   [主站] ⑨-a 实心强调按钮 → 图一的"玻璃胶囊 + 强调色文字"
-   [主站] ⑨-b .refined-input 这套搜索框（工单列表 / 通知 等页面）
-   [主站] ⑨ 按钮与表单：半透明 + 高光，不加模糊（数量多，避免滚动掉帧）
-   [主站] ⑩ 零散部件（名字沿用，结构已变）
-   [主站] ⑩-b 评测记录页：侧栏容器去掉底框 + 测试点方块（真实类名来自 DevTools）
-   [主站] ⑩-c 页脚：也做成液态玻璃块
-   [主站] ⑪ 滚动条（color-scheme 已让原生滚动条跟随，这里只做外观统一）
-   [主站] ⑫-a 深色下正文默认色：把"读起来发灰"的问题从根上压住
-   [主站] ⑫ 文字基色
-   [主站] ⑭ 背景图（新前端页面）
-   [主站] ⑲-b （已回滚）无差别压制 .tag 白底 —— 为什么不能这么做
-   [主站] ⑳ 标签 / 徽章的悬浮渐变动画
-   [主站] ⑳-b 头像悬停动画（全站所有头像）
-   [主站] ⑯-c 文章页的标题 / 元信息：深色下换成白
-   [主站] ⑯-d 文章页元信息的「作者」标签 + 底部操作栏
-   [主站] ⑯-g 题单广场的"选项卡"（.category-card）：玻璃 + 深浅色
-   [主站] ⑯-f 两套前端的玻璃一致性（核对用）
-   [主站] ⑯-e 个人页侧栏卡片的信息行（用户："个人主页的对比度炸了"）
-   [主站] ⑯-b 卡片 / 列表里的「一级文字」必须是白的
-   [主站] ⑰ 洛谷运行时生成的"颜色工具类"也要重映射
-   [主站] ⑰-b 语义别名的工具类 + 文章页外壳的内联白底
-   [主站] ⑱ 切换配色时的"统一短过渡"
-   [主站] ⑯ 超链接悬停：渐变色 + 下划线划入
-   [主站] ⑨-c 表单 / 搜索框统一换成液态玻璃面
-   [主站] 二、仅主站：旧首页
-   [主站] ⑱-b 犇犇的「举报 / 反馈」窗口：修好可用性 + 改成玻璃
-   [主站] ⑱-c 卡片族统一的"鼠标悬浮动画"（比赛 / 讨论 / 犇犇 / 消息框 …）
-   [主站] ⑲ 彩色面板头部里的标题：整体交回 AmazeUI（这条必须放在文件最后）
-   [主站] ★ 安装 / 更新方式（很重要，踩过坑）
-   [主站] ㉒ 洛谷网校（class.luogu.com.cn）
-   [网校] 主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里）。
-   [网校] 网校画布（唯一一处，按模式分层）
-   [网校] ㉓ 网校播放页（课堂 /player-wrap.class-room）
-   [网校] ㉔ 网校学习中心（/learn）列表里的写死文字色
-   [网校] ㉕ 网校：属性驱动的**可见**切换（播放页为主，用户实测「输入 light 后没变亮」）
-   [网校] ㉖ 网校播放页：**整套面**的颜色覆盖（属性驱动）
-   [网校] ㉗ 网校（yugu）：**由源码自动生成**的深色覆盖
-   [网校] ㉘ 网校播放页（课堂）：**按真实 DOM** 覆盖（用户 DevTools 2026-10-04）
-   [网校] ㉙ 网校课程信息卡：**内部不再各铺一层玻璃**（用户：「这块多层玻璃」）
-   [网校] ㉚ 网校页脚：浅色下的白字（用户：「底下这些文字浅色模式下仍为白色导致看不清」）
-   [网校] ㉛ 网校学习中心（/learn）：浅色下的文字与图标 + 标签栏多层玻璃
-   [网校] ㉜ 网校聊天消息文字：浅色下看不清（用户：「聊天框文字在浅色下看不清」）
-   [网校] ㉝ 网校标签栏：**未选中项**的文字色（用户：「浅色模式下未选中项不应该是黑色吗」）
-   [网校] ㉞ 网校首页（/，Home 模板）：去掉白色挡板，露出壁纸；深色覆盖暗层
-   [网校] ㉟ 网校首页卡片：白色卡片换成玻璃 + 深浅适配（用户：「把这些白色卡片都换成玻璃，适配深浅色」）
-   [网校] ㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白色卡片，直接移除」）
-   [网校] ㊲ 网校首页「学习体系」大图：用**用户抠好的图**替换，并给玻璃承载层
-   [网校] ㊳ 网校首页：去掉几条**整行白条**（用户连发三张图：「去除白块」「是这些」）
-   [网校] ㊴ 网校：SweetAlert2 弹窗（「复制成功」这类）用玻璃 + 深浅适配
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「安装后先读这一段」） */
 /* ==========================================================================
    一、主站通用样式：www.luogu.com.cn
    --------------------------------------------------------------------------
    注意：这里**只**作用于主站。
-   ti.luogu.com.cn（有题）与 class.luogu.com.cn（网校）分别是另一套前端
    （有题用的是 youti-fe 老栈，网校的 DOM 也不同于主站），
-   把主站这套玻璃 + 深色强加过去会把它们的排版和配色整体带崩，所以不收进来。
-   需要覆盖子站的话，要按它们各自的产物单独适配（见 README「已知范围」）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「一、主站通用样式：www.luogu.com.cn」） */
 /* ==========================================================================
    令牌层（域块）：主站
    --------------------------------------------------------------------------
    为什么单独拎出来：@-moz-document 是按域生效的，变量声明在 www 的块里，
-   网校（class.luogu.com.cn）就完全拿不到 —— 那边会连颜色都不变。
-   这里用一个域块（逗号 = OR）同时覆盖两个域名，令牌只有一份，避免复制两份后走偏。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「令牌层（域块）：主站」） */
 @-moz-document domain("www.luogu.com.cn") {
 
 :root {
@@ -212,13 +78,9 @@
     /* 顶栏高度与"胶囊上下留白"。
        ★ 单位刻意用 **px 而不是 rem**：
        洛谷在**首页**给 <html> 加了 style="font-size: 10px"，但**内页没有**
-       （内页是浏览器默认 16px）。于是同样的 4rem，首页算出来 40px、内页 64px ——
        实测截图：首页胶囊 46px、私信页胶囊 76px，差了近一倍（用户反馈的
-       "统一首页和其他地方的胶囊高度"就是这个）。
-       用 px 就与根字号无关，所有页面完全一致。
-       胶囊高度 = --lg-topbar-h − 2 × --lg-topbar-gap = 63 − 12 = 51px，由 CSS 算出来。
        ★ "胶囊内部的上下留白"就是靠这个高度给的：胶囊 51px、内容约 24px，
-         于是内容上下各有约 13px 的余地（横向留白另有 .top-bar > .left/.right 的 padding）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「令牌层（域块）：主站」） */
     --lg-topbar-h: 63px;
     --lg-topbar-gap: 6px;
 
@@ -240,11 +102,9 @@
     /* ----------------------------------------------------------------------
        背景图（本节是"用我这张图"的总开关）
        默认用你原来 BigBallOfMud-Luogu 里那张（实测仍可访问，68KB webp）。
-       想换图：改这个变量。想完全交回洛谷主题商店：删掉下面 ⑭ 整节。
+       默认用你原来 BigBallOfMud-Luogu 里那张（实测仍可访问，68KB webp）。
        备选（实测均可达）：
-         --sl-bg-image: url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg");  官方浅色
-         --sl-bg-image: url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg");  官方深色
-       ---------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「令牌层（域块）：主站」） */
     --sl-bg-image: url("https://rhythm-assets.cn-nb1.rains3.com/objects/7a83566b723fa54bbd104146cfb1d94559ab7962710be389e0c99e97a67e6189/webp");
 
     /* ----------------------------------------------------------------------
@@ -273,25 +133,11 @@
     /* ----------------------------------------------------------------------
        ③-b 液态玻璃（Liquid Glass）参数
        ----------------------------------------------------------------------
-       ⚠️ 这两个不是"毛玻璃"参数 —— 毛玻璃只是 blur + saturate（之前的做法），
-          液态玻璃要在它之上再补三样东西：
-            ① 镜面光斑：模拟光源打上去的一团柔和高光（--lg-spec 控制强度）
-            ② 玻璃厚度：上缘亮线 + 下缘微反光 + 内发光（--lg-rim 控制上缘强度）
-            ③ 边缘折射：把**额外**的 blur + brightness 只加在边缘带（中间用 mask 裁掉），
-              近似"背景在玻璃边缘被弯折"的透镜感 —— 这是各家液态玻璃 CSS 复刻的通用手法。
-       想关掉液态感退回毛玻璃：--lg-spec 设 0、--lg-rim 设 .16 即可。
-       ---------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
     /* ----------------------------------------------------------------------
        ③-c 深色玻璃：**靠通透，不靠不透明**
        ----------------------------------------------------------------------
-       用户反馈："深色模式的玻璃不像玻璃，像金属"。
-       原因是深色分支原来是一块**近乎不透明的深板**（.88~.96）+ 一条**硬白上缘**
-       + 一条**硬黑下缘** —— 硬边 + 不通透正是"金属"的特征；
-       玻璃应该是**通透 + 软边 + 大范围柔光**。
-       所以：深色底色的不透明度整体降到 .46~.70（能看见背景图的暗部），
-       边缘高光/暗缘/内发光也都换成"深色下更弱"的色值变量。
-       （浅色分支的值一概不动，浅色观感保持原样。）
-       ---------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
     --lg-panel-dark: rgba(18, 21, 27, .40);   /* 卡片 */
     --lg-nav-dark: rgba(12, 14, 18, .47);     /* 顶栏胶囊 / 两侧栏 */
     --lg-soft-dark: rgba(18, 21, 27, .32);    /* 次级容器 */
@@ -318,11 +164,7 @@
    主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里）。
    --------------------------------------------------------------------------
    为什么：CSS 嵌套里 `:root { :root[data-sl-theme="light"] { … } }` 会被解析成
-   `:root :root[data-sl-theme="light"]`（后代选择器）—— html 不可能是 html 的后代，
-   于是这两条规则**永远匹配不上**，`color-scheme` 根本不会被切换，
-   light-dark() 就一直停在系统/深色分支 —— 表现就是「浅色模式炸了 / 点了没反应」。
-   提到顶层后按 (0,2,0) 对 (0,1,0) 正常接管。脚本那边还会同时写一份内联 color-scheme（双保险）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里」） */
 :root[data-sl-theme="light"] {
     color-scheme: light;
 }
@@ -338,11 +180,7 @@
 /* ★ 关键约定（第二十三轮）：**壁纸与深色压暗都画在 html 上，body 保持透明**。
    为什么必须这样：
      · 签名水印是负 z-index，它只能落在"画布背景"之上；
-     · 而"body 的背景是否传播到画布"取决于 html 有没有自己的背景 —— 一旦某页的壁纸被
-       画在 html / 内容层上，body 的背景就不再传播、退化成普通块背景，于是把签名整块盖住。
-       这正是"签名仅首页在内容之下"的原因（首页旧前端把壁纸画在 body 上，一直正常）。
-     · 把壁纸改画在 html（也就是画布本身）之后，两边机制一致，不再依赖传播行为。
-   注：以前这里是一条 html { background: transparent }，与本约定正好相反，已删除。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里」） */
 /* 画布背景：壁纸 + 深色压暗都画在这里（签名水印落在它之上、内容之下）。 */
 html {
     background-color: light-dark(#eef1f7, #14161a) !important;
@@ -364,12 +202,7 @@ html {
 /* --------------------------------------------------------------------------
    ① 配色模式：三态，两个来源（JS 优先）
    · 装了 bigballofmud-luogu-switch.user.js → 由它在 <html> 上写 data-sl-theme，
-     顶栏按钮可点、选择被记住（推荐）
-   · 没装脚本 → 用 Stylus 面板的「配色模式」下拉（[[colorMode]]）
-   两种都靠 color-scheme 驱动本文件全部 light-dark()，同时让浏览器原生控件
-   （滚动条、输入框、光标）跟着变浅/变深。
-   属性选择器特异性 (0,2,0) 高于下面的 :root (0,1,0)，所以 JS 一写属性就接管。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里」） */
 /* （主题三态规则已上移到共用域块，见文件开头） */
 
 /* （主题三态规则已上移到共用域块，见文件开头） */
@@ -408,15 +241,8 @@ html {
 /* ==========================================================================
    ③-d 右下角签名水印（每个页面都有）
    --------------------------------------------------------------------------
-   源图是一张手写签名的翻拍，已抠像（Pillow：亮度反相做 alpha + 裁到笔画外框 + 缩到 240px 宽），
-   成品 8.8 KB、base64 约 12 KB，直接内嵌在这里 —— 不依赖任何图床。
    ★ 关键做法：把它当 **mask** 用，而不是当背景图。
-     因为源图是"黑色 + 透明"，当图片用的话深色模式下会看不见；
-     当 mask 用则由 background-color 上色，颜色可以交给 light-dark() → 深浅自动适配。
-   想关掉：把 --sl-signature 设成 none，或整节删掉。
-   想改层级：把 z-index 调大就会浮到内容上面（一般不需要）。
-   想换图：把 --sl-signature 换成你自己的 data URI / 图片地址（同样只要 alpha 通道）。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「③-d 右下角签名水印（每个页面都有）」） */
 :root {
     --sl-signature: url("data:image/png;base64,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");
     --sl-signature-w: 118px;      /* 水印宽度，等比缩放 */
@@ -424,29 +250,17 @@ html {
     /* 水印层级。用户第八轮定稿："签名应该在内容块下……移到背景上面即可"：
          -1 = 背景图之上、内容之下   ← 当前值
               靠层叠顺序实现：body 的背景传播到画布（canvas）最先绘制，
-              负 z-index 的后代排在它之后、所有正常内容之前。
-              代价：玻璃面板的 backdrop-filter 会糊掉一部分，所以深色档补了亮度。
-          1 = 内容之上（会跑到最顶上，已被用户否定）
-       9998 = 几乎最上层（会盖住弹窗和文字，不推荐）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「③-d 右下角签名水印（每个页面都有）」） */
     /* ★ 第十八轮方案（最终）：签名画在 **body 的背景栈** 里，而不是 body::after。
        为什么放弃 body::after：
          刷新瞬间能看见、随后消失 —— 说明加载后有元素（很可能是洛谷动态写入的壁纸）
-         盖在它上面。只要签名还在"内容之下"，就永远可能被某层动态背景盖住（试了 -1 / 1 两档都不理想）。
-       放进 body 的背景栈后：它属于**画布层**，天然在所有内容之下、壁纸/压暗层之上，
-         任何元素都盖不住它，也不需要 z-index。
        ★ 代价：background-image 不能用 light-dark() 切色，所以用一张**中灰**版本
-         （128,128,128 + 46% 不透明度），浅色与深色背景下都看得见。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「③-d 右下角签名水印（每个页面都有）」） */
 
     /* ★★ 改回 -1（第三十三轮，用户：「现在点任何地方弹窗会直接收回，根本用不了」）：
        之前为了让签名"在内容之下"，走的是**抬升内容层**（给 #app/#app-old/.theme-page/main… 写
        position: relative + z-index: 2）。代价是给这些容器**创建了层叠上下文** ——
-       页面上任何挂在它们内部的浮层（AmazeUI 的举报窗口就是）其 z-index 都只在上下文内有效，
-       而遮罩 .am-dimmer 是 body 的直接子元素（在上下文之外），于是遮罩永远盖住弹窗：
-       点任何地方都先命中遮罩 → AmazeUI 判定"点了遮罩" → 弹窗直接收回。
-       现在改成签名自己用 -1：它排在画布（html 背景）之后、所有正常内容之前，
-       既在内容之下，又**不需要给任何容器加 z-index** —— 浮层层叠从此恢复正常。
-       注：早期 -1 看不见是因为另外两个原因（mask 取色模式用了黑色画笔 + 内容层又画了一层整屏壁纸），
-           那两个问题后来都已修掉（白色画笔 + mask-mode: alpha；内容层不再画壁纸）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「③-d 右下角签名水印（每个页面都有）」） */
     --sl-signature-z: -1;        /* -1 = 画布之上、内容之下（不需要抬内容层） */
 }
 
@@ -454,11 +268,7 @@ html {
    mask：源图是"黑色 + alpha"，当图片用没法跟主题变色；当 mask 用则由 background-color
          上色，可以交给 light-dark() → 深浅自动适配（用户要求"不用中灰，适配深浅色"）。
    ★ 层级结论（第二十二轮）：用 -1，也就是"背景之上、内容之下"。
-     中间走过弯路：一度以为 -1 在这类页面上无效，于是换成 1（浮在内容之上，用户问"为啥在最顶上"）。
-     真正的原因是 mask 取色模式 —— 黑色画笔在 luminance 下亮度为 0、整块被遮掉，
-     表现成"元素在、尺寸对、却什么都看不见"，很容易误判成层级问题。
-     画笔换成白色 + 显式 mask-mode: alpha 之后，-1 工作正常。
-   ★ 只动背景与 mask，不写 opacity/visibility/display。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「③-d 右下角签名水印（每个页面都有）」） */
 html::after {
     content: "";
     position: fixed;
@@ -483,16 +293,7 @@ html::after {
     /* ★ 层级方案（终结版）：签名放在可见层 1，**页面内容整体抬到 2**（见下面 content 规则）。
        效果就是"壁纸在签名之下、内容在签名之上"，逐页一致。
 
-       ── 真正的根因（第二十七轮才确认，用户："之前是画的新壁纸挡上了"）──
-       之前负 z-index（-1）在新前端页面始终看不见，试了三种挂载方式（body::after、
-       body 背景栈、html::after）都不行，我一度以为"定位不到那个遮挡层"。
-       实际上遮挡层一直很明确：**新前端在内容层又画了一整屏壁纸**
-       （.theme-page { --theme-body-image: … } + .theme-page::before { position: fixed; inset: 0 }），
-       它铺满视口、压在画布之上 —— 签名在画布层，当然被它整块盖住。
-       那一层同时也是"新前端比旧首页亮一档"的元凶，删掉它两件事一起解决。
-       ── 另一个独立的问题（也不能忘）──
-       mask 源图原来是**黑色画笔**，一旦按 luminance 取色亮度为 0、整块被遮掉，
-       表现成"元素在、尺寸对、却什么都看不见"。现在图是白色画笔 + 显式 mask-mode: alpha。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「③-d 右下角签名水印（每个页面都有）」） */
     z-index: var(--sl-signature-z);
 }
 
@@ -504,25 +305,14 @@ html::after {
 /* ==========================================================================
    ④ 顶栏：左右两个独立的液态玻璃"岛"，中间不铺玻璃
    --------------------------------------------------------------------------
-   洛谷原始布局（从 loader 基础样式表里读到的真值）：
-       .top-bar{position:fixed;height:3.5rem;display:flex;padding:.75rem;…}
-       .top-bar .left {flex:1;min-width:0}      ← 左边那块会撑满整行
-       .top-bar .right{flex-shrink:0}           ← 右边只占内容宽
    要让左边的玻璃**只包住它自己**（而不是一路撑到右边），必须：
-     · 把 .left 的 flex:1 改成 flex:0 1 auto（加 !important 才压得过它的 0,3,0 规则）
-     · 给 .top-bar 加 justify-content:space-between，让两块各自贴边、中间留空
-   顶栏本体则去掉背景/模糊/边框/阴影 —— 中间那条就是"空的"。
-   浅色分支就地消费 --theme-navi-back，主题商店换色照常生效。
    注：这里的 !important 只用在 flex/背景/边框/尺寸上，**没有**用在 color 上（见 ⑫ 节的不变式）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「④ 顶栏：左右两个独立的液态玻璃"岛"，中间不铺玻璃」） */
 .top-bar {
     /* ★ 顶栏本体**不铺任何东西** —— 只留两个圆角胶囊。
        曾经在这里铺过一条"中间填充"的淡玻璃：因为顶栏本体是直角矩形，
        它渲染出来就是一块横贯屏幕的**方块**（用户反复反馈的"方框"就是它）。
-       "中间填充"其实是误解：用户当时说的是"胶囊内部要被自己的玻璃填满"，
-       指的是里面那个 .user-nav 方块，不是顶栏中间。
-       想恢复中间那条带子的话，把下面几条背景/模糊/边框/阴影解开即可 —— 但要记得
-       同时给本体加 border-radius，否则又会变成直角方块。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「④ 顶栏：左右两个独立的液态玻璃"岛"，中间不铺玻璃」） */
     background-color: transparent !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
@@ -601,16 +391,7 @@ html::after {
 /* --------------------------------------------------------------------------
    ④-b 边缘"厚度"用阴影做，**不要**再叠伪元素 backdrop-filter
    --------------------------------------------------------------------------
-   上一版这里放的是一层 ::before：backdrop-filter + mask 把中间掏空、只提亮边缘，
-   想模拟玻璃边缘的折射。视觉上是对的，但它挂在**固定定位**的顶栏里 ——
-   页面一滚动/一重绘，浏览器就得每帧重做一次"带遮罩的背景模糊"，
-   结果就是用户反馈的**"这个一直在抖"**。已移除。
-   现在改用两条 inset 阴影表达同一件事（亮上缘 + 暗下缘），只走合成层、不重算模糊：
-       inset 0 1.5px 0 rgba(255,255,255,var(--lg-rim))   ← 上缘受光
-       inset -1px -1px 0 var(--lg-shade)                 ← 背光侧暗缘
-   教训：**backdrop-filter 本身已经不便宜，再叠 mask 更贵；
-        放在 position: fixed 的元素里就是滚动时每帧重算。**
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 
 /* 悬停：光斑缓慢漂移（过渡时长在 ④ 段上面的胶囊动画里统一给了）。 */
 .top-bar > .left:hover,
@@ -621,13 +402,9 @@ html::after {
 /* --------------------------------------------------------------------------
    顶栏高度是"被引用的常量"：洛谷在四处写死了 3.5rem ——
        .main-container{margin-top:3.5rem; min-height:calc(100vh - 3.5rem)}
-       .main-container *{scroll-margin-top:3.5rem}
-       .lside{top:3.5rem}   .rside{top:3.5rem}
    既然我们把顶栏改高了，这四处必须跟着走，否则正文会被压住、左右侧栏会错位。
-   全部改成引用 --lg-topbar-h，以后调高度只需要改那一个数。
-   （这里用 !important 是因为洛谷这几条带 [data-v] 作用域，特异性 0,2,0 更高；
      这些都是布局属性，不涉及 color，不违反 ⑫ 节的不变式。）
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「④-b 边缘"厚度"用阴影做，**不要**再叠伪元素 backdrop」） */
 .main-container {
     margin-top: var(--lg-topbar-h) !important;
     min-height: calc(100vh - var(--lg-topbar-h)) !important;
@@ -643,24 +420,9 @@ html::after {
 /* --------------------------------------------------------------------------
    顶栏里"除胶囊本身，任何内层元素都不许自带底色"
    --------------------------------------------------------------------------
-   洛谷在好几处用了同一套模板：background: var(--theme-navi-back, #fff)。
    ★ 关键：这些元素里有的是**顶栏的直接子元素**（比如那个 <nav>），
-     不在 .left / .right 里面 —— 所以只写 ".left *" / ".right *" 会正好漏掉它，
-     渲染出来就是"两块胶囊之间夹着一个直角青色方块"。这里改成覆盖顶栏下**所有**后代。
-   它们坐在我们的玻璃胶囊**里面**，渲染出来就是"一块比胶囊矮的青色方块"：
-   顶破圆角（"棱角"），而且胶囊加高后它不跟着变（"填充比胶囊矮"）。
-   点名式修法已经漏过一次（先只交了 .user-nav，漏了 nav），所以这里一次性全覆盖，
    不再依赖具体类名 —— 排除三种必须保留底色的：
-     · .logo-mask  洛谷的 logo 就是"背景色 + mask-image"画出来的，清掉会看不见
-     · *badge*     未读数角标（带 badge 类名的那一类）
-     · sup         ★ 顶栏里那几个**红点**（私信 / 通知未读）是**没有类名**的 <sup>，
-                   只有一条内联 background-color: rgb(231,76,60) —— 光靠 [class*="badge"]
-                   豁免不到它，红点就被洗掉了（用户：「把红点写回来」）。
-                   所以额外按**元素名**豁免 sup（结构选择器，不编类名）。
-     · 我们的按钮  它自己带内联样式
-     · .left / .right  两个胶囊本体（它们就是要保留玻璃的那两块）
-   交互反馈（悬停/选中）另行保留，见下面一条。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「④-b 边缘"厚度"用阴影做，**不要**再叠伪元素 backdrop」） */
 /* 底色：顶栏下所有后代（含顶栏的直接子元素）一律不许自带底色 */
 /* 顶栏内层元素：把"能画出一块矩形"的几条路径**全部**堵上。
    之前只堵了 background-color / background-image，用户在内页仍看到方框 ——
@@ -748,28 +510,13 @@ html::after {
 /* --------------------------------------------------------------------------
    顶栏不再放任何"看起来能点"的装饰元素。
    曾经放过一个太阳/月亮圆点作为当前配色的指示，但：
-     · 纯 CSS 无法让它可点（改不了状态、存不了状态）；
-     · 用户会当成切换按钮去点，点了没反应 —— 这是典型的"假可供性"。
-   所以直接去掉。切换入口只有两个：Stylus 面板的「配色模式」下拉（本文件），
-   或 history\bigballofmud-luogu.user.js 里的顶栏真按钮（需要油猴）。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 
 /* ==========================================================================
    ⑤ 左右侧栏：悬浮胶囊
    --------------------------------------------------------------------------
-   洛谷原始定义（loader 基础样式表）：
-       .lside{position:fixed;top:3.5rem;left:0;bottom:0;width:240px;overflow:hidden auto}
-       .rside{position:fixed;top:3.5rem;right:0;bottom:0;width:240px;…}
-   即"贴着屏幕左/右缘、从顶栏下方一直到屏幕底部"。这里把它做成悬浮胶囊：
-     · 上边从顶栏下方再留 --lg-side-gap
-     · 下边离屏幕底 --lg-side-gap
-     · 左/右离屏幕缘 --lg-side-gap
-     · 四角 --lg-side-radius（宽 240 的竖长面板用 26px 圆角，不用 999px 那种药丸形，
-       否则会把顶栏胶囊的观感带歪）
-   **宽度保持 240px 不变**（"大小按照原侧边栏"）。
    注意：这里是"内缩 + 圆角"，不是加描边 —— 早前给侧栏加白色描边 + 圆角，
-   浅色下会露出"白缺口"，所以那条经验仍然有效（本段不设 border）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑤ 左右侧栏：悬浮胶囊」） */
 .lside,
 .rside {
     top: calc(var(--lg-topbar-h) + var(--lg-side-gap)) !important;
@@ -781,14 +528,7 @@ html::after {
 /* ★ 两个要点（都踩过）：
    1) 内缩必须用 **margin**，不能写 left/right —— 洛谷"收回侧栏"就是把
       left/right 推成负值滑出屏幕；一旦用 !important 把 left/right 钉住就再也收不回去。
-   2) 偏移要**只在非收回态**生效（:not(.hide)）。收回态的类名是洛谷自己给的：
-          .lside.drawer.hide { left: -240px }
-          .rside.hide        { right: -240px }
-      如果不加这个限定，margin 会让侧栏"少滑出 10px"，
-      屏幕边缘就会露出一条 10px 的小边（用户反馈的"小边"）。
-   另外：**不要**给侧栏设 min-width —— 收窄态的宽度是洛谷定的
-      .lside.bar { width: 64px }（悬停时会展成 180px），
-   我之前加过 min-width:72px，结果"越改越宽"（用户反馈）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑤ 左右侧栏：悬浮胶囊」） */
 /* ★ 左栏的类名组合是 `lside bar hide`（DevTools 实测）——
    .hide 在这里表示"非抽屉模式"，它**仍然可见**（收窄成图标条）。
    真正滑出屏幕的是 `.lside.drawer.hide`。所以左栏的排除条件必须是 :not(.drawer.hide)，
@@ -877,18 +617,8 @@ nav.sidebar {
 /* ==========================================================================
    ⑥ 页头卡片 + 全站卡片：主体玻璃
    --------------------------------------------------------------------------
-   ⚠️ 这份名单是从**最初那版样式**沿用下来的，里面有若干"名字像卡片、
-      其实是卡片内部区块"的类名，给它们套玻璃就会变成"多了一个框"：
-        · .ticket-card —— 工单列表里 `div.row > div.wrapper > div.ticket-card`，
-          即"行内区块"，不是卡片（用户反馈："这块多出一个玻璃"）—— 已移除
-        · .join-card —— 比赛页侧栏卡片里的"报名区"
-          （用户 DevTools：div.sidebar-container… > div.side > div.l-card > div.join-card > p）
-          已移除；相同嫌疑的还有 inner-card / float-card / info-card / section-card /
           select-card / intro-card —— 但它们**没有实证**，暂不动，等哪页出问题再按证据删。
-      教训：卡片清单这类"猜出来的名单"要按证据逐步收缩，不能一直做加法。
-   浅色分支就地消费 --theme-card-background（不重写它，避免自引用死循环），
-   深色分支给暗色值。这样主题商店换卡片色/毛玻璃，浅色模式仍然跟随。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥ 页头卡片 + 全站卡片：主体玻璃」） */
 .theme-page .header-card,
 .header-card,
 .l-card,
@@ -1000,10 +730,8 @@ nav.sidebar {
 /* --------------------------------------------------------------------------
    ⑦-0 弹窗与下拉里的"卡片"不参与悬停抬起
    --------------------------------------------------------------------------
-   它们是**对话框**，不是内容卡片：跟着鼠标上浮既别扭，又会和"居中定位"打架。
-   （配合上面把悬停位移改成 translate 属性 —— 双保险：即使定位用的是 transform，
      这里也不会去动它。）注意只清 translate/scale，保留阴影，避免"悬停完全没反馈"。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .modal .l-card:hover,
 .modal .container:hover,
 .dropdown .l-card:hover,
@@ -1016,15 +744,7 @@ nav.sidebar {
    ⑥-c 个人中心头部（横幅 + 资料行 + 标签页/统计）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02，个人中心）：
-       main.lcolor-bg-background.main
-         div.full-container.columba-content-wrap.main
-           div.l-card[style="--l-card--padding: 0;"]        ← 卡片本体（⑥ 段已给玻璃）
-             div.user-header-top[style="background-image: url(…banner…)"]   ← 横幅，**保留它的背景图**
-             div.user-info.mobile-layout
-             div.user-header-bottom        ← 用户指出"这块没适配"：标签页 + 关注/粉丝/提交
-   处理：下半部分与资料行不再自带底/描边（底色交给外层卡片的玻璃），
-        文字统一走主题色；横幅那一层的背景图原样不动（那是用户的横幅图）。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-c 个人中心头部（横幅 + 资料行 + 标签页/统计）」） */
 .user-header-bottom,
 .user-info {
     background-color: transparent !important;
@@ -1079,19 +799,9 @@ nav.sidebar {
 /* ==========================================================================
    ⑥-f 装着"逐项卡片"的外层 .l-card 不再铺玻璃
    --------------------------------------------------------------------------
-   用户第三轮反馈（比赛列表）："这还有外层啊"。
    实证结构（DevTools 选中 div.l-card.list-card，547 × 1474）：
-       div.l-card.list-card                     ← 整页那张卡（外层的"地"）
-         div.list > div.list-scroll
-           div.list-wrap.block.border          ← ⑥-e 已清
-             div.row-wrap > div.row
-               div.wrapper
-                 div.contest-card              ← 每个比赛（要保留的玻璃）
-   ⑥-e 只清到 .list-wrap 那一层，外面这张 .l-card 还铺着玻璃，所以"还有外层"。
    ★ 判定条件写成"这张 .l-card 里装着逐项卡片"，覆盖用户先后提过的三处：
-       .contest-card（比赛列表）· .ticket-card（工单列表）· .l-card.log（陶片放逐）
-     没有逐项卡片的普通列表**不受影响**（那张 .l-card 仍是唯一的玻璃容器）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-f 装着"逐项卡片"的外层 .l-card 不再铺玻璃」） */
 /* 比赛行本体：整行一块玻璃（含左侧状态列）+ 内边距 */
 .wrapper:has(.contest-card) {
     background-color: light-dark(
@@ -1155,13 +865,7 @@ nav.sidebar {
    实证结构（DevTools）——
        main > div.columba-content-wrap.main-content
          > div.l-card.wrapper                       ← ★ 外层大卡（603 × 2829），**保留它的玻璃**
-             > div.side（@我的 / 回复我的 / 系统通知）
-             > div.main > div.list.notice-body > div.list-scroll
-                 > div.list-wrap.block.border（⑥-e 已透明）
-                     > div.row-wrap > div.row > div.notice-card   ← 每条通知（456 × 142）
-                         > div.card-row / div.lfe-marked-wrap.content > div.lfe-marked > p
-   所以把 .notice-card **从本名单移除**：外层 .l-card 继续当唯一承载体；
-   每条的 .notice-card 由 ⑥-g 显式清成透明。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-f 装着"逐项卡片"的外层 .l-card 不再铺玻璃」） */
 .l-card:has(:is(.contest-card, .ticket-card, .l-card.log)) {
     background-color: transparent !important;
     background-image: none !important;
@@ -1175,14 +879,8 @@ nav.sidebar {
 /* ==========================================================================
    ⑥-g 通知中心：每条通知透明，玻璃只留外层大卡
    --------------------------------------------------------------------------
-   用户要求：「应该显示外面的大玻璃而不是里面」。
    实证（DevTools 面包屑）：
-       div.l-card.wrapper > div.main > div.list.notice-body > div.list-scroll
-         > div.list-wrap.block.border > div.row-wrap > div.row > div.notice-card
-             > div.card-row / div.lfe-marked-wrap.content > div.lfe-marked > p
-   与"比赛列表"方向相反、原则相同：**一个区域只留一个承载体** ——
-   这里承载体是外层 .l-card.wrapper（⑥ 段已给玻璃），所以每条 .notice-card 一律透明。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-g 通知中心：每条通知透明，玻璃只留外层大卡」） */
 .notice-card,
 .notice-card > .card-row,
 .notice-card .lfe-marked-wrap,
@@ -1205,24 +903,9 @@ nav.sidebar {
 /* ==========================================================================
    ⑥-e 比赛列表：外层列表容器不铺底，玻璃只留给每个比赛
    --------------------------------------------------------------------------
-   用户要求（2026-10-03，比赛列表）：
-     "这也多，但是我的要求是把地下那层去掉，每个比赛占一个玻璃块"。
    实证结构（DevTools）：
-       div.list-wrap.block.border        ← 外层：洛谷的 .border 给了底 + 描边
-         div.row-wrap > div.row
-           div.wrapper
-             div.left-status
-             div.contest-card          ← 每个比赛（⑥ 段已给它玻璃）
-               div.row.space-between.title-row / .info-row
-   所以"多出来的一层"就是外层这个 .border 容器。
    ★ 判定用 :has(.contest-card)：只对这种"装比赛的列表"生效，
-     其它页面同样用 .list-wrap / .row 的列表不受影响。
-   ★ 第四轮修正（用户："你需要把这个状态也框进去……四周还要留出白"）：
-     玻璃要铺在 **.wrapper** 上 —— 它才是"一场比赛"这一整行（含左侧 .left-status 状态列）；
-     之前铺在 .contest-card 上，状态列就被留在框外了。
-     .contest-card 随之改成透明（避免两层），并由 .wrapper 统一给内边距，
-     让信息不贴着玻璃边。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-e 比赛列表：外层列表容器不铺底，玻璃只留给每个比赛」） */
 :is(.list-wrap, .row-wrap, .row):has(.contest-card) {
     background-color: transparent !important;
     background-image: none !important;
@@ -1236,14 +919,8 @@ nav.sidebar {
 /* ==========================================================================
    ⑥-d 嵌在卡片里的"次级容器"不再铺第二层玻璃
    --------------------------------------------------------------------------
-   用户先后指出两处："分页条底下多了层玻璃"（.page-bar）、
-   "这也多一层"（题单广场的 .list-header，DevTools 面包屑：
-       div.l-card.burger.training-list-card > div.header > div.list-header）。
-   根因是同一个：⑩ 段的「次级容器：薄玻璃」组把它们也列进去了，
-   而它们本来就**嵌在 .l-card 里** —— 卡片自己已经是玻璃，再铺一层就是"多一层"。
    ★ 这里一次性把这一整族都收掉（不只是修眼前这一个），判定条件是
-     "它落在 .l-card 内部"，所以独立使用（不在卡片里）的那些仍然保留薄玻璃。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-d 嵌在卡片里的"次级容器"不再铺第二层玻璃」） */
 .l-card :is(.list-header,
             .page-bar,
             .table-container,
@@ -1266,13 +943,7 @@ nav.sidebar {
    --------------------------------------------------------------------------
    用户反馈（2026-10-02，个人主页的头像卡片弹窗）："这些弹窗后面为什么还有层玻璃"。
    实证结构：
-       div.dropdown.shown            ← ⑦ 段给它铺了一层玻璃
-         div.l-card.float-card       ← ⑥ 段**又**给它铺了一层
-   于是弹窗后面透出第二层玻璃。
-   修法：只在"浮层里真的含 .l-card"时把外层清成透明 —— 不能一律去掉，
-   因为纯菜单类的下拉（没有内层卡片）是靠外层那层底才看得清的。
-   用 :has() 判定；本文件已经依赖 light-dark()（Chrome 111+），没有额外代价。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-a 浮层里已经有卡片时，外层容器不再铺玻璃（否则是"两层玻璃"）」） */
 .dropdown:has(.l-card),
 .dropdown-container:has(.l-card),
 .dropdown-operations:has(.l-card),
@@ -1290,22 +961,8 @@ nav.sidebar {
    ⑦-d 全部下拉 / 选择器统一成液态玻璃（"还有这种下拉框，全部查找替换"）
    --------------------------------------------------------------------------
    用户截图给的是题目列表的「筛选条件 · 难度范围」，DevTools 实证结构：
-       div.combo-wrapper.shown.form-item.block-item.combo
-         div.text.lform-size-middle > span.placeholder「题目难度范围」+ span.arrow + div.ruler
-         button.lform-size-middle …
-   展开后是一个选项列表（普及− / 普及 / 普及+…）。
-   类名全部来自证据语料（出现次数在括号里）：
-     控件：.combo-wrapper(42) .combo(5) .select-type(8) .select-button(4) .op-select(4)
-           .feed-selector(7) .am-dropdown-toggle(24) .date-picker-wrapper(18) .time-picker-wrapper(18)
-     面板：.am-dropdown-content(35) .am-dropdown(5) .filter-options(16) .v-popper--theme-dropdown(6)
-           .am-selected-list(12)
    ★ 刻意**不覆盖**三个通用名：
-       · .selected(49)  —— 你之前中过招：洛谷在题目页选项卡等处复用它，染色会连带改选中态
-       · .picker / .selector —— 太通用，容易波及无关组件
-     .option(9) 虽然也很通用，但这里**限定在已知面板内部**才清底（见下面第二条），不外扩。
-   深色适配：底色走 --lg-field-dark（控件，略实）/ --lg-panel-dark（面板），
-             光斑与亮缘/暗缘/内发光全用主题变量。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-d 全部下拉 / 选择器统一成液态玻璃（"还有这种下拉框，全部查」） */
 /* ① 控件本体（关着的时候那个框）：与输入框同一套玻璃，用略实一档 */
 :is(.select-type,
     .select-button,
@@ -1382,24 +1039,9 @@ nav.sidebar {
 /* ==========================================================================
    ⑦-b 弹窗 / 提示：深色 + **同一套液态玻璃配方**
    --------------------------------------------------------------------------
-   用户反馈（两张截图）：
-     · "设置更新成功" 提示 —— 白卡 + 深字（深色模式下没适配）
-     · "提交成功" 结果框 —— 浅蓝底
    已实证的一条（loader.base.css 原文）：
-       .notification-toast{background:#fff;color:#333;border-left:3px solid #1976d2;
-                           padding:10px 14px;border-radius:6px;
-                           box-shadow:0 10px 28px rgba(0,0,0,.18),0 2px 6px rgba(0,0,0,…)}
-   —— 白底 + 3px 蓝左边框，正是截图里那张卡。
-   ⚠️ 这里**不要**再放 .message / .message-block —— 它们看着像"消息弹窗"，
-      实际是**私信页的每条聊天消息**：加进这组配方后，私信的每条消息、
-      以及消息里的文字都会被套上玻璃卡（用户反馈："私信的这两处多卡片了"）。
       已移除。判断依据：DevTools 面包屑 div.wrapper > div.main > div.block >
-      div.history > div.stack > div.message-block.left。
-   这两个具体弹窗的**外层类名我已用 DevTools 实证**（见下面的 SweetAlert2 段落），
-   所以这里先按"已知的浮层类名"统一处理，配方与卡片完全一致（镜面光斑 + 斜向柔光 +
-   亮上缘 + 暗下缘 + 内发光 + 模糊），保证视觉语言统一；
-   拿到 DevTools 那两行后，把选择器补进这一组即可（不必再改配方）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-b 弹窗 / 提示：深色 + **同一套液态玻璃配方**」） */
 .notification-toast,
 .modal .container,
 .modal .l-card,
@@ -1464,21 +1106,8 @@ nav.sidebar {
    ⑦-b-2 私信页的消息气泡：换成玻璃（用户：「把主站私信中这种消息框也换成玻璃」）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools，私信页）：
-       div.main > div.block
-         div.top-container（对方昵称 / 搜索联系人）
-         div.history[scroll] > div.stack
-           div > div.message-block.right（自己）/ .left（对方）
-               > img[src="…/usericon/….png"]   ← 头像
                > div.message                    ← ★ 气泡本体（236 × 36）
-               > div.delete
-   ★ 与 ⑦-b 的关系：那段**特意排除**过 .message / .message-block ——
-     因为当时两层都套玻璃，变成「每条消息两张卡片」（用户当年反馈「私信多卡片了」）。
-     现在按「一条消息只留一层玻璃」重做：**只给气泡 .message 铺玻璃**，
-     行容器 .message-block 透明（它只是包住头像与气泡的那一行）。
-   ★ 语义保留：自己发的（.right）与对方的（.left）本来靠底色区分 ——
-     这里给 .right 的气泡掺一点强调色，保持两类消息可区分。
-   ★ 作用域限定在 .block .history .stack 之内（私信历史区），不外溢到别处的 .message。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-b-2 私信页的消息气泡：换成玻璃（用户：「把主站私信中这种消息」） */
 .block .history .stack .message-block .message {
     background-color: light-dark(
         color-mix(in srgb, #ffffff 44%, transparent),
@@ -1511,10 +1140,7 @@ nav.sidebar {
 /* ★ 气泡的小尾巴（用户：「这块多出来了白色箭头，删掉」）
    实证 DOM（用户 DevTools）——
        div.message-block.left > img[头像] + div.message + div.delete
-   行里**没有**箭头元素，所以那个白色三角是**伪元素**画的（气泡尾巴）✗。
-   玻璃化之后它变成一块明显的白色，很突兀。这里按页面作用域关掉：
-   content: none 清掉内容，display: none 连盒子一起去掉；
-   同时覆盖 .message-block 与 .message 两级（尾实现在哪一级都不漏）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-b-2 私信页的消息气泡：换成玻璃（用户：「把主站私信中这种消息框」） */
 .block .history .stack .message-block::before,
 .block .history .stack .message-block::after,
 .block .history .stack .message-block .message::before,
@@ -1546,31 +1172,9 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
 /* ==========================================================================
    ⑦-b-3 个人主页「比赛等级分趋势图」的选中浮窗（Chart.js + Vue）
    --------------------------------------------------------------------------
-   用户：「个人主页正常选中圆点应该有悬浮窗显示比赛信息，拉取该页面源码并定位美化问题，
          令将该浮窗改为玻璃，注意删掉小箭头」
    ★★ 源码实证（本地语料 evidence/bundle语料/js/columba~eda08651484fd73f.js）：
-     图表的库是 **Chart.js**（不是 Highcharts —— 该文件里没有 Highcharts：配置用的是
-       scales / elements.point / getElementsAtEventForMode，都是 Chart.js 的 API）
-     配置：plugins: { legend: {display:false}, tooltip: { enabled: !1, external: b } }
-       —— 自带浮窗被关掉，改由 external 回调 b 交给 Vue 组件渲染
-     回调 b：把 { tooltipModel, position: canvas.getBoundingClientRect(), record } 交给组件；
-       数据点为空时写 { opacity: 0, caretX: 0, caretY: 0 }（隐藏）
-     组件 **UserEloChartTooltip**（scoped: data-v-120dc024）渲染出的 DOM 是：
-       <div class="tooltip" style="left/top/transition/opacity">
-         <b>比赛名</b><br><span class="lfe-caption">起止时间</span><br>
-         <span> 等级分： <b class="lcolor--green-2|red-2">±分</b> = <b>分数</b></span>
-         <i>达成历史最高</i>（可选）
-       </div>
-     位置与显隐**全由 inline style**（left/top 用文档坐标 + opacity 0/1 + transition）控制。
-   ★ 为什么"看不到"：我们样式里**没有任何 .tooltip 规则**（已全文件确认），所以不是被直接改没的；
-     只剩两种成因：① 被图表卡片祖先的 overflow: hidden 裁掉；② 被某条"卡片内层透明化"的
-     通配规则洗成透明（其实还在弹，只是看不见）。因此这里**显式覆盖**：玻璃底 + 强制可见 + 抬层级，
-     无论哪种成因都盖过去。
-   ★ 小箭头：源码里**没有箭头元素** —— caretX/caretY 只用于定位 —— 所以那个白色小三角是
-     **CSS 伪元素**画的（与私信气泡尾巴同一套路），清掉 ::before/::after 即可。
-   ★ 作用域：`.l-card:has(canvas) .tooltip` —— 只在"含 canvas 的卡片"里生效，
-     不会波及站内其它任何叫 .tooltip 的东西（Chart.js 的浮窗一定紧邻它自己的 canvas）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-b-3 个人主页「比赛等级分趋势图」的选中浮窗（Chart.js」） */
 .l-card:has(canvas) .tooltip {
     /* 显隐：**刻意不写 opacity** —— 它由组件 inline style（0/1 + transition）控制，
        内联声明优先级最高，我这里不碰它才是对的（写了反而要担心压掉动画）。 */
@@ -1629,22 +1233,8 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
    输出里的祖先链是（从 .tooltip 往上）：
        div.tooltip   ← position: absolute, backdrop-filter
        div.l-card    ← backdrop-filter          ★★ 就是这一条
-       div.main → div.sidebar-container.reverse → div.full-container.columba-content-wrap.main
-                 → main.lcolor-bg-background.main → div.main-container.lside-nav → div.lfe-body → body
-       html/body overflow: visible / visible
-   ⇒ **一个 overflow: hidden 都没有**（所以前三轮"被裁"的判断全错，已回滚），
-     **一个 positioned 祖先都没有** —— 那 .tooltip 的唯一包含块来源就只剩 backdrop-filter。
-   ⇒ 规范如此：**`backdrop-filter`（以及 filter / transform / perspective / contain: paint 等）非 none 时，
-     元素会成为「所有后代的包含块」**，不只是负责 fixed。于是 .tooltip 的 absolute 变成**相对卡片**，
-     而洛谷 JS 传进来的是**文档坐标**（canvas.getBoundingClientRect() + pageXOffset/pageYOffset + caret），
-     两者错位 → 浮窗被扔到视口外：诊断里 rect(视口) y = 2023，而触发点只有 cy = 322；
-     elementFromPoint(中心点) = null 也正是因为中心点在视口之外。
-   ⇒ 这也解释了"以前能看见"：那时 .l-card 上还没有这条 backdrop-filter。
-   修法：**只对"含 canvas 的图表卡"撤掉 backdrop-filter**（canvas 本身不透明，模糊几乎看不出效果），
-        并用略实一档的底色补偿观感 —— 其它卡片的玻璃一律不动。
    ★ 由此得到一条通则：**承载「用文档坐标绝对定位的自绘浮层」的容器，不能加 backdrop-filter / filter / transform。**
-     项目里已写进编辑器须知（见文件开头第 4 条同类坑）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-b-3 个人主页「比赛等级分趋势图」的选中浮窗（Chart.js」） */
 /* ★ 第五轮（用户实测第四轮无效）：把**一切**会创建包含块/层叠上下文的来源一次清干净，
    并把特异性拉到 (0,3,x) 级别（html body 前缀）确保赢过 ⑥ 段那条一长串卡片列表里的 .l-card。
    涉及属性（规范里都会让元素成为「所有后代的包含块」或以其它方式改变绝对定位基准）：
@@ -1709,13 +1299,7 @@ html[data-sl-theme="dark"] .l-card:has(canvas) .tooltip {
    ⑦-c SweetAlert2 弹窗（"设置更新成功" / "提交成功" …）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02）：
-       <body class="swal2-toast-shown swal2-shown">
-       <div class="swal2-container swal2-top-end  swal2-backdrop-show">   ← 设置更新成功（toast）
-       <div class="swal2-container swal2-center   swal2-backdrop-show">   ← 提交成功（居中弹窗）
-   即洛谷用 **SweetAlert2** 做这类提示。它自带浅色皮肤，深色模式下整块是白的。
-   做法与其它浮层完全一致：外壳用同一套液态玻璃配方（光斑 + 柔光 + 亮上缘 + 暗下缘 +
-   内发光 + 模糊），遮罩用 --lg-mask，图标颜色只改前景、保留语义色（成功绿/警告黄…）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-c SweetAlert2 弹窗（"设置更新成功" / "提交成」） */
 /* ★ 遮罩只给"居中弹窗"，**不要给 toast**
    上一版把遮罩 + 背景模糊写在了所有 .swal2-container 上，
    于是右上角的"设置更新成功"toast 也把整个页面压暗 + 糊掉了（用户："不对啊"）。
@@ -1737,10 +1321,7 @@ html[data-sl-theme="dark"] .l-card:has(canvas) .tooltip {
 /* ★ 选择器加固：SweetAlert2 会在运行时**自己注入一段 <style>**（在 Stylus 之后），
    而且弹窗是挂在 <body> 下的（不在 .theme-page 里）。
    所以这里同时用三种写法提高权重，确保压得过它自带的浅色皮肤：
-       .swal2-container .swal2-popup   —— 带容器前缀（0,2,0）
-       body > .swal2-container …       —— 明确"直接挂在 body 下"的情形
-       .swal2-popup.swal2-toast        —— toast 形态（右上角那个"设置更新成功"）
-   配合 !important，无论它那段样式何时注入、特异性多高，都压不过。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-c SweetAlert2 弹窗（"设置更新成功" / "提交成功」） */
 .swal2-container .swal2-popup,
 body > .swal2-container .swal2-popup,
 .swal2-popup {
@@ -1792,19 +1373,9 @@ body > .swal2-container .swal2-popup,
 /* --------------------------------------------------------------------------
    成功图标：让所有部件取**同一个 currentColor**
    --------------------------------------------------------------------------
-   演变过程（两句用户反馈）：
-     · "是对号的色差"   —— 我上一版给图标设了 color，又用 border-color: currentColor 覆盖了**圈**，
-                          而**对号**是内部 span 的 background-color（SA2 自带 #a5dc86）——
-                          两部分取色分叉，圈深对号浅。
-     · "对号还是有色差" —— 我改成"什么都不碰"，但 SA2 的成功图标其实有**四个部件**：
-                            circle 本身的 border、两段对号 span、以及内圈的 .swal2-success-ring。
-                           其中 .swal2-success-ring 是 **30% 透明**的绿 ——
-                           在**白色**弹窗上是"淡绿光环"，在**深色**弹窗上就变成很暗的绿，
-                           与不透明的对号又是两个绿。
    结论：四个部件必须**统一取同一个颜色**。做法是给图标设 color，
-   再把"圈 + 两段对号"都显式绑到 currentColor（内圈光环 SA2 自己就用 currentColor 系，跟着走）。
    ⚠️ swal2-success-ring / -line-tip / -line-long 这几个类名不在你给的 DOM 里，
-      来自 SweetAlert2 默认样式表（见 evidence/第三方类名.json 里的来源说明）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑦-c SweetAlert2 弹窗（"设置更新成功" / "提交成功」） */
 
 .swal2-container .swal2-popup .swal2-icon.swal2-success,
 .swal2-popup .swal2-icon.swal2-success {
@@ -1832,16 +1403,7 @@ body > .swal2-container .swal2-popup,
 /* --------------------------------------------------------------------------
    成功图标的**动画辅助块**：必须透明
    --------------------------------------------------------------------------
-   用户第三轮反馈："还是有色差" —— 这次露出来的是图标背后一个**灰色圆盘**。
-   来源：SweetAlert2 的成功图标除了圈和对号，还有三块**白色**图形用于绘制/动画：
-       .swal2-success-circular-line-left   ← 遮住左半圈
-       .swal2-success-circular-line-right  ← 遮住右半圈
-       .swal2-success-fix                  ← 补掉接缝的小方块
-   它们默认 background-color: #fff —— 在 SA2 原本的**白底**弹窗上看不出来，
-   但在我们的**玻璃底**上就是一坨灰 ✗（这就是"还是有色差"的真相）。
-   处理：三块一律透明，让玻璃透上来。
-   （类名同样来自 SweetAlert2 默认样式表，已在 evidence/第三方类名.json 注明来源。）
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-circular-line-left,
 .swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-circular-line-right,
 .swal2-container .swal2-popup .swal2-icon.swal2-success .swal2-success-fix {
@@ -1863,17 +1425,7 @@ body > .swal2-container .swal2-popup,
    ⑥-b 讨论区：回复卡片（"讨论区回复部分未适配"）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02，discuss/241461）：
-       div.list-wrap.block
-         div.row-wrap > div.row
-           div.l-card.comment   ← 每条回复（它带一条 inline 的
-                                    border-bottom: 1px solid rgb(var(--lcolor--primary))）
-             div.author                 ← 作者 / 徽章 / "回复于 6 年前" / 举报
-             div.collapsed-wrapper      ← 回复正文（可折叠）
-   同一套模板还复用在**陶片放逐（管理日志）**上：那张卡片是 .l-card.log，
-   里面的 .author 同样自带浅底（用户第二次反馈："框是白的"）—— 一并按证据并进本组。
-   处理：内层一律透明；底色只由外层 .l-card.comment 的玻璃承担（⑥ 段已给它玻璃）。
-   那条 inline 的 border-bottom 用的是**令牌**变量，会跟着 ⑰ 段的令牌重映射走，不动它。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑥-b 讨论区：回复卡片（"讨论区回复部分未适配"）」） */
 .l-card.comment .row-wrap,
 .l-card.comment .row,
 .l-card.comment .author,
@@ -1942,23 +1494,9 @@ body > .swal2-container .swal2-popup,
 /* ==========================================================================
    ⑧-d 洛谷 IDE（/problem/Pxxxx#ide）：整个外壳的深浅适配
    --------------------------------------------------------------------------
-   用户要求（2026-10-03）："适配洛谷IDE的深浅色模式"。
    实证 DOM（用户 DevTools，题目页 #ide）：
-       div.panel-layout.layout-horizontal.ide-container
-         div.panel.panel-a[style="flex: 0 0 50%"]      ← 左：题目/说明
-           div.problem > h1.lfe-h1 / p.lfe-caption / h2.lfe-h2 / div.lfe-marked-wrap
-         div.panel-divider
-         div.panel.panel-b                             ← 右：编辑器
-           div.ide-toolbar（代码 / 自测 / 语言选择）
-           textarea.ide-textarea.lfe-code              ← 原生输入框（输入/输出那两块）
-           div.cm-editor.cm-focused                    ← CodeMirror 6
-             div.cm-scroller > div.cm-gutters.cm-gutters-before
-                              > div.cm-content.cm-lineWrapping > div.cm-line
    为什么原来没生效：⑧-b 那套写的是通用的 div.cm-editor（0,1,1），
-   而 CM6 会往编辑器上挂**生成的强调类**（.cm-editor.c1.c2…）并按主题写规则，
-   特异性比它高 —— 所以"提交代码"那个编辑器是好的，IDE 里这个仍是亮色。
-   这里用 .ide-container 前缀把特异性提到 0,3,x，压过 CM 主题，且**不用 !important 改颜色**。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑧-d 洛谷 IDE（/problem/Pxxxx#ide）：整个外」） */
 /* ① 外壳（最外层容器）透明即可；但**两栏本身必须有可读的面**。
    ★ 第一版把两栏也设成 transparent，浅色模式下文字/代码直接压在亮壁纸上 → 看不清
      （用户："浅色模式不能全透明啊，看不清"）。
@@ -2068,18 +1606,7 @@ textarea.ide-textarea,
    ⑧-b CodeMirror 6 代码编辑器（"提交代码"那个输入框）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02）：
-       div.cm-editor
-         div.cm-scroller
-           div.cm-gutters.cm-gutters-before > div.cm-gutter.cm-lineNumbers
-             div.cm-gutterElement …（行号 1,2,3…；当前行是 .cm-activeLineGutter）
-   CM6 自带一套**浅色**主题，深色模式下整个编辑器仍是白底
-   （用户："深色模式下此处仍为白色，改成跟背景一样的半透明"）。
-   处理：编辑器外壳用与全站一致的半透明玻璃（--lg-block-bg），
-   内部滚动层/内容层/行号栏一律透明，行号栏只留一层极淡的分隔与底色。
-   ⚠️ 语法高亮的 token 颜色是 CM 主题给的**深色**，压到暗底后可能不够亮 ——
-      这部分交给脚本里的对比度守卫（它读最终计算值，只修不达标的前景色），
-      CSS 这边不写死 token 颜色，避免把浅色模式也改掉。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑧-b CodeMirror 6 代码编辑器（"提交代码"那个输入框」） */
 .cm-editor,
 .cm-editor .cm-scroller,
 .cm-editor .cm-content,
@@ -2135,20 +1662,8 @@ textarea.ide-textarea,
    ⑧-c Casket Markdown 编辑器（比赛说明 / 题面 / 公告 …）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02，"编辑比赛 → 比赛说明"）：
-       div.l-card > div > form > div.l-form-layout.row > div
-         div.casket.cs-main
-           div.cs-header > div.cs-toolbar
-           div.cs-content[style="height: 360px"]
-           div.cs-footer
-   Casket 自带一套**浅色**皮肤：深色模式下编辑区（工具栏、正文、预览、状态栏）
-   整块都是白的。做法与 CM6 一致：
-     · 外壳用全站玻璃（--lg-block-bg），内部各层透明
-     · 工具栏/状态栏只留一层极淡底色作分区
      · 工具栏按钮/图标改前景色（**不**用 color !important —— 见 ⑫ 节不变式，
-       不达标时由脚本的对比度守卫兜底）
-   内层还有若干我没逐个取证的 cs-* 类名，所以用 .casket 作用域下的属性通配收进来
-   —— 通配被 .casket 限死，不会外溢到别处（这是从 .tag 那次教训学的）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑧-c Casket Markdown 编辑器（比赛说明 / 题面 」） */
 .casket,
 .casket .cs-header,
 .casket .cs-toolbar,
@@ -2199,18 +1714,7 @@ textarea.ide-textarea,
    ⑧-d-2 输入输出样例：**删外面的壳子，保留里面的代码框**
    --------------------------------------------------------------------------
    结构（用户 DevTools 实证）：
-       div.io-sample[lang]                ← 外壳（要删的就是它）
-         div.io-sample-block              ← "输入 #1 / 复制" 那一行 + 内容
-           p.lfe-caption
-           pre.lfe-code                   ← 代码框（要保留）
-         div.io-sample-block              ← "输出 #1"
-           …
-   我前两版都改错了方向：
-     · 第一版给内层 .io-sample-block 加了卡片 → 多一层；
-     · 第二版把内层（含代码框）全压平 → 用户："删错了，是删外面的壳子，不是代码框"。
-   现在：外壳 .io-sample 与中间层 .io-sample-block 一律**透明无框**，
-   代码框 .lfe-code / pre 保持 ⑧ 段的玻璃卡片。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑧-d-2 输入输出样例：**删外面的壳子，保留里面的代码框**」） */
 .io-sample,
 .io-sample .io-sample-block,
 .io-sample .io-sample-block:hover {
@@ -2246,14 +1750,7 @@ textarea.ide-textarea,
    ⑫-i 编辑比赛 · 题目排序（题目编排）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02）：
-       div.l-card > div.l-form-layout.row > div
-         div.problem-order
-           div.wrapper.drag-order           ← 可拖拽的题目行容器
-           div.order-bar                    ← 底部"5/26"进度条
-   这块在深色模式下仍是浅色面板（用户："这个窗口适配深色模式"）。
-   做法与其它面板一致：容器透明 + 内部输入控件走 --lg-field-dark。
-   ⚠️ 通配只作用在 .problem-order 之内，不外溢。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫-i 编辑比赛 · 题目排序（题目编排）」） */
 .problem-order,
 .problem-order .wrapper,
 .problem-order .drag-order,
@@ -2296,13 +1793,7 @@ textarea.ide-textarea,
    ⑧-e 文章/题解里的代码块（"文章广场 / 题解"页）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02）：
-       div.code-container                                   ← 外层（当卡片）
-         pre.pre.line-numbers.hide-numbers.language-cpp     ← 内层
-           code.language-cpp                                ← 代码
-         button.copy-button                                 ← 复制
-   与"输入输出样例"同样的坑：外层和内层都可能自带底色 → **只让外层当卡片**，
-   pre / code 一律透明（否则又是两层叠出来的"多余卡片"）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑧-e 文章/题解里的代码块（"文章广场 / 题解"页）」） */
 .code-container {
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha-soft), transparent),
@@ -2366,23 +1857,9 @@ textarea.ide-textarea,
 /* ==========================================================================
    ⑨-a 实心强调按钮 → 图一的"玻璃胶囊 + 强调色文字"
    --------------------------------------------------------------------------
-   用户要求（2026-10-03）：把"提交评测 / 搜索 / ＋关注"这类**实心蓝矩形按钮**
-   改成第一张图那个样子（"编辑比赛"按钮：胶囊形 + 半透明玻璃面 + 浅色描边 + 强调色文字/图标）。
    ★ 类名来源（两处实证）：
-     · .l-button            —— 证据语料 27 次命中；
-     · button.solid         —— 用户 DevTools（评测记录页的"搜索"按钮：
-                               button.solid.lform-size-middle）——
        注意：**实心按钮上并没有 l-button**！我一开始只匹配 [class*=l-button]，
-       结果那个按钮完全没被命中（用户："无用"）。所以这里必须把 button.solid 也列上。
-       .solid 是通用词，所以前面加了 button 限定，避免误伤普通元素。
-     但它的**变体后缀**在语料里查不到（那些构建产物不在语料目录里），
-     所以这里用属性包含 [class*="l-button"] 覆盖全部变体，而不是去猜 l-button--primary 之类。
-     旧前端的 .am-btn-primary 是语料实证过的（29 次），一并处理。
-   ★ 底色必须带 !important：这些按钮的蓝色往往是**内联**写的
-     （⑫-h 抓到过同款：style="background-color: rgb(255,255,255)"），内联只能用 !important 压。
-     注意：项目不变式只禁止 **color** 用 !important，background 不在其中。
-   ★ 深色适配：玻璃底走 light-dark()，描边与内高光取主题变量，文字用语义色 --lfe-color--primary。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑨-a 实心强调按钮 → 图一的"玻璃胶囊 + 强调色文字"」） */
 :is([class*="l-button"], button.solid, .am-btn-primary, .am-btn-primary:hover) {
     background-color: light-dark(
         color-mix(in srgb, #ffffff 34%, transparent),
@@ -2435,14 +1912,7 @@ button.solid.lform-size-small {
    ⑨-b .refined-input 这套搜索框（工单列表 / 通知 等页面）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02，工单列表）：
-       div.l-card > div.header.row > div.right.row
-         div.refined-input.text[placeholder="工单标题或题目编号"]
-           input.text[type=text]
-           div.east
-   我之前只覆盖了题库筛选那套（.search-row / .search-text），
-   工单页用的是 .refined-input + input.text —— 深色下仍是浅底（用户："搜索框颜色不对"）。
-   这里把这一套补上；.text 是通用类名，但配上 input / .refined-input 前缀后作用域很窄。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑨-b .refined-input 这套搜索框（工单列表 / 通知」） */
 .refined-input,
 .refined-input.text,
 .refined-input input,
@@ -2489,11 +1959,8 @@ select:focus {
 /* --------------------------------------------------------------------------
    下拉选择框：洛谷把 .combo-wrapper > .text 写死 `background:#fff`，
    而它是 <div> 不是 <input>，所以上面的 input 规则管不到 —— 深色下会是一块白板。
-   （考点：不要以为表单控件都是 input，这个组件是 div 模拟的）
    ★ 视觉上的"那个框"就是 .text（里面是 .placeholder + .arrow + .ruler），
-     所以**玻璃铺在 .text 上**，外层 .combo-wrapper 只当壳（见 ⑦-d 的透明规则）。
-     曾把玻璃铺在外层，结果被这条更靠后的规则盖住，看起来"没生效"。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑨ 按钮与表单：半透明 + 高光，不加模糊（数量多，避免滚动掉帧）」） */
 .combo-wrapper > .text,
 .combo-wrapper.disabled > .text {
     background-color: light-dark(
@@ -2534,12 +2001,7 @@ textarea:disabled,
    .tag 在题目列表里既是「小标签」也是**行容器**，给它加圆角会把整行变成大胶囊
    （用户截图：「这个标签悬浮不对啊」）。同理见下面 ⑳ 的动画规则。
    ★ 第二十八轮：也**不再给 .lfe-caption 加圆角**。
-   原因（用户："应该是显示框截断的，因为正好是圆角的位置"）：
-     .lfe-caption 是**文本行容器**（评测记录里是 div.detail.lfe-caption），
-     洛谷那边本来就给它 overflow: hidden —— 圆角本身不裁内容，
-     但"有 overflow 的盒子 + 我加的 border-radius"会把方形裁切变成**圆角裁切**，
-     于是紧贴左缘的 svg 图标（FA 的时钟/数据库图标）被切掉一角。
-   现在只保留"悬停轻轻抬起"，不碰几何。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑨ 按钮与表单：半透明 + 高光，不加模糊（数量多，避免滚动掉帧）」） */
 
 a:hover > .lfe-caption {
     translate: 0 -2px;
@@ -2577,23 +2039,8 @@ a:hover > .lfe-caption {
    ⑩-b 评测记录页：侧栏容器去掉底框 + 测试点方块（真实类名来自 DevTools）
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02）：
-       section.tab-content
-         h3.lfe-h3                    测试点信息
-         div.test-case-wrap
-           div.wrapper
-             div.test-case.lcolor-bg-green-3[tabindex]      ← 96×96 的方块
-               div.content > div.info > 4ms/788.00KB
-                             div.status > AC
-                             div.id > #1
-   —— 两个要求都在这一节处理：
-   ① 「这个底框去掉」= .sidebar-container（"评测信息"那一整块）。
-      loader 里它只有 `margin-top:0`，那层底色/描边/圆角是**我 ⑥ 段**当"次级容器"加的，撤掉。
-   ② 「测试点显示变成圆角，加上玻璃效果」= .test-case。
       注意它带着 .lcolor-bg-* 的**语义色**（AC 绿 / WA 红 …）：
-      底色不能乱改，否则"AC 是绿的"这个语义就丢了。做法是：
-        · 圆角 + 玻璃高光 + 柔和阴影 + 模糊（形状与质感）
-        · 底色用**同一套令牌的半透明版本**（color-mix 到 78%）—— 语义色保留，同时透出背景
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑩-b 评测记录页：侧栏容器去掉底框 + 测试点方块（真实类名来自 」） */
 .sidebar-container {
     background-color: transparent !important;
     background-image: none !important;
@@ -2650,12 +2097,7 @@ a:hover > .lfe-caption {
 /* 语义色保留、但做成半透明（AC 绿 / 各种结果色）。
    占比 58%（灰调 48%）—— 曾经降到 40% 想更"透"，结果浅色模式下白字压在
    过淡的绿上、对比不足（用户："这个测试点的绿色……加一点"）；58% 兼顾"玻璃感"与白字可读。
-   而 --lfe-color--* 深浅两套都由我们重映射过，所以同一个 40% 在两种模式下都清晰。
-   用我们重映射过的 --lfe-color-* 令牌取色，深浅两套自动跟随。
-   ⚠️ 这里**刻意不加 !important**：`.test-case.lcolor-bg-green-3`（0,2,0）
-      本身就压得过洛谷运行时注入的 `.lcolor-bg-green-3`（0,1,0）；
-      而 ⑰ 节有一条硬规矩 —— 颜色工具类的重映射不得使用 !important，
-      否则会连组件"故意设的另一种底色"一起压掉（"蓝字压蓝底"就是这么来的）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑩-b 评测记录页：侧栏容器去掉底框 + 测试点方块（真实类名来自 D」） */
 .test-case.lcolor-bg-green-3 { background-color: color-mix(in srgb, var(--lfe-color--green-3, #52c41a) 58%, transparent); }
 .test-case.lcolor-bg-green-2 { background-color: color-mix(in srgb, var(--lfe-color--green-2, #94d66d) 58%, transparent); }
 .test-case.lcolor-bg-red-3   { background-color: color-mix(in srgb, var(--lfe-color--red-3, #e74c3c) 58%, transparent); }
@@ -2678,16 +2120,8 @@ a:hover > .lfe-caption {
    ⑩-c 页脚：也做成液态玻璃块
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02，个人中心）：
-       body > div#app.lfe-body > div.main-container.lside-nav
-         main.lcolor-bg-background.main
-         footer.lcolor-bg-background          ← 就是这块
-   之前它只吃到 ⑰-b 的令牌重映射（一块平底色），现在换成与卡片同一套玻璃配方。
    ★ 左右边界：用 --lg-footer-gap（默认 32px）。
-     为什么是 32 而不是 10：页脚是 main 的**兄弟节点**，它没有 main 里那层容器内缩
-     （卡片被 .full-container 之类的内边距包着），所以直接给 10px 会比卡片更宽 ——
-     用户裁图里正好多出约 45 裁图像素（≈ 22 CSS px），10 + 22 = 32。
-     想更宽就调小，想更窄就调大；上下另外用 --lg-footer-gap-block（默认 16px）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑩-c 页脚：也做成液态玻璃块」） */
 footer.lcolor-bg-background,
 footer {
     margin-inline: var(--lg-footer-gap) !important;
@@ -2767,18 +2201,8 @@ footer a:hover {
 /* ==========================================================================
    ⑫-a 深色下正文默认色：把"读起来发灰"的问题从根上压住
    --------------------------------------------------------------------------
-   用户反馈："这些文字不应该是白的吗" + "不只是题面"。
-   像素采样（2039×1650 那张题面截图）显示：正文**字芯**恰好是 #eef2f7
-   —— 也就是我们的 --lg-text，**颜色本身是对的**。
    那为什么读起来发灰？两个原因叠加：
-     ① 一行里只有笔画中心能到这个亮度，周围全是抗锯齿的过渡像素；
-     ② 背景是很暗的玻璃，笔画又细，整体对比就显得弱。
-   所以这里做三件事（都是通用手段，不针对某个页面）：
-     · 正文容器统一取 --lg-text（覆盖洛谷写死的偏灰值）
-     · 深色下把正文的**字重**抬一点点（笔画变粗，观感立刻"白"起来）
-     · 字号不变、字距不变 —— 只动颜色与字重，不影响布局
-   注：字重用 `font-weight` 而非 `-webkit-text-stroke`（后者会糊字）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫-a 深色下正文默认色：把"读起来发灰"的问题从根上压住」） */
 .lfe-marked,
 .lfe-marked-wrap,
 .lfe-marked.lfe-marked,
@@ -2818,41 +2242,21 @@ footer a:hover {
 /* --------------------------------------------------------------------------
    首页那块广告轮播：**直接删掉**
    --------------------------------------------------------------------------
-   #lg-slider 是 AmazeUI 的 FlexSlider（首页首屏左侧那一大块）。
-   display:none 之后它所在的那一列高度归零，不会留空白；
-   把它原来的搭档（打卡/日历列 .lg-punch）放开到整行，避免空出 2/3 的洞。
-   想恢复广告：删掉本节即可。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫ 文字基色」） */
 /* ★现在已经**恢复显示**（用户："把广告栏修回去"）。
    想再隐藏的话，把下面两行取消注释即可 —— 保留了当初的写法，方便来回切。
    （隐藏时记得同时放开 .lg-punch 到整行，否则左边会空出 2/3。） */
 /*
 #lg-slider,
 .am-slider {
-    display: none !important;
-}
-
-.lg-punch {
-    width: 100% !important;
-    float: none !important;
-}
-*/
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫ 文字基色」） */
 
 /* --------------------------------------------------------------------------
    ★★ "垫底板"一次堵完（这一节是四轮踩坑的总结）
    --------------------------------------------------------------------------
    想"让 body 的背景图透出来"，就必须把中间所有垫底的容器变透明。
-   而这些板是**一层套一层**的，逐个点名必然漏：
-       ① .theme-page      { background: var(--theme-body-back, #efefef) }
-       ② .lg-content      { background: #e9eaec }              ← 旧首页正文层
-       ③ <main>           style="background-color: rgb(239,239,239)"  ← 内联，实际元凶
-       ④ .lg-index-content                                     ← 首页**真正**的容器
-          （我前面只改了 .lg-content，而首页用的是 .lg-index-content，所以一直没命中）
-   证据：用户截图采样 —— 灰板消失前主色 #efefef；改掉 <main> 后剩 12 像素，
-   但正文区仍被一层 #9fc5e6 压着，说明还有别的容器在垫底。
-   所以这里改成"结构式一次覆盖"，不再靠猜具体类名。
    只动背景（background-color / 旧层的失效 background-image），不碰 color —— 符合 ⑫ 节不变式。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫ 文字基色」） */
 :is(.lg-index-content, .lg-content, #app-old, #app, .lfe-body, .main-container, main) {
     background-color: transparent !important;
 }
@@ -2860,10 +2264,7 @@ footer a:hover {
 /* ★ 只设 background-color 是不够的：这些容器上还挂着**背景图**
    （洛谷把主题壁纸画在内容元素上，而不是画布上）。
    背景图不属于"颜色"，透明的 background-color 挡不住它 ——
-   它会整片盖住负 z-index 的签名水印，于是"签名只有首页有"
-   （首页是旧前端，壁纸画在 body 上，也就是画布层，所以那边一直正常）。
-   这里把内容层的背景图一并去掉：壁纸改由 body 提供（body 的背景会传播到画布），
-   视觉上完全一样，但签名就能落在"画布之上、内容之下"了。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫ 文字基色」） */
 :is(.lg-index-content, .lg-content, #app-old, #app, .lfe-body, .main-container, main, .theme-page) {
     background-image: none !important;
 }
@@ -2877,15 +2278,8 @@ footer a:hover {
    ★ 真正的"大白板"：<main> 上的**内联**背景
    --------------------------------------------------------------------------
    用户 DevTools 实测（这一条推翻了我之前两次的错误猜测）：
-       <main data-v-6828e796 style="flex: 1 1 0%; background-color: rgb(239, 239, 239);">
-   也就是 #efefef 被当成 style 属性直接写在 <main> 上。后果有两个：
-     · 首页正文区是一整块灰白板 —— 被看成"一大块白"（不是 .lg-article，也不是 .theme-page）
-     · 它把 body 上的背景图整个盖住 —— 所以"背景仍没有图片"
-   （我前面采样到 #efefef 时误判成 --theme-body-back / Stylus 没更新，这里更正。）
    内联样式只能用 !important 压，所以这条必须带 !important。属性名不含 color，
-   不违反 ⑫ 节不变式。选择器写成结构式（#app.lfe-body > .main-container > main），
-   **不用 data-v hash** —— 那个哈希每次构建都会变（见文件开头的不变式）。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫ 文字基色」） */
 #app.lfe-body > .main-container > main,
 .lfe-body main {
     background-color: transparent !important;
@@ -2894,16 +2288,7 @@ footer a:hover {
 /* --------------------------------------------------------------------------
    旧首页的"背景板"：.lg-content
    --------------------------------------------------------------------------
-   luogu3.css 里写着：
-       .lg-content {
-           background: #e9eaec;                                            ← 一整层不透明灰底
-           background-image: url(http://202.101.104.45:8888/images/bg/s_25.jpg);  ← 早已失效的内网图
-           background-attachment: fixed;
-       }
-   它铺满正文区，把我们在 body 上的背景图整个挡住 —— 页面上只有它自己那块灰板，
-   而顶部（顶栏那一条）是透明的，于是背景图只在最上面露出一条，看着很违和。
-   这里把它删掉：透出背景图。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫ 文字基色」） */
 .lg-content {
     background: transparent !important;
 }
@@ -2911,21 +2296,12 @@ footer a:hover {
 /* ==========================================================================
    ⑭ 背景图（新前端页面）
    为什么需要这一节：洛谷把背景图放在主题商店里，而**新前端的背景是运行时
-   由 --theme-body-image 驱动的**。如果当前主题没选图，页面就是纯色 ——
-   这正是"背景仍无图片"的第一个原因。
-   第二个原因：主题背景图默认只画在**顶部 400px** 并向下淡出
-   （loader.css：.theme-page::before{height:400px; mask-image:var(--theme-body-mid-mask)}），
-   一往下滚就"看起来没有背景图"。
-   所以这里：① 明确给图；② 铺满整屏并去掉淡出遮罩；③ 深色下用 inset 阴影压暗。
-   想交回主题商店：把本节删掉即可（--theme-body-image 那几行）。
-   ========================================================================== */
+   为什么需要这一节：洛谷把背景图放在主题商店里，而**新前端的背景是运行时
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑭ 背景图（新前端页面）」） */
 /* ★ 第二十六轮修正：内容层**不再画壁纸**。
    之前这里是 --theme-body-image: var(--sl-bg-image) + .theme-page::before 铺满整屏 ——
    于是新前端在**内容层**又画了一层"未压暗"的整屏壁纸，盖在已压暗的画布（html）之上，
-   结果新前端比旧首页亮一档。用户的原话："明暗不是反的，只是一个更暗"（首页更暗）。
-   现在壁纸只由画布承担（见文件开头的 html 规则），这里一律不画：
-     · --theme-body-image: none  → 洛谷那边也不再往内容层塞图；
-     · ::before 只保留"不挡点击"，背景与遮罩都清掉。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑭ 背景图（新前端页面）」） */
 .theme-page {
     --theme-body-image: none !important;
     --theme-body-image-size: cover !important;
@@ -2954,25 +2330,11 @@ footer a:hover {
 /* --------------------------------------------------------------------------
    轮播 / 幻灯片的切换箭头：交回 AmazeUI
    --------------------------------------------------------------------------
-   AmazeUI 的定义是：
-       .am-slider-default .am-direction-nav a {
-           position: absolute; top: 50%; width: 36px; height: 36px; overflow: hidden }
-       .am-slider-default .am-direction-nav a::before { content: "\f137"; … }
-   而我的链接样式会给 a 加 ::after 渐变下划线、悬停渐变文字 —— 落到这个 36×36、
-   overflow:hidden 的按钮上就是"控件坏掉"。这里明确交回去：不要下划线、不要渐变文字。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑭ 背景图（新前端页面）」） */
 /* ★ 关键：把**定位**也交回去。
    为什么箭头会"坏掉"（掉进文档流、堆在卡片左下角）：
    FlexSlider 的箭头是运行时生成的 <a class="am-prev|am-next">Previous</a>（里面是纯文字，
-   没有 img），所以会被我 ⑯ 节那条
-       .l-card a[href]:not(:has(img)) { position: relative; … }
-   命中。它与 AmazeUI 的
-       .am-slider-default .am-direction-nav a { position: absolute; … }
-   特异度**完全相同**（都是 0,3,1），打平时按源码顺序 —— 用户样式注入更晚 → 我赢，
-   于是箭头从"绝对定位在左右两侧"变成"相对定位排在流里"。
-   之前只撤了下划线（::after），定位没交回，所以看起来"还没好"。
-   下面把 AmazeUI 的几何值原样交回（position/top/width/height/margin/左右位置）。
-   !important 只用在这些**布局属性**上，不涉及 color（见 ⑫ 节不变式）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑭ 背景图（新前端页面）」） */
 /* ★ 只作用在**箭头**上（.am-direction-nav a），绝不能写成 .am-slider a ——
    那会命中轮播里的图片链接 <a><img></a>，把它们绝对定位叠在一起，广告整块消失（踩过）。 */
 .am-slider .am-direction-nav a,
@@ -3017,32 +2379,14 @@ footer a:hover {
 /* ==========================================================================
    ⑲-b （已回滚）无差别压制 .tag 白底 —— 为什么不能这么做
    --------------------------------------------------------------------------
-   我上一版在这里写了一条"把无颜色类的标签白底压掉"的规则（针对 .tag / .tag-button /
-   .trial-tag / .toggle-tag / .recommend-tag）。出发点是：筛选卡的控件与"选择标签"
-   弹窗里的标签都是白底。结果**更糟**（用户："更差了"）：
-   题目列表里整行/整块也用到了 .tag 这个类名 —— 那条规则加上早先的
-   `.tag { border-radius: var(--lg-radius) !important }`，
-   直接把**行容器**渲染成了横贯整行的大白胶囊。
-   教训：**别拿"类名"当语义用**。.tag 在这套前端里既是"小标签"也是"容器"，
    只靠类名无法区分；要改必须落到**具体结构**（例如 .problem-list 行内的 .tag），
-   或者由用户给出 DevTools 那一行后精确命中。
-   在拿到确切结构之前，这里保持为空 —— 宁可漏修，也不要弄坏列表。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑲-b （已回滚）无差别压制 .tag 白底 —— 为什么不能这么做」） */
 
 /* ==========================================================================
    ⑳ 标签 / 徽章的悬浮渐变动画
    --------------------------------------------------------------------------
-   覆盖两套前端（类名来自语料核对，不是猜的）：
-     · 新前端：.badge / .tag / .tag-button / .trial-tag / .toggle-tag / .recommend-tag
-               、以及运行时生成的 .lcolor-bg-* 调色板工具类
-     · 旧首页：.am-badge、.lg-bg-* （官方比赛/IOI/置顶/个人公开赛/ICPC 这些就是它）
-   做法（已改版）：**不用扫光**了。用户明确要求："将 Tag 改为这种悬浮的特效，不是扫光"。
-   现在悬停时标签整体**浮起来**：向上位移 2px + 放大到 1.04 + 阴影加深 + 微微提亮。
    浮起用 translate / scale **属性**（不是 transform）—— 这是本项目的不变式：
-   transform 会覆盖洛谷用 transform 做的居中/位移（弹窗"一直往右下跑"就是这么来的）。
-   用 :is() 合并选择器：::is() 需要 Chrome 88+，而本文件已经要求 light-dark()
-   （Chrome 111+），所以这里可以放心用。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑳ 标签 / 徽章的悬浮渐变动画」） */
 :is(.badge, .tag, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]) {
     /* ★ 第五轮补充：新前端的彩色标签类名是 **.tag**（比赛页 DevTools 实证：
@@ -3067,15 +2411,8 @@ footer a:hover {
 /* ==========================================================================
    ⑳-b 头像悬停动画（全站所有头像）
    --------------------------------------------------------------------------
-   用户的类名来自证据语料（不是我猜的）：
-     · .avatar            新前端（多个 MOD*.css 里都有）
-     · .author-avatar     新前端作者头像
-     · .am-comment-avatar 旧首页 / AmazeUI（犇犇、讨论区）
-     · .lg-avatar-big     旧首页大头像
-   做法：悬停时放大到 1.08 + 一圈浅色描边 + 一点提亮，并用 translate/scale **属性**
    （不是 transform —— 本项目不变式：transform 会覆盖洛谷自己的位移/居中）。
-   描边用 box-shadow 画，不占布局，所以鼠标扫过一排头像时不会"抖"。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑳-b 头像悬停动画（全站所有头像）」） */
 :is(.avatar, .author-avatar, .am-comment-avatar, .lg-avatar-big) {
     transition: scale .18s cubic-bezier(.4, 0, .2, 1),
                 box-shadow .18s ease,
@@ -3093,64 +2430,30 @@ footer a:hover {
 /* ==========================================================================
    ⑯-c 文章页的标题 / 元信息：深色下换成白
    --------------------------------------------------------------------------
-   用户第七轮（文章广场 · 个人记录，5 张截图）："深色模式下这些文字的对比度不够，换成白色"。
    实证元素（DevTools 面包屑）：
-       span.tag + div.meta > div.label「作者 / 发布时间 / 分类」   ← 元信息标签
-       h1#article-title.title（在 div.banner-content 里）          ← 文章标题
-       div.update-info.lfe-caption「作者：喵仔牛奶 …」             ← 更新信息行
    ★ 不写死 #fff：浅色模式下纯白会直接看不见。这里用主题变量 --lg-text
-     （浅色=#1f2329 / 深色=#f7fafc），等价于"深色下换成白"，浅色下仍然是深字。
-   ★ .label 是通用类名，所以只在文章页的上下文里点名（.meta / .metas / .banner-content /
-     .article-content / .update-info），不外扩到全站。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-c 文章页的标题 / 元信息：深色下换成白」） */
 
 /* ==========================================================================
    ⑯-c-2 卡片里的「裸标题」（没有类名的 h1~h4）：补上主题色
    --------------------------------------------------------------------------
-   用户反馈：「文字太暗了」，DevTools 给出的是个人主页那张卡：
        div.l-card > div.header > h3        ← 注意：**没有任何 class**（只有 data-v-*）
-   而本项目所有标题规则都写作 .lfe-h1 / .lfe-h2 / .lfe-h3 …（见 ⑯-c 与 ⑰ 段），
-   于是这类"光秃秃的 h3"一条都命中不到 —— 深色主题下它会继承到偏暗的颜色，看着就是"文字太暗"。
-   这里按容器限定补一条：只覆盖卡片（及其 header）内的裸标题，正文与列表不受影响。
    ★ 两个主题各给一次明确值，不依赖继承；不使用裸标签选择器（一律带 .l-card 前缀）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-c-2 卡片里的「裸标题」（没有类名的 h1~h4）：补上主题色」） */
 
 /* ==========================================================================
    ⑯-c-3 由「浏览器实测」查出来的两族暗字（个人主页面包屑 + 统计行）
    --------------------------------------------------------------------------
-   验证方式（可复现）：用 Chrome 的 DevTools 协议打开真实页面 → 注入本样式 →
    设 html[data-sl-theme=dark] → 遍历所有纯文字叶子节点算对比度。实测输出：
-       [C] 对比度 < 4.5 的文字节点: 9
-           a.router-link-active  「洛谷 - 个人中心」 rgb(38,38,38) on rgb(18,21,27) → 1.21
-           span                  「/」            rgb(38,38,38)                  → 1.21
-           a.router-link-active  「主页」          rgb(38,38,38)                  → 1.21
-           span.stat-text.name   「关注 / 粉丝 / 排名」     rgba(0,0,0,.75)         → 1.15
-           span.stat-text.value  「0 / 54.17k / 27.74k」  rgba(0,0,0,.75)         → 1.15
-   ⇒ rgb(38,38,38) 正是洛谷写死的深灰（#262626），压在暗玻璃上等于看不见；
-     统计行用的 rgba(0,0,0,.75) 同理。
    ★ 修法与项目既有惯例一致：用**更高特异性**取胜，不写 color: … !important
-     （⑫ 节的不变式）；同时排除自带语义色类（lcolor-*）的元素，避免盖掉洛谷的语义色。
-   ★ 限定 html[data-sl-theme]：只有用户显式选了浅/深主题时才生效，跟着系统时不插手。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-c-3 由「浏览器实测」查出来的两族暗字（个人主页面包屑 + 统」） */
 
 /* ==========================================================================
    ⑯-c-4 「做题趋势热度图」的格子：深色下不再是白板
    --------------------------------------------------------------------------
    来源：真实页面浏览器实测（Chrome + DevTools 协议，evidence/个人主页语料/real_page.png）——
-   深色主题下热力图是一大片白格子，非常刺眼。
    源码实证（bundle 语料 columba~eda08651484fd73f.js）：
-       R = (count, colorKey) => { const i = a[u.color] || a["grey-3"];
-           return count === 0 ? i[0] : count <= 3 ? i[1] : count <= 5 ? i[2]
-                : count <= 8 ? i[3] : i[4]; }
-       —— 颜色由洛谷的**运行时颜色表**算好后**直接写进内联 style**：
-          实测 181 个格子是 background-color: rgb(232,232,232)（0 档灰），
-          另四档是 rgb(181,245,236) / rgb(135,232,222) / rgb(92,219,211) / rgb(54,207,201)。
-   ★ 因为它是**内联**样式，本项目的"令牌重映射"（⑰ 段）管不到它 ——
-     所以这里用属性选择器按色值精确命中，只改深色（含"跟随系统且系统为深色"）时：
-       · 0 档 → 近透明的白（暗底上的"空"）；
-       · 其余四档 → 同一青绿色系的深→亮四阶，档位语义（越多越亮）完整保留。
-   ★ 不写 !important 会输给内联，所以这几条必须带 !important（内联 style 也用 !important 覆盖不了）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-c-4 「做题趋势热度图」的格子：深色下不再是白板」） */
 html:not([data-sl-theme="light"]) .heat-map-cell[style*="232, 232, 232"] {
     background-color: rgba(255, 255, 255, .08) !important;
 }
@@ -3233,22 +2536,14 @@ html[data-sl-theme="dark"] .l-card > h4 {
 /* ==========================================================================
    ⑯-d 文章页元信息的「作者」标签 + 底部操作栏
    --------------------------------------------------------------------------
-   用户第九轮：(1)"这文字还是不对" —— 指作者标签；(2) 把图二的控件做成液态玻璃。
    (1) 实证 DOM：div.meta > div.author > div.user > div.label「作者」
-       对比「发布时间 / 分类」它们在 div.metas > div.label，**少一层**。
-       ⑯-c 那条 `.banner-content :is(.label, ...)` 的特异性是 0,2,0，
-       而洛谷给作者标签的规则更深（.meta .author .label → 0,3,0），把我们的压过了。
        所以这里按结构补深一层（0,3,0 及以上），不用 !important（项目不变式）。
-   (2) 实证 DOM：div.actions.left-mode.hasDrawer.hidden / div.actions（点赞 · 收藏 · 不推荐）
-       与卡片同一套液态玻璃，内层按钮保持透明。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-d 文章页元信息的「作者」标签 + 底部操作栏」） */
 /* (1) 作者标签 + 发布时间 / 分类 标签：把特异性堆够。
    ★ 用户第十四轮："发布时间和分类还是黑的"。⑯-c 那条 `.banner-content :is(.label, .meta, .metas)`
      只有 0,2,0，被洛谷更深的规则压过。这里把两侧都写到 0,4,0 上下（仍不用 !important，守不变式）：
-       · 作者侧：div.meta > div.author > div.user > div.label
-       · 时间/分类侧：div.meta > div.metas > div.label（本轮反馈的那个）
-   同时把容器（.meta / .metas / 里面的 div）一并点上，保证"没有自己颜色"的子节点靠继承也是白的。
-   如果这两处最终仍不生效，说明洛谷用的是**内联** color（那就需要一行 Styles 面板的证据）。 */
+     只有 0,2,0，被洛谷更深的规则压过。这里把两侧都写到 0,4,0 上下（仍不用 !important，守不变式）：
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-d 文章页元信息的「作者」标签 + 底部操作栏」） */
 .banner-content .meta .author .label:not([class*="lcolor"]),
 .banner-content .meta .author .user .label:not([class*="lcolor"]),
 .banner-content .meta .author .user,
@@ -3286,23 +2581,8 @@ html[data-sl-theme="dark"] .l-card > h4 {
 /* ==========================================================================
    ⑯-g 题单广场的"选项卡"（.category-card）：玻璃 + 深浅色
    --------------------------------------------------------------------------
-   用户要求（2026-10-03）："这个选项卡适配一下玻璃和深浅色"。
    实证 DOM（用户 DevTools，题单广场 /training/list）：
-       div.columba-content-wrap.main-content
-         section.training-section
-           div.training-type-container            ← grid 容器（603×208）
-             div.category-card「洛谷官方 / 从浅入深，系统学习算法…」
-             div.category-card「竞赛/考级真题 …」
-             div.category-card「出版物题单 …」
-             div.category-card.active「精选用户分享 …」   ← 选中态
-           div.l-card.burger.training-list-card    ← 下面的题单列表（⑥ 段已处理）
-   处理：
-     · 容器（.training-type-container / .training-section）不铺底，玻璃只留给每块卡片
-       —— 与比赛列表/通知中心同一条判定，避免"外层 + 每项"叠成两层；
-     · 每块 .category-card 用与卡片相同的液态玻璃配方，走 light-dark() 适配深浅；
-     · .active 用强调色描边 + 更实的底色，把"选中"表达清楚；
-     · 说明文字次要一档，并**放行语义色**（踩过：不给 :not([class*="lcolor"]) 会把彩字刷掉）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-g 题单广场的"选项卡"（.category-card）：玻璃 」） */
 /* ① 容器不铺底 */
 .training-type-container,
 .training-section {
@@ -3368,41 +2648,20 @@ html[data-sl-theme="dark"] .l-card > h4 {
 /* ==========================================================================
    ⑯-f 两套前端的玻璃一致性（核对用）
    --------------------------------------------------------------------------
-   结论（第二十五轮审计）：**参数层已经完全统一** ——
-     · 两个 @-moz-document 块里，45 个 --lg-* 变量取值完全一致（脚本逐项比对过）；
-     · 旧前端 .am-panel 与新前端 .l-card 的配方逐字相同
-       （同一个 radial 高光 / linear 缎面 / rim+shade+glow 内阴影 / blur+saturate）。
-   所以"看起来不一样"只可能来自三件事，都不在变量里：
-     ① 两套前端把玻璃挂在**不同元素**上（旧前端 .lg- 与 .am- 系列，新前端 .lfe- 与 .l-card 系列）；
-     ② 玻璃后面那层壁纸的明暗不同（backdrop-filter 采样的就是它）；
-     ③ 主题状态不同（一边深色一边浅色）。
-   排查顺序建议按 ③ → ② → ①：先确认两页 <html> 上的 data-sl-theme / color-scheme 是否一致。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-f 两套前端的玻璃一致性（核对用）」） */
 
 
 /* ==========================================================================
    ⑯-e 个人页侧栏卡片的信息行（用户："个人主页的对比度炸了"）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools，个人中心 · 主页）：
-       div.sidebar-container.reverse
-         div.side
-           div.l-card
-             h3.lfe-h3                       ← 卡片标题（如"咕值"）
-             div.l-flex-info-row             ← 一行信息
-               span「基础信用 / 成就 / 总咕值 / 达成时间」   ← 标签
-               div.right「100 / 32 / 181 / 2026-09-29」     ← 数值
-   之前我完全没有覆盖 .l-flex-info-row 这一族，所以标签与数值都用洛谷自己的深色，
-   压在暗玻璃上就"看不见"了。这里把这一族（含 span 与 .right）统一到主题正文色。
    ★ 不用 !important：这条规则比洛谷的类规则更深，靠特异性取胜（守项目不变式）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-e 个人页侧栏卡片的信息行（用户："个人主页的对比度炸了"）」） */
 /* ★ 只给"没有自带颜色类"的文字上色。
    带 lcolor--* 的元素必须放行 —— 用户："评测信息原本的颜色需要保留，现在被覆盖了"。
    实证 DOM（评测记录）：div.l-card > div.l-flex-info-row
-       > span.lcolor--green-3「Accepted」 / span.lcolor--green-3「100」
-   这些颜色是洛谷的**语义色**（绿色的 Accepted、红色的 Unaccepted…），
-   上一版这里写成 .l-flex-info-row span（特异性 0,1,1），把 .lcolor--green-3（0,1,0）压过了，
-   于是绿色被刷成主题正文色。加 :not([class*="lcolor"]) 之后各归各位。
-   容器本身仍设 --lg-text：那是"继承"的来源，任何自带 color 的子元素都会覆盖它，不会打架。 */
+   实证 DOM（评测记录）：div.l-card > div.l-flex-info-row
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-e 个人页侧栏卡片的信息行（用户："个人主页的对比度炸了"）」） */
 .l-flex-info-row,
 .l-flex-info-row > span:not([class*="lcolor"]),
 .l-flex-info-row span:not([class*="lcolor"]),
@@ -3421,15 +2680,9 @@ html[data-sl-theme="dark"] .l-card > h4 {
 /* ==========================================================================
    ⑯-b 卡片 / 列表里的「一级文字」必须是白的
    --------------------------------------------------------------------------
-   用户反馈（2026-10-02，工单列表）："这种一级文字就应该是白的，现在发灰"。
-   这些标题的灰色不是我们写的 —— ⑯ 只给了链接过渡与下划线，没定静态色；
-   灰来自洛谷自己的颜色（以及 ⑰ 段的令牌重映射值），比 --lg-text 暗一档。
    ★ 但**层次不能一起拉白**（上一轮把守卫门槛提到 6.0，结果"所有正文都写成白色"，
-     包括"综合问题 - 一般咨询"这类次要行 —— 那是另一个方向的错）。
-     所以这里只点名"标题"这一层，次要信息（.info / .meta / caption）**不动**。
    实证来源：工单列表 div.list-wrap.block > div.row-wrap > div.row > div.wrapper > div.ticket-card
-             （内含 div.row.space-between 标题行 + div.row.space-between.info 次要行）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯-b 卡片 / 列表里的「一级文字」必须是白的」） */
 .l-card .title,
 .l-card .title a,
 .feed-card .title,
@@ -3456,17 +2709,7 @@ html[data-sl-theme="dark"] .l-card > h4 {
 /* ==========================================================================
    ⑰ 洛谷运行时生成的"颜色工具类"也要重映射
    --------------------------------------------------------------------------
-   除了 :root 上的 --lfe-color--*，洛谷还会生成一批**写死字面量**的工具类：
-       .lcolor-bg-green-1 { background-color: rgb(217, 240, 199); }
-       .lcolor--blue-3    { color: rgb(52, 152, 219); }
-   它们用的是 rgb() 字面量而不是变量，所以第 ⑫-c 节的令牌重映射管不到。
-
-   两个关键取舍（都踩过坑）：
-   1) **不能加 !important**。洛谷在彩色标题带上给标题设的是白字（作用域规则的来源），
-      一旦用 !important 压过去，标题就会继承工具类的蓝 → "蓝字压蓝底"看不见。
-   2) 又要压过洛谷运行时注入的同名规则（特异性 0,1,0）。所以用"特异度加倍"写法
-      `.lcolor--blue-3.lcolor--blue-3`（0,2,0）：压得过 (0,1,0)，压不过组件的作用域规则。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑰ 洛谷运行时生成的"颜色工具类"也要重映射」） */
 .lcolor-bg-lapis-1.lcolor-bg-lapis-1 { background-color: light-dark(#cad5e8, #1e2434); }
 .lcolor-bg-lapis-2.lcolor-bg-lapis-2 { background-color: light-dark(#728dcf, #3b4a72); }
 
@@ -3503,10 +2746,7 @@ html[data-sl-theme="dark"] .l-card > h4 {
 /* 为什么不重映射 .lcolor--* 文字色（踩过坑，别再改回来）：
    洛谷的 .name[data-v-…] 写的是 color:inherit —— 它**故意**把颜色让给父级彩条
    （彩条上是内联的 getForeground() 白字）。任何针对该元素自身的颜色规则，
-   只要特异度 ≥ (0,2,0) 就会顶掉这个 inherit，标题立刻变成"蓝字压蓝底"。
-   而我的用户样式注入更晚，打平即赢，所以连"值一样"的浅色分支也会造成撞色。
-   结论：文字色交给 bigballofmud-luogu-switch.user.js 的对比度守卫（它读最终计算值，
-   只在真的不达标时才改，且浅色模式完全不动），CSS 这边只管背景色阶。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑰ 洛谷运行时生成的"颜色工具类"也要重映射」） */
 .lcolor-bg-grey-1.lcolor-bg-grey-1 { background-color: light-dark(#fafafa, #21242a); }
 .lcolor-bg-grey-2.lcolor-bg-grey-2 { background-color: light-dark(#e8e8e8, #2c3037); }
 
@@ -3514,19 +2754,7 @@ html[data-sl-theme="dark"] .l-card > h4 {
    ⑰-b 语义别名的工具类 + 文章页外壳的内联白底
    --------------------------------------------------------------------------
    用户 DevTools 实证（2026-10-02，"文章广场 / 题解"页）：
-       <main class="lcolor-bg-background main">                          ← ①
-         <div data-v-fc349d1c style="background-color: rgb(255, 255, 255);">  ← ②
-           <div class="article-content columba-content-wrap wrapper">
-             <div class="lfe-marked-wrap"><div class="lfe-marked"> …
-   ① ⑰ 段只重映射了调色板的各个"组"（grey/blue/green…），
-      **漏了语义别名** —— 而洛谷给这类别名也生成了工具类：
-          .lcolor-bg-background { background-color: rgb(245,245,245) }   ← 不随深浅变
-      深色下它整块是浅灰，正文外壳因此"炸掉"。这里补上别名工具类。
-   ② 那个外壳是**内联** background-color: rgb(255,255,255)，
-      内联只能用 !important 压。但**不要一律透明** ——
-      浅色模式下文章本来就该是白卡片；所以用 light-dark(#fff, --lg-panel-dark)：
-      浅色保持白、深色换成暗玻璃，两种模式都正确。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑰-b 语义别名的工具类 + 文章页外壳的内联白底」） */
 .lcolor-bg-background.lcolor-bg-background {
     background-color: light-dark(#f5f5f5, #1b1e24);
 }
@@ -3578,14 +2806,8 @@ main.main > div[style*="background-color: #fff"] :is(.article-content, .lfe-mark
 /* ==========================================================================
    ⑱ 切换配色时的"统一短过渡"
    --------------------------------------------------------------------------
-   本样式给大量元素挂了各自的 transition（背景色 .3~.4s、颜色 .25s、阴影 .4s…），
-   时长不一致。切深浅时上千个元素各按各的节奏跑，就会"糊"好几帧 ——
-   看起来既是"切换很慢"，又像"字体颜色延迟"。
-   做法：脚本在切换那一帧给 <html> 加 .sl-theme-switching，这里把**所有**元素的
-   过渡统一压成 --sl-switch-duration（默认 .14s），切完脚本再移除，
-   各元素恢复自己原本的过渡（悬停、下划线划入等效果不受影响）。
    注意这里用的是"统一短过渡"而不是"关掉过渡"：关掉会显得生硬。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑱ 切换配色时的"统一短过渡"」） */
 html.sl-theme-switching,
 html.sl-theme-switching *,
 html.sl-theme-switching *::before,
@@ -3600,16 +2822,7 @@ html.sl-theme-switching *::after {
 /* ==========================================================================
    ⑯ 超链接悬停：渐变色 + 下划线划入
    --------------------------------------------------------------------------
-   两个效果：
-     · 下划线：一条渐变色细线，从中间向两侧划入（宽度 0 → 100%）
-     · 文字：悬停时也变成同款渐变（background-clip: text）
-   作用范围（重要）：**绝不能写成全局 `a`**。洛谷有大量"整块卡片就是一个 <a>"
-   以及"包着头像的 <a>"，全局加下划线和 position:relative 会把它们一起点亮，
-   这是原版 BigBallOfMud-Luogu 的旧病。这里只挑"纯文本链接"。
-   另外：带 :has() 的选择器一旦不被支持会**整条规则被静默丢弃**，
-   所以绝不能和普通选择器写在同一个规则里（否则会把安全的那些一起带走）。
-   需要 :has() 的那几条单独成规则，写在下面。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑯ 超链接悬停：渐变色 + 下划线划入」） */
 .lfe-marked a,
 .solution-article a,
 .solution-list a,
@@ -3758,19 +2971,8 @@ html.sl-theme-switching *::after {
 /* --------------------------------------------------------------------------
    ⑫-c 设计令牌整表重映射（这一块是"对比度不足"的总根因，重点）
    实测发现：洛谷的 --lfe-color--* 不是写在静态样式表里的，而是运行时由 JS
-   往 <head> 注入一段：
-       :root { --lcolor--blue-1: 224, 247, 255; --lfe-color--blue-1: #e0f7ff; ... }
-   调色板取自 bundle 里的调色表（12 组 × 5 阶）：
-       grey:   #fafafa #e8e8e8 #bfbfbf #595959 #262626
-       blue:   #e0f7ff #89d1f5 #3498db #14558f #052242
-       green:  #d9f0c7 #94d66d #52c41a #22700a #072401
-       ...
-   这些值**不随深浅切换**，所以深色下用 grey-4(#595959) 写的次要文字、用
-   blue-1(#e0f7ff) 画的胶囊底，全都是"浅色主题的值硬贴在暗底上"，必然看不清。
-   这里整表重映射：浅色分支**照抄洛谷原值**（保证浅色模式零变化），
-   深色分支换成暗底上可读的对应色。两个值都由我们显式给出，
-   不存在"读原值又写原值"的自引用问题；!important 用来压过运行时注入的那段。
-   -------------------------------------------------------------------------- */
+   实测发现：洛谷的 --lfe-color--* 不是写在静态样式表里的，而是运行时由 JS
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 :root {
     /* grey：1=最浅底 5=最深字 */
     --lfe-color--grey-1: light-dark(#fafafa, #21242a) !important;
@@ -3870,10 +3072,8 @@ html.sl-theme-switching *::after {
 /* --------------------------------------------------------------------------
    ⑫-d 分页条的页码按钮
    洛谷的 LPaginationBar 用的是**裸 <button>**（不是 .l-button 组件），
-   这些按钮在白底上写页码，而深色下正文文字色被我改成了浅色 →
-   变成"白底白字"，页码整排看不见。这里把按钮底色/边框/文字一起处理。
    （注意只针对 .page-bar 里的 button，不动其它按钮，避免把蓝色实心按钮刷掉）
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .page-bar button {
     /* 液态玻璃小胶囊：与下拉控件同一套配方，用略淡一档（--lg-alpha-soft） */
     background-color: light-dark(
@@ -3910,19 +3110,7 @@ html.sl-theme-switching *::after {
    ⑫-h 题库筛选区的下拉按钮与搜索框（用户 DevTools 实证，2026-10-02）
    --------------------------------------------------------------------------
    实测结构（面包屑）：
-       section
-         div.block.filter-tags.no-wrap
-           div.search-row
-             div.refined-input.search-text      ← 搜索框容器（div 模拟的）
-               input.search-text                ← 真正的 <input>
-             div.search-option.no-wrap
-   那个"算法/来源/时间/状态"下拉是 **<button>**，它的白底是**内联写死的**：
-       style="… border-color: var(--lfe-color--grey-3); background-color: rgb(255, 255, 255);"
-   两个采样值完全对得上：
-       · 盒子 #ffffff          ← 就是这条内联
-       · 边框 #9aa4b2          ← 我们重映射的 --lfe-color--grey-3 深色值
-   内联样式只能用 !important 压；作用域限定在筛选区，不碰页面其它 button。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫-d 分页条的页码按钮」） */
 .search-row button,
 .filter-tags button,
 .search-option button,
@@ -3947,15 +3135,8 @@ html.sl-theme-switching *::after {
    ⑨-c 表单 / 搜索框统一换成液态玻璃面
    --------------------------------------------------------------------------
    用户要求：「把这种输入框覆盖液态玻璃，注意深色适配」。
-   前两处已经各自处理过，但用都是**一色平底**（light-dark(#fff, --lg-field-dark)）：
-     · ⑨-b  .refined-input / input.text          （工单列表、通知页）
-     · ⑫-h  .search-row / .filter-tags 那套       （题库筛选区，含内联白底的 button）
-   这里把这两族**合并**成一组，统一铺卡片的液态玻璃面（略实一档，用 --lg-alpha-field）。
    ★ 位置：放在 ⑫-h **之后**。两处规则同样带 !important、特异性也相同，
-     靠源码顺序决胜 —— 写在后面才能盖住前面那两条平底声明。
-   深色适配：底色走 --lg-field-dark，光斑/亮上缘/暗下缘/内发光都取主题变量，
-             文字走 --lg-text，placeholder 由下面原有规则负责。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑨-c 表单 / 搜索框统一换成液态玻璃面」） */
 :is(.refined-input,
     .refined-input.text,
     .refined-input input,
@@ -4017,11 +3198,8 @@ html.sl-theme-switching *::after {
 /* --------------------------------------------------------------------------
    （已移除）筛选卡"类名包含"式兜底网
    --------------------------------------------------------------------------
-   这里曾经用 :is(input, [class*="text"], [class*="search"], …) 猜着压白底。
-   拿到用户 DevTools 的真实结构后，已换成下面 ⑫-h 的**精确选择器**：
-   猜类名这套在本题材上风险太大 —— 同一轮里 .tag 的宽泛规则就把题目列表
    弄成了大白胶囊（见 ⑲-b）。教训：能拿到 DOM 就别猜。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫-e 筛选卡里的输入类控件」） */
 
 /* 筛选卡里那排胶囊：<ul class="luogu"> 的浅蓝底 + <li> 文字
    （实测 ul.luogu 用的是 --lfe-color--blue-1 / --lfe-color--primary，
@@ -4037,19 +3215,8 @@ html.sl-theme-switching *::after {
 /* --------------------------------------------------------------------------
    ⑫-f 洛谷"写死颜色"的文字，深色下要逐条扳回来
    实测依据（loader.css）：
-     .lfe-h1..h6 { color:#262626 }        ← 卡片标题变"深字深底"的元凶
-     .lfe-caption { color:gray }
-     .wrap>.name / .wrap>.indicator { color:#333 }
-     .filter-card .filter .filter-label { color:rgba(0,0,0,.85) }
-     .filter-result-count / .number { color:rgba(0,0,0,.45) / .75 }
-   **但有一点绝不能做：color 不能加 !important。** 洛谷给彩底标签/徽章的白字是
-   getForeground() 算出来的**内联样式**；内联只会被样式表的 !important 压掉，加了就等于
-   把该白的字压成深色（"NOIP 普及组 / 2002 / 普及-"这类标签就是这么被弄黑的）。
-   去掉 !important 之后：内联白字保持白，而洛谷写死的深色（普通规则）我靠"注入更晚 +
-   .theme-page 前缀"照样能改；深色模式下的漏网之鱼交给 JS 对比度守卫。
-   下面这些规则因此**一律不加 !important**（背景/边框/阴影等不受此限，它们不参与继承）。
-   只改"文字色"，不动任何语义色块（徽章、难度色等）。
-   -------------------------------------------------------------------------- */
+   实测依据（loader.css）：
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫-e 筛选卡里的输入类控件」） */
 /* 用特异度加倍而不是 !important：压得过洛谷的 .lfe-hN{color:#262626}（0,1,0），
    又压不过组件作用域规则 —— 彩色标题带上的白字要保住（踩过"撞色"的坑）。 */
 .lfe-h1.lfe-h1,
@@ -4104,15 +3271,9 @@ html.sl-theme-switching *::after {
 /* --------------------------------------------------------------------------
    ⑫-g 评测/记录页里成批写死的深色文字（实测来源）：
      .td-runtime{color:rgba(0,0,0,.55)}
-     .stat>.field{color:#333}
-     .result .count{color:rgba(0,0,0,.45)}  /  .result .count>.number{color:rgba(0,0,0,.75)}
-     .item-title{color:#404040}  /  .section-item{color:rgba(0,0,0,.75)}
-     .user-stat-data .stat-text{color:rgba(0,0,0,.75)}
-     .caption{color:rgba(0,0,0,.25)}   ← 最浅的一条，深色下几乎不可见
    注意：.number / .count / .time / .caption 都是**很通用的类名**，
    必须带上原本的上下文（.result .count 之类）来限定。
-   曾经写成裸 `.number`，结果把分页条的页码也刷成了浅色 → 白底白字整排看不见。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑫-f 洛谷"写死颜色"的文字，深色下要逐条扳回来」） */
 .theme-page .td-runtime,
 .theme-page .td-score {
     color: light-dark(rgba(0, 0, 0, .55), #c9d1db);
@@ -4149,13 +3310,7 @@ html.sl-theme-switching *::after {
 /* ==========================================================================
    二、仅主站：旧首页
    旧首页（`/`）仍是旧前端（luogu3.css + AmazeUI），没有 .theme-page，
-   主题商店管不到它，所以要单独补背景图。
-   这里**故意不再用 `body:not(:has(.theme-page))`**：
-   带 :has() 的选择器一旦不被支持，整条规则会被静默丢弃（背景就没了），
-   排查起来毫无线索。现在直接给 body 上背景 —— 新前端页面有 .theme-page
-   的不透明底色盖住它，不会出现两张图。
-   深色模式下不换图，而是叠一层渐变遮罩（纯颜色，可被 light-dark 驱动）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「二、仅主站：旧首页」） */
 @-moz-document domain("www.luogu.com.cn") {
 body {
     /* body 不再承担任何背景：壁纸与压暗都移到 html 上（见文件开头的约定）。
@@ -4203,14 +3358,7 @@ body {
 /* --------------------------------------------------------------------------
    把首页的卡片"切开"成一块块的玻璃
    --------------------------------------------------------------------------
-   根因（luogu3.css 原文）：
-       .lg-article { background: rgba(255,255,255,.7); padding: 16px }
-   —— 只有 padding，**没有 margin**。所以相邻两张 .lg-article 上下完全贴死，
-   我给它们加的玻璃（浅色分支是 72% 白）挨在一起就被看成"一整块白"，
-   而不是两块独立的玻璃（用户反馈："把这一大块白和公告切开，变成两个玻璃块"）。
-   这里补一个纵向间距即可；首屏大卡本身仍然是一块玻璃，
-   "本站公告"是一张独立的 .lg-article —— 于是正好两块。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「二、仅主站：旧首页」） */
 .lg-article {
     margin-bottom: 16px;
 }
@@ -4243,13 +3391,8 @@ body {
 /* --------------------------------------------------------------------------
    旧首页的 Amaze UI 面板（"近期比赛""最近讨论"的小卡片）
    amazeui.min.css 给 .am-panel 写死白底，所以深色下是"白卡片 + 深字"，
-   这就是截图里那一片白卡片的来源。
-   · 面板整体：深色下换成暗底，并自带浅色文字（内层会继承）
-   · 彩色标题栏（am-panel-success / -danger / -primary）：**保留它的配色**，
-     因为 Amaze 给它们单独写了深色标题字，在浅色标题栏上依然清晰；
    · 默认标题栏（浅灰 #f5f5f5）没有自己的文字色，深色下必须一起压暗，
-     否则会出现"浅灰底 + 浅色字"。用 :not() 只挑默认那几种。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .am-panel {
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
@@ -4312,16 +3455,9 @@ body {
 /* --------------------------------------------------------------------------
    犇犇 / 讨论评论区（Amaze UI 的 .am-comment-*）
    实测来源（amazeui.min.css + luogu3.css）：
+   实测来源（amazeui.min.css + luogu3.css）：
      .am-comment-main { border:1px solid #dedede; border-radius:0 }   ← 注意 border-radius:0
-     .am-comment-hd   { background:#f8f8f8; border-bottom:1px solid #eee }
-     .am-comment-bd   { background:#ffffff }                          ← 白卡片就是这一条
-   两个坑：
-   1) Amaze 的 `border-radius:0` 和我的规则**特异性相同**，靠加载顺序它赢了 ——
-      所以圆角必须带 !important，否则卡片就是方的（"有棱有角"）。
-   2) .am-comment-main 的 :before/:after 是左侧那个气泡小三角，
-      深色下会变成一块突兀的尖角。你原来那份 BigBallOfMud-Luogu 就是直接 display:none 掉的，
-      这里恢复同样做法。
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .am-comment-main {
     background-color: light-dark(
         color-mix(in srgb, var(--theme-card-background, #fff) var(--lg-alpha), transparent),
@@ -4383,15 +3519,8 @@ body {
 /* --------------------------------------------------------------------------
    首页打卡 / 运势面板（.lg-punch）
    --------------------------------------------------------------------------
-   原来的需求：这里的文字在浅色下是深色，深色背景下会糊成一片。
    ★ 当时我写成了 .lg-punch, .lg-punch * —— **带通配**。
-     通配会把所有子孙的颜色一律改掉，其中包括**语义色**：
-     运势里的「宜：（红）」「忌：（深）」就是这么被压成灰的
-     （用户：「这个宜：应该是红字吧」）。
-   现在只给**容器**定基调，靠继承覆盖「没有自己颜色」的文字；
-   自己声明了颜色的（宜 / 忌 / 难度色 / 徽章…）一律不动。
-   （又一次印证：**能用继承就别用通配**。）
-   -------------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .lg-punch,
 .lg-punch-panel {
     color: light-dark(#262626, #e7eaee);
@@ -4434,22 +3563,9 @@ rect.highcharts-point.highcharts-color-1 {
 /* ==========================================================================
    ⑱-b 犇犇的「举报 / 反馈」窗口：修好可用性 + 改成玻璃
    --------------------------------------------------------------------------
-   用户：「这个犇犇举报不能正常使用。另外把这个举报窗口改成玻璃」。
    实证 DOM（用户 DevTools）：
-       <body class="… am-dimmer-active">
-         <div class="am-dimmer am-active" data-am-dimmer style="display:block">   642 × 613（遮罩）
-         …举报窗口：反馈 / 「辱骂与不友善内容」下拉 / 理由文本域 / 取消 · 确定
    语料实证（evidence/legacy语料/amazeui.min.css）：
-       .am-modal{width:540px;margin-left:-270px}  .am-modal-dialog{border-radius:0;background:#f8f8f8}
-       .am-modal-hd  .am-modal-bd{border-bottom:1px solid #dedede}  .am-modal-footer  .am-modal-btn
-       .am-modal.am-modal-out / .am-modal-actions.am-modal-out{ z-index:1109 }
-   ★ 为什么"不能正常使用"：不是数值问题 —— AmazeUI 的弹窗 z-index 本来就在 1100 段，比我的 2 大得多；
-     真正的原因是**我为签名水印给内容层加过 `position: relative; z-index: 2`**，那会**创建层叠上下文**：
-     弹窗如果挂在这些容器**里面**，它的 1100 就只在这个上下文内有效，而遮罩 `.am-dimmer` 是
-     **body 的直接子元素**（在上下文之外），于是遮罩永远盖在弹窗之上 —— 看起来就是"弹窗灰蒙蒙、点不动"。
-   修法：**弹窗打开时临时取消那层 z-index**（用 :has() 判定，单独成规则，遵守"不与普通选择器混写"的不变式），
-        弹窗关掉后 z-index 自动恢复，签名水印的层叠不受影响。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑱-b 犇犇的「举报 / 反馈」窗口：修好可用性 + 改成玻璃」） */
 /* ① 层叠上下文已从根上去掉（签名改用 -1，内容层不再有 z-index），
    所以这里**不再需要**用 :has() 临时取消 z-index 的补救规则。留此说明以免被重新加回来。 */
 
@@ -4530,21 +3646,8 @@ rect.highcharts-point.highcharts-color-1 {
 /* ==========================================================================
    ⑱-c 卡片族统一的"鼠标悬浮动画"（比赛 / 讨论 / 犇犇 / 消息框 …）
    --------------------------------------------------------------------------
-   用户要求：「给比赛卡片，讨论卡片，犇犇卡片，消息框等添加鼠标悬浮动画」。
-   用的是本项目既有的悬停语言（与顶栏胶囊、测试点方块、标签、头像完全一致）：
-     · 抬起 2px + 轻微放大（用 **translate / scale 属性**，绝不用 transform ——
-        transform 会覆盖洛谷自己用它做的居中/位移，本项目踩过这个坑）
-     · 阴影加深（悬停反馈的主体）
-     · 描边换成强调色（"可点/可读"的暗示）
-     · 镜面光斑缓慢漂移（background-position 动 → 液态玻璃的"流动感"）
-     · 过渡曲线统一 cubic-bezier(.4,0,.2,1)，时长 .26s（与全站一致）
-   覆盖的卡片族（类名全部来自项目已登记的证据）：
-     比赛：.contest-card 及其行容器 .wrapper:has(.contest-card)
-     讨论/回复：.l-card.comment、.reply-item
-     犇犇/动态：.feed-card、.inquiry-feed、旧首页的 .am-comment-main
-     消息框：.notification-toast（提示）、.message（私信气泡，⑦-b-2 刚玻璃化的那个）
    ★ 弹窗类（模态 / 下拉）**不在**这里 —— 它们是对话框，跟着鼠标上浮很别扭（见 ⑦-0）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑱-c 卡片族统一的"鼠标悬浮动画"（比赛 / 讨论 / 犇犇 / 」） */
 /* ★ 清单改为**照抄 ⑥ 段那份**（项目此前逐页验证过、且这些元素本来就有 ⑥ 的悬停）——
    之前我自己挑的那几个（.l-card.comment / .reply-item）在比赛与讨论页没覆盖到，
    用户反馈「比赛和讨论没反应」。⑥ 的清单见文件 ⑥ 段 .l-card:hover 那一组。 */
@@ -4604,12 +3707,7 @@ rect.highcharts-point.highcharts-color-1 {
 /* ★★ 旧首页的「最近比赛 / 最近讨论」卡片（用户：「讨论块和比赛还是死的」）
    实证 DOM（用户 DevTools 两张图，都是**旧首页** www 的 AmazeUI 结构 —— 不是我先前猜的 SPA 卡片）：
      比赛：div.lg-article > h2 + section.am-panel.lg-index-contest.am-panel-success
-             > header.am-panel-hd + div.am-panel-bd          （270 × 113）
-     讨论：div.lg-article > h2 + section.am-panel.lg-index-contest.am-panel-primary
-             > div.am-panel-bd > div.lg-inline-up ×N        （270 × 132.5，每条讨论一个）
-   所以悬停要挂在这两个真实载体上：.lg-article 里的 .am-panel（栏目卡片）与
-   它内部的 .lg-inline-up（讨论条目）。**限定在 .lg-article 之内**，
-   避免波及个人中心等其它页面同样叫 .am-panel 的卡片。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑱-c 卡片族统一的"鼠标悬浮动画"（比赛 / 讨论 / 犇犇 / 消」） */
 .lg-article .am-panel {
     transition: translate .26s cubic-bezier(.4, 0, .2, 1),
                 box-shadow .3s ease,
@@ -4629,14 +3727,8 @@ rect.highcharts-point.highcharts-color-1 {
 /* ★ .lg-inline-up **不做**单独悬浮（用户两次反馈：「这个文字框不应该单独悬浮」「还有这个」）。
    实证 DOM（两张图，旧首页）——
      讨论栏：section.am-panel.lg-index-contest.am-panel-primary > div.am-panel-bd
-               > div.lg-inline-up ×N          （159 × 58.5，每条讨论一行文字）
-     比赛栏：section.am-panel.lg-index-contest.am-panel-success
-               > header.am-panel-hd + div.am-panel-bd
-                   > span.lg-small.lg-inline-up                  （108 × 30，未开始 / 时间 / 团队）
-                   > span.lg-small.lg-inline-up.lg-right.lg-md-hide
    ★ 注意这个类名在**两处、两种标签**上复用（div 与 span）：选择器用后代关系 + 标签无关，
-     一次覆盖两种；每行文字各自浮起都很吵，悬停反馈**只由整张卡片**承担
-     （即上面的 .lg-article .am-panel）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 
 /* 比赛行：玻璃铺在 .wrapper 上（含左侧状态列），所以悬停也挂在它身上 */
 .wrapper:has(.contest-card) {
@@ -4691,30 +3783,7 @@ rect.highcharts-point.highcharts-color-1 {
 /* ==========================================================================
    ⑲ 彩色面板头部里的标题：整体交回 AmazeUI（这条必须放在文件最后）
    --------------------------------------------------------------------------
-   从抓下来的旧首页 HTML 看到的真实结构：
-       <section class="am-panel lg-index-contest am-panel-primary">
-         <header class="am-panel-hd">            ← 底色 #0e90d2，白字
-           <h3 class="am-panel-title">
-             <a href="/contest/330736">比赛名</a>  ← 标题在这里
-             <span class="am-badge lg-bg-green">Rated</span>
-           </h3>
-         </header>
-         <div class="am-panel-bd">…</div>
-       </section>
-
-   而 AmazeUI 自己写的是：
-       .am-panel-title   { color: inherit }
-       .am-panel-title>a { color: inherit }
-       .am-panel-primary>.am-panel-hd { color:#fff; background-color:#0e90d2 }
-   即"标题继承头部颜色（白字）"。
-
-   问题：我的 `.lg-article h1..h6` 和 `.lg-article a` 与上面两条**特异度完全相同**
-   （都是 0,1,1），打平时按源码顺序 —— 用户样式注入更晚，于是我赢：
-   标题链接被染成 #0e90d2，**正是头部底色本身** → 标题"消失"。
-   （同一个坑踩了两次：第一次只改了 .am-panel a，漏掉了同样命中的 .lg-article a。）
-
-   这里用更高特异度 + 位于文件最后，把颜色/渐变文字/下划线一并交回 AmazeUI。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「⑲ 彩色面板头部里的标题：整体交回 AmazeUI（这条必须放在文件」） */
 .lg-article .am-panel-hd h1,
 .lg-article .am-panel-hd h2,
 .lg-article .am-panel-hd h3,
@@ -4746,28 +3815,14 @@ rect.highcharts-point.highcharts-color-1 {
 /* ==========================================================================
    ★ 安装 / 更新方式（很重要，踩过坑）
    --------------------------------------------------------------------------
-   Stylus 里的样式**不会自动跟着文件走** —— 每次样式有更新，你都要：
-     1) 打开 Stylus 里这个样式
-     2) Ctrl+A 全选  →  Ctrl+V 粘贴（剪贴板里是最新版）
-     3) **Ctrl+S 保存**（没有这一步等于没更新）
-     4) 回到页面 **Ctrl+F5 硬刷新**
-   改了没反应时，**先怀疑这一格没粘贴/没保存** —— 历史上多次如此。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「★ 安装 / 更新方式（很重要，踩过坑）」） */
 
 
 /* ==========================================================================
    ㉒ 洛谷网校（class.luogu.com.cn）
    --------------------------------------------------------------------------
-   用户要求："适配洛谷网校，严格按照源码写，适配深浅色和液态玻璃"。
-   现状：
      · 网校是**独立域名**（www.luogu.com.cn/school 是 404，已实测），
-       所以它不在原来两个 @-moz-document 的范围内 —— 以前那边等于"完全没被美化"；
-     · 令牌层已由文件开头的"共用域块"覆盖，深浅色与玻璃变量在那边是可用的；
-     · 这一块现在还**没有元素规则**：网校前端是 SPA，抓不到静态类名，
-       而本项目的铁律是"不猜类名"（每一次猜都换来过回归）。
-   待补：拿到网校页面的 DevTools 面包屑（容器 / 卡片 / 侧栏 / 按钮 / 输入框几行）后，
-         在这里按 ⑥（卡片）· ⑨（输入框）· ⑪（按钮）三套既有配方逐条写入。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉒ 洛谷网校（class.luogu.com.cn）」） */
 @-moz-document domain("class.luogu.com.cn") {
     /* ★ 令牌层副本（与 www 域块里的那份**逐字相同**，由校验脚本断言强制一致）。
        为什么要复制一份：@-moz-document 是按域生效的，变量不会跨域继承。
@@ -4803,13 +3858,9 @@ rect.highcharts-point.highcharts-color-1 {
     /* 顶栏高度与"胶囊上下留白"。
        ★ 单位刻意用 **px 而不是 rem**：
        洛谷在**首页**给 <html> 加了 style="font-size: 10px"，但**内页没有**
-       （内页是浏览器默认 16px）。于是同样的 4rem，首页算出来 40px、内页 64px ——
        实测截图：首页胶囊 46px、私信页胶囊 76px，差了近一倍（用户反馈的
-       "统一首页和其他地方的胶囊高度"就是这个）。
-       用 px 就与根字号无关，所有页面完全一致。
-       胶囊高度 = --lg-topbar-h − 2 × --lg-topbar-gap = 63 − 12 = 51px，由 CSS 算出来。
        ★ "胶囊内部的上下留白"就是靠这个高度给的：胶囊 51px、内容约 24px，
-         于是内容上下各有约 13px 的余地（横向留白另有 .top-bar > .left/.right 的 padding）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉒ 洛谷网校（class.luogu.com.cn）」） */
     --lg-topbar-h: 63px;
     --lg-topbar-gap: 6px;
 
@@ -4831,11 +3882,9 @@ rect.highcharts-point.highcharts-color-1 {
     /* ----------------------------------------------------------------------
        背景图（本节是"用我这张图"的总开关）
        默认用你原来 BigBallOfMud-Luogu 里那张（实测仍可访问，68KB webp）。
-       想换图：改这个变量。想完全交回洛谷主题商店：删掉下面 ⑭ 整节。
+       默认用你原来 BigBallOfMud-Luogu 里那张（实测仍可访问，68KB webp）。
        备选（实测均可达）：
-         --sl-bg-image: url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg");  官方浅色
-         --sl-bg-image: url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg");  官方深色
-       ---------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉒ 洛谷网校（class.luogu.com.cn）」） */
     --sl-bg-image: url("https://rhythm-assets.cn-nb1.rains3.com/objects/7a83566b723fa54bbd104146cfb1d94559ab7962710be389e0c99e97a67e6189/webp");
 
     /* ----------------------------------------------------------------------
@@ -4864,25 +3913,11 @@ rect.highcharts-point.highcharts-color-1 {
     /* ----------------------------------------------------------------------
        ③-b 液态玻璃（Liquid Glass）参数
        ----------------------------------------------------------------------
-       ⚠️ 这两个不是"毛玻璃"参数 —— 毛玻璃只是 blur + saturate（之前的做法），
-          液态玻璃要在它之上再补三样东西：
-            ① 镜面光斑：模拟光源打上去的一团柔和高光（--lg-spec 控制强度）
-            ② 玻璃厚度：上缘亮线 + 下缘微反光 + 内发光（--lg-rim 控制上缘强度）
-            ③ 边缘折射：把**额外**的 blur + brightness 只加在边缘带（中间用 mask 裁掉），
-              近似"背景在玻璃边缘被弯折"的透镜感 —— 这是各家液态玻璃 CSS 复刻的通用手法。
-       想关掉液态感退回毛玻璃：--lg-spec 设 0、--lg-rim 设 .16 即可。
-       ---------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
     /* ----------------------------------------------------------------------
        ③-c 深色玻璃：**靠通透，不靠不透明**
        ----------------------------------------------------------------------
-       用户反馈："深色模式的玻璃不像玻璃，像金属"。
-       原因是深色分支原来是一块**近乎不透明的深板**（.88~.96）+ 一条**硬白上缘**
-       + 一条**硬黑下缘** —— 硬边 + 不通透正是"金属"的特征；
-       玻璃应该是**通透 + 软边 + 大范围柔光**。
-       所以：深色底色的不透明度整体降到 .46~.70（能看见背景图的暗部），
-       边缘高光/暗缘/内发光也都换成"深色下更弱"的色值变量。
-       （浅色分支的值一概不动，浅色观感保持原样。）
-       ---------------------------------------------------------------------- */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
     --lg-panel-dark: rgba(18, 21, 27, .40);   /* 卡片 */
     --lg-nav-dark: rgba(12, 14, 18, .47);     /* 顶栏胶囊 / 两侧栏 */
     --lg-soft-dark: rgba(18, 21, 27, .32);    /* 次级容器 */
@@ -4909,11 +3944,7 @@ rect.highcharts-point.highcharts-color-1 {
    主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里）。
    --------------------------------------------------------------------------
    为什么：CSS 嵌套里 `:root { :root[data-sl-theme="light"] { … } }` 会被解析成
-   `:root :root[data-sl-theme="light"]`（后代选择器）—— html 不可能是 html 的后代，
-   于是这两条规则**永远匹配不上**，`color-scheme` 根本不会被切换，
-   light-dark() 就一直停在系统/深色分支 —— 表现就是「浅色模式炸了 / 点了没反应」。
-   提到顶层后按 (0,2,0) 对 (0,1,0) 正常接管。脚本那边还会同时写一份内联 color-scheme（双保险）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里」） */
 :root[data-sl-theme="light"] {
     color-scheme: light;
 }
@@ -4929,21 +3960,7 @@ rect.highcharts-point.highcharts-color-1 {
      https://fecdn.luogu.com.cn/yugu/loader.css?ver=20260913   （51 KB）
      https://fecdn.luogu.com.cn/yugu/loader.js?ver=20260913    （2.4 MB）
    实测结论：
-     · 网校**自己没有任何主题层** —— loader.css 里 color-scheme / light-dark() / CSS 变量
-       出现次数全是 0，所以那边原本既没有深色模式、也没有可覆盖的令牌；
-     · 但它和**主站新前端共用组件与排版类**：
-         排版/颜色：.lfe-body .lfe-h1…h6 .lfe-caption .lfe-m-* .lfe-color-inverse .lfe-form-sz-*
-         组件标签：<l-link> <l-marked> <l-text> <l-time> <l-bread-crumb> <l-user-name>
-                   <l-category> <l-tag> <l-button> <l-check> <l-radio>
-         staticClass（渲染出来的真实类名，共 89 个）里与本样式相关的：
-           nav-container · nav-items · nav-item · expand · expand-item · expand-content · sub-content
-           icon-btn · avatar-top · avatar · user-action · icon-right-number · header-layout
-           logo-wrap · exit-wrap · top-progress > bar · bread-crumb
-           card · category · badge · dropdown · dropdown-wrap · combo-wrapper · refined-input
-           input-wrap · fa-input · input-group · modal · switch-btn · stat · tags · item · items
-           frame · wrapped · control · control-container · calendar-tiny · calendar-container
-   做法：深浅由文件开头的"共用令牌层"提供（已含 color-scheme: [[colorMode]] 与主题三态），
-   下面只写元素规则，配方逐条复用主站的 ⑥ 卡片 / ⑨ 输入框 / ⑪ 按钮，保证观感一致。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「主题三态：**必须放在域块顶层**（不能嵌在 :root { } 里」） */
 
 /* ★ 属性驱动的保险（不依赖 light-dark() 的解析）——
    万一某个浏览器/某个页面上 color-scheme 没能驱动 light-dark()，
@@ -4963,16 +3980,8 @@ body, #app.lg-container, .lg-container, .lfe-body {
 /* ==========================================================================
    网校画布（唯一一处，按模式分层）
    --------------------------------------------------------------------------
-   用户反馈：「跟随系统的深色背景会直接黑掉」——
-   原因是这里原先用 light-dark(白洗, 84% 黑) 一条规则覆盖所有情况：
-   跟随系统时没有 data-sl-theme 属性，light-dark() 就按**系统**取到 84% 黑，
-   壁纸被压得几乎看不见，观感就是"直接黑掉"。
-   现在拆成四条，各司其职：
-     · 无属性（跟随系统）：light-dark() 取 24% 白 / 72% 黑（**保留壁纸可见**）
-     · 显式浅色：34% 白轻提亮 + 浅底
-     · 显式深色：72% 黑压暗（不再 84%，否则等于把壁纸抹掉）
    注意：项目禁止 @media (prefers-color-scheme)，跟随系统一律用 light-dark() 表达。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「网校画布（唯一一处，按模式分层）」） */
 html {
     background-image: var(--sl-bg-image) !important;
     background-repeat: no-repeat !important;
@@ -5149,28 +4158,8 @@ html[data-sl-theme="dark"] {
    ㉓ 网校播放页（课堂 /player-wrap.class-room）
    --------------------------------------------------------------------------
    ★ 全部依据**真实产物**（2026-10-04 爬取，非猜测）：
-     loader.js 里的 chunk 映射 + publicPath 解出模板 module.<id>.<hash>.js，
-     49 个 chunk 全量下载，播放器在 module.9.js；其样式是同名产物
-     https://fecdn.luogu.com.cn/yugu/module.9.1ed51debeebc31b2fec7.css（9139 字符）。
    实测它写死的浅色（必须覆盖的）——
-       .main           { background:#fff }
-       .side           { background:#f8f8f8 }
-       .side > div     { color:#000 }
-       .controller     { background-color:#fafafa; color:#333 }
-       .control-popup  { background:#fff }
-       .panel          { background:#fff; border:1px solid #ddd }
-       header / footer { background:#eee }
-       .progress-wrapper { background-color:#e8e8e8 }
-       .bar-wrapper      { background:#e7e7e7 }
-       .control-menu-item { color:#333 }
-       table.stripped tbody tr:nth-of-type(odd/2n) { background:#eee / #fff }
-       .vote-root { color:#000 }
-   另外页面外层还有**内联**的 background-color: rgb(239,239,239)（两个 .wrapped.lfe-body），
-   内联只能用 !important 压（本项目只对 background 用 !important，color 一律不用）。
-   ★ 这些选择器在原产物里都带 [data-v-…] 作用域哈希；本项目铁律是**不碰 data-v-***，
-     所以这里统一用 .class-room/.player-wrap 前缀把特异性提到 (0,2,0)~(0,3,0) 取胜。
-   ★ 语义色（进度条的绿、投票选中态、提示气泡的黑底白字）**保留**，只改"面板底色/文字"这类。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉓ 网校播放页（课堂 /player-wrap.class-room」） */
 /* ① 页面外层：内联灰色底 + 结构容器 */
 .player-wrap .wrapped.lfe-body,
 .player-wrap .main-container {
@@ -5303,18 +4292,9 @@ html[data-sl-theme="dark"] {
 /* ==========================================================================
    ㉔ 网校学习中心（/learn）列表里的写死文字色
    --------------------------------------------------------------------------
-   用户反馈："某些文字和图标没有适配"（截图里的课程名、图标、时间/讲师行仍是黑的）。
    ★ 依据**本地爬下来的产物**（evidence/网校语料/chunks/ ✗ 49 个 chunk ✗ 全量 ✗）：
-     含这些类名的是 module.8.js / module.10.js / module.14.js，
-     其中与颜色有关的规则**只有四条**（逐字摘录）：
-         .icon[data-v-24d62e7e]  { color: rgba(0,0,0,.5) }   ← 左侧图标（视频/直播）
-         .name[data-v-24d62e7e]  { color: #000 }             ← 课程名
-         .time[data-v-24d62e7e]  { color: rgba(0,0,0,.5) }   ← 时间 / 讲师行
-         .disabled-list-container .current-item .time[data-v-15d3efdb] { color: rgba(0,0,0,.25) }
    ★ 这些 CSS 是运行时随 chunk 注入的 ✗ 加载在本样式**之后** ✗
-     所以不能只靠"源码顺序"取胜 —— 这里把特异性提到 (0,3,0) 稳稳压过它们的 (0,2,0)。
-   ★ 不碰 .tag / 那个绿色"直播中"胶囊：它用的是**内联**的 color/background，属于语义色。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉔ 网校学习中心（/learn）列表里的写死文字色」） */
 .lesson-item .row .name,
 .lesson-item .column .name,
 .lesson-item a.name {
@@ -5356,15 +4336,8 @@ ul.padding-default,
    ㉕ 网校：属性驱动的**可见**切换（播放页为主，用户实测「输入 light 后没变亮」）
    --------------------------------------------------------------------------
    现象（用户 DevTools 控制台实测）：
-       [true, sl-theme-toggle sl-theme-toggle-school]    ← 按钮在，且是新版
-       document.documentElement.dataset.slTheme = light   ← 写入成功
-       页面**没有变亮** ✗
-   原因：网校播放页的可见面（侧栏 / 播放区 / 控制条）此前只由 light-dark() 驱动，
-   一旦这条链在那边没生效（或规则没进浏览器），整页就毫无反应。
-   这里补一组**直连属性**的覆盖：data-sl-theme 一变，这几块必然换色。
-   它同时也是「样式到底有没有生效」的判定器 —— 若连它都无变化，就是样式没加载。
    ★ 依据仍是真实产物（本地 chunks/ 与 player.css），类名全部来自源码。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉕ 网校：属性驱动的**可见**切换（播放页为主，用户实测「输入 l」） */
 /* ① 网校侧栏 / 顶栏容器：原产物把深色写在**内联** style 上，必须 !important 才压得住 */
 nav.lfe-body,
 .homepage-main,
@@ -5460,17 +4433,9 @@ html[data-sl-theme="dark"] .player-wrap.class-room :is(.lfe-h1, .lfe-h2, .lfe-h3
 /* ==========================================================================
    ㉖ 网校播放页：**整套面**的颜色覆盖（属性驱动）
    --------------------------------------------------------------------------
-   用户反馈：「没有全部替换成浅色」—— 上一版属性驱动只覆盖了 4 个面
-   （.main / .side / .controller / 侧栏），播放页还有一堆容器是暗的。
    ★ 依据：
-     · player.css（module.9 的同名产物 ✗ 9139 字符 ✗）里**全部 34 条**带颜色/背景的规则，
-       逐条核对后在这里覆盖（写死的 #fff / #eee / #fafafa / #f8f8f8 / #e8e8e8 / #e7e7e7 / #ddd / #333 / #000）
-     · 组件类名取自各 chunk 的 staticClass 清单（tab / side-content / chats / chats-wrap /
-       note-wrap / questions-wrap / settings-wrap / teacher-action(s) / send-buttons / util /
-       operation / functional / panel / content / notice / vote-root …）
    ★ 保留的语义色：进度条与音量条的绿（#4caf50）、控制菜单选中态绿、.notice 在彩底上的白字、
-     提示气泡 .pointer-hint 的黑底白字、视频本体 .lg-video/video 的深底 —— 这些是"设计语义"，不动。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉖ 网校播放页：**整套面**的颜色覆盖（属性驱动）」） */
 /* ① 浅色：整套面走同一份浅色玻璃 */
 /* ★ 完整玻璃配方（不是只染一层色）。
    用户："把这个换成玻璃" —— 上一版属性驱动只写了 background-color，
@@ -5574,12 +4539,8 @@ html[data-sl-theme="dark"] :is(
 /* ★ 聊天输入区（用户："这个框在浅色下也是黑的，修掉"）
    实证 DOM（用户 DevTools）：div.side-content > … > div.input-group.operation
         > input[placeholder]
-        > button.lfe-form-sz-middle style="border-color: rgb(76,175,80);
-                                        color: rgb(76,175,80);
-                                        background-color: rgba(76,175,80,0)"
-   那个发送按钮的绿是**内联语义色**，保留；只修输入框本身（此前完全没覆盖过，所以一直跟着洛谷的深色底）。
    ★ 特异性写深一层（.side-content .input-group input = 0,3,1），压过原产物的 [data-v-*] 规则，
-     并且**不用** color !important（项目不变式）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .player-wrap.class-room .side-content .input-group,
 .player-wrap.class-room .input-group.operation {
     background-color: light-dark(
@@ -5692,12 +4653,8 @@ html[data-sl-theme="dark"] .player-wrap.class-room .tab .items {
 /* ★★ 提问面板内部（用户：「网校的玻璃还没去掉」，两张图分别选中 header 与 div.content）：
    实证 DOM（用户 DevTools，网校课堂页）：
        div.questions > div.panel          ← ★ 玻璃只留这一层
-         > header                        ← 作者行（FreezingCold + 点赞）
-         > div.content                   ← 提问正文（所以是什么编程软件）
-         > footer
-   之前 .panel（㉓）、header / footer（㉖）、.content（㉓ 与 ㉖）各铺一层 → 叠成多层。
-   现在把内部一律清成透明，一条问答就**只有 .panel 一层玻璃**。
-   ★ 只作用于网校播放页（.player-wrap.class-room 前缀，位于网校域块内）。 */
+       div.questions > div.panel          ← ★ 玻璃只留这一层
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .player-wrap.class-room .panel > header,
 .player-wrap.class-room .panel > .content,
 .player-wrap.class-room .panel > footer,
@@ -5726,13 +4683,8 @@ html[data-sl-theme="dark"] .player-wrap.class-room .panel > .content {
 /* ★ 提问面板（网校播放页侧栏的「提问」标签）多了两块玻璃。
    实证 DOM（用户 DevTools，网校课堂页，面包屑）：
        div.side > div > div.side-content
-         > div.questions-wrap        ← 外层容器（此前在 ㉖ 的玻璃名单里）
-           > div.questions           ← 再一层容器
              > div.panel             ← 每一条问答（㉓ 已给玻璃）★ 保留这一层
-               > header
-   于是"外层 + 每条"各铺一层 → 看起来多了两块。按本项目一贯做法收敛：
-   **玻璃只留给每一条 .panel，外层 .questions-wrap / .questions 一律透明**。
-   ★ 只作用于网校播放页的 .player-wrap.class-room 前缀（本段位于网校域块内，不影响主站）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .player-wrap.class-room .questions-wrap,
 .player-wrap.class-room .questions,
 .player-wrap.class-room .questions-wrap > .questions {
@@ -5761,9 +4713,7 @@ html[data-sl-theme="dark"] .player-wrap.class-room .questions {
    —— 是的，就是叠层：玻璃名单里同时有 .side / .side > div / .side-content 三个，
    每层都是 40%~66% 的白，叠起来自然接近纯白。
    实证 DOM（用户 DevTools，课堂页右侧栏）：
-       div.side > div > div.tab > div.category > ul.items
-                        > div.side-content > div.chats-wrap > div.chats
-   收敛原则同前：**玻璃只留 .side 这一层**，内部（> div / .side-content）全部透明。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 .player-wrap.class-room .side > div,
 .player-wrap.class-room .side-content {
     background-color: transparent !important;
@@ -5815,15 +4765,8 @@ html[data-sl-theme="dark"] .player-wrap.class-room table.stripped tbody tr:nth-o
 /* ==========================================================================
    ㉗ 网校（yugu）：**由源码自动生成**的深色覆盖
    --------------------------------------------------------------------------
-   生成方式（可复现）：evidence/脚本与语料/一次性脚本/gen_school_dark_overrides.mjs
-   数据源：evidence/网校语料/css/ 下 **38 份** chunk CSS（由 loader.js 的哈希映射解出并全量下载），
-           共 156 KB；凡"背景/文字色"取值为中性浅色
-           （#fff / #fafafa / #f8f8f8 / #eee / #e8e8e8 / #e7e7e7 / #ddd / #333 / #000 …）的规则，
-           全部挑出来做覆盖 —— 彩色值（如进度条的 #4caf50）一律保留，那是语义色。
    ★ 选择器：原产物每条都带 [data-v-…] 作用域哈希，本项目**不引用**它；
-     这里去掉哈希、只留类/属性选择器，并统一加 #app 前缀 ——
-     既避免泄露到别的页面，又能以 (1,2,x) 的特异性稳稳压过原来的 (0,2,0)。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉗ 网校（yugu）：**由源码自动生成**的深色覆盖」） */
 html[data-sl-theme="dark"] :is(
     #app .CodeMirror,
     #app .CodeMirror-gutter-filler,
@@ -5884,25 +4827,12 @@ html[data-sl-theme="dark"] :is(
    ㉘ 网校播放页（课堂）：**按真实 DOM** 覆盖（用户 DevTools 2026-10-04）
    --------------------------------------------------------------------------
    实证结构（这一页**没有** .player-wrap / .class-room，所以 ㉓㉖ 那两套选择器全落空）：
-       div#app.lfe-vars
-         div.top-progress
-         nav.lfe-body   style="background-color: rgb(52,73,94); color: rgb(221,221,221)"
-         div.main-container
-           div.wrapped.lfe-body.header-layout.player
-         main.wrapped.lfe-body   style="background-color: rgb(239,239,239)"   ← 课程信息所在的整块
-         div.wrapped.lfe-body    style="background-color: rgb(51,51,51)"
-         div.full-container      ← 里面是 .card.padding-default（课程信息 / 相关文件）
    ★ 这些背景与文字色**全是内联**：background 我们用 !important 压；
-     color 按项目不变式**不允许** !important，改由脚本在网校页剥掉内联 color（见 switch.user.js 的 stripInlineTheme）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉘ 网校播放页（课堂）：**按真实 DOM** 覆盖（用户 DevT」） */
 /* ★ 画布：**暗层只在显式深色时出现**。
    用户指出："壁纸本身不是暗的，是上面铺了暗层" —— 完全正确：
    之前这里写成 linear-gradient(light-dark(白洗, 84%黑), …) 叠在壁纸上，
-   它依赖 light-dark() 的解析；那条链只要在网校没落到 light，浅色下也会铺上 84% 黑，
-   于是"壁纸不暗、页面却发暗"。现在改成**按属性明确给**，不再经过 light-dark()：
-     默认（未指定/跟随系统）：只铺壁纸，不加任何层
-     显式浅色：壁纸 + 34% 白轻提亮（保留你的壁纸，只是别太沉）
-     显式深色：壁纸 + 84% 黑压暗 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉘ 网校播放页（课堂）：**按真实 DOM** 覆盖（用户 DevTo」） */
 /* ★ 这里原先还有一份**更早版本**的画布三连（深色 84%）——
    它与上面那条统一画布规则特异性相同、位置更靠后，于是把 72% 的新规则压住了，
    表现就是"跟随系统/深色下壁纸被抹掉、直接黑掉"。已删除，画布只保留**唯一一处**定义。 */
@@ -5982,16 +4912,8 @@ html[data-sl-theme="dark"] :is(.main-container, .wrapped.lfe-body, main.wrapped.
    ㉙ 网校课程信息卡：**内部不再各铺一层玻璃**（用户：「这块多层玻璃」）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools）：
-       main.wrapped.lfe-body
-         div.full-container[currenttemplate="LessonClassroom"]
-           div.card.padding-default
-             div[slot="header"]
-               div.category          ← 选中的「课程信息」（蓝条，状态色，保留）
-             div
-   我给 .full-container .card 铺了玻璃，而它内部的头部 / 分类条又各有一层底，
-   于是叠成"多层玻璃"。按本项目一贯做法：玻璃只留**最外层**，内部一律透明。
    ★ 例外：.category 的蓝底/字色是**状态色**（当前选中的标签页），不透明化。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉙ 网校课程信息卡：**内部不再各铺一层玻璃**（用户：「这块多层玻」） */
 .full-container .card > div,
 .full-container .card [slot="header"],
 .full-container .card > div > div:not(.category),
@@ -6026,17 +4948,8 @@ html[data-sl-theme="dark"] .full-container .card [slot="header"] {
    ㉚ 网校页脚：浅色下的白字（用户：「底下这些文字浅色模式下仍为白色导致看不清」）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools，课堂页底部）：
-       div#app.lfe-vars > div.main-container > div.wrapped.lfe-body
-         div.footer
-           p > a[href="…/manual/class"] class="color-none" 用户协议
-             | a … 售后政策 | a … 报名帮助 | a … 系统技术要求
-           p 2013 - 2026 ，洛谷 © Developed by the Luogu Dev Team
-           p All rights reserved. 沪ICP备18008322号-1
-   这些文字是**白色**（.footer 自己的颜色），浅色模式下等于白底白字。
-   处理：.footer 及其 p / a 统一走主题正文色与次要色。
    ★ 特异性写深一层（.main-container .footer …）以压过原产物的 a.color-none[data-v-*]；
-     color 一律不用 !important（项目不变式）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉚ 网校页脚：浅色下的白字（用户：「底下这些文字浅色模式下仍为白色导」） */
 .main-container .footer,
 .wrapped.lfe-body .footer,
 .footer p,
@@ -6072,26 +4985,8 @@ html[data-sl-theme="dark"] .footer a {
 /* ==========================================================================
    ㉛ 网校学习中心（/learn）：浅色下的文字与图标 + 标签栏多层玻璃
    --------------------------------------------------------------------------
-   用户反馈：「文字和图表在浅色模式下看不清，另外多层玻璃」
    实证 DOM（用户 DevTools，2026-10-04，UserLearning 模板）：
-       main.wrapped.lfe-body
-         div.full-container[currenttemplate="UserLearning"]
-           div.card.padding-default
-             div[slot="header"] > div.category        ← 我的课程 / 正在学习（**标签栏容器**）
-           div.card.padding-default
-             h3 直播课程提醒
-             ul > li.lesson-item
-               div.row[style="padding: .5em .8em"]
-                 span.icon[title="视频直播"] > svg.svg-inline--fa > path[fill="currentColor"]
-                 div.column > a.name.color-default[href="/classroom/…"] 进阶图论
-   两个坑：
-     ① `.category` 在**这一页是标签栏容器**（不是状态片），它自己的底又叠了一层玻璃；
-        上一版我按状态片把它排除在外，所以在学习中心仍叠着。这里只把它的**背景**透明化，
-        **颜色**仍按状态走（选中的那个标签的强调色不受影响）。
-     ② `a.color-default` 在网校的语义是**浅色文字**（原本配深底导航），放到浅色正文里就看不见；
-        而 `span.icon` 里的 svg 用的是 fill="currentColor"，所以名字不着色，图标也一起发白。
-        处理：按属性给出明确的前景/次要色，覆盖整族（名字 / 图标 / 时间 / 标题 / 标签）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉛ 网校学习中心（/learn）：浅色下的文字与图标 + 标签栏多层」） */
 /* ① 标签栏容器不再叠一层玻璃（背景透明、颜色保留） */
 .full-container .card [slot="header"],
 .full-container .card > div[slot="header"],
@@ -6171,13 +5066,8 @@ html[data-sl-theme="dark"] :is(
    ㉜ 网校聊天消息文字：浅色下看不清（用户：「聊天框文字在浅色下看不清」）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools）：
-       div.player-wrap.class-room > div.side > div > … > div.side-content
-         > div.chats-wrap > div.chats > p
-   消息正文用的是网校自己的**浅灰**（原本配深底），放到浅色玻璃上就发白。
-   处理：只给**消息正文**（p）明确前景色；
    ★ 用户名是 <a>（蓝/绿链接色）—— 那是语义色，**不覆盖**；
-     ★ 被 @ 引用时那一行会有浅蓝高亮底，同样属于语义，不动。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉜ 网校聊天消息文字：浅色下看不清（用户：「聊天框文字在浅色下看不清」） */
 html[data-sl-theme="light"] .player-wrap.class-room .chats > p {
     color: #1f2329;
 }
@@ -6204,12 +5094,8 @@ html[data-sl-theme="dark"] .player-wrap.class-room .chats > p a {
    ㉝ 网校标签栏：**未选中项**的文字色（用户：「浅色模式下未选中项不应该是黑色吗」）
    --------------------------------------------------------------------------
    实证 DOM：ul.items > li（未选中，带内联 color）+ li.selected（内联背景/文字色）。
-   未选中项的浅色是**内联**写死的（配深底导航），普通规则压不过内联 ——
-   所以这里两手：
-     ① CSS 按属性给出明确前景（浅 #1f2329 = 正文黑 / 深 #e7eaee）；
-     ② 由脚本 stripInlineTheme 把**未选中项**的内联 color 剥掉（.selected 一律跳过，
         它的内联背景/文字色是状态色，必须原样保留）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉝ 网校标签栏：**未选中项**的文字色（用户：「浅色模式下未选中项」） */
 html[data-sl-theme="light"] .player-wrap.class-room .tab .items > li:not(.selected),
 html[data-sl-theme="light"] .player-wrap.class-room .tab .items > li:not(.selected) a,
 html[data-sl-theme="light"] .full-container .card .category .items > li:not(.selected),
@@ -6239,22 +5125,9 @@ html[data-sl-theme="dark"] .player-wrap.class-room .tab .items > li:not(.selecte
 /* ==========================================================================
    ㉞ 网校首页（/，Home 模板）：去掉白色挡板，露出壁纸；深色覆盖暗层
    --------------------------------------------------------------------------
-   用户：「拉取网校首页的源代码，开始适配，把这个白色挡板去掉，露出壁纸，深色模式覆盖暗层」。
    实证 DOM（用户 DevTools，2026-10-04）：
-       div#app.lfe-vars
-         div.lfe-body.homepage-main
-           div.header-layout.tiny
            main.wrapped.lfe-body style="background-color: rgb(255, 255, 255)"   ← ★ 白色挡板（内联）
-             div.home-wrapper[currenttemplate="Home"]
-           div.footer-container
-           div.fix
-   ★ 源码侧的实证（这一步很重要）：
-     把 evidence/网校语料/css/ 下 **38 份** chunk CSS 与 loader.css 全文 grep 了
-     `home-wrapper` / `homepage-main` / `footer-container` / `header-layout` / `lfe-vars` / `wrapped`，
-     结果是 **0 条规则**（两边都是 0）—— 说明首页这几层的底色**不是样式表给的，而是内联 style**。
-     结论：这里必须用 !important（背景可以，项目不变式只禁 color !important），
-     同时由脚本 stripInlineTheme 把内联 background-color / color 剥掉（已覆盖 main.wrapped.lfe-body）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉞ 网校首页（/，Home 模板）：去掉白色挡板，露出壁纸；深色覆盖」） */
 /* ① 白色挡板一律透明：露出壁纸。
    ★ 踩过的坑：同一个 <main> 在两次 DevTools 截图里**一次带 class、一次不带** ——
        第一次：<main class="wrapped lfe-body" style="background-color: rgb(255,255,255)">
@@ -6312,25 +5185,8 @@ html[data-sl-theme="dark"] .footer-container,
    ㉟ 网校首页卡片：白色卡片换成玻璃 + 深浅适配（用户：「把这些白色卡片都换成玻璃，适配深浅色」）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools，2026-10-04，Home 模板）：
-       div.home-wrapper[currenttemplate="Home"]
-         div.top
-         div.title.select-title 最近在学
-         div.course-container
-           div > div.courses.recent-courses
              div.item.course        ← 白卡（课程）★ 换成完整玻璃
-           a.link-bottom.color-default 查看更多
-         div.title.select-title 筛选课程
-         div.course-section-select
-         div.course-container
-           div.wrap               ← 分类卡（红/绿/蓝，**分类色是语义**）★ 只加玻璃层，保留底色
-           a.link-bottom.color-default 查看所有课程
-   ★ 两类卡分开处理，是刻意的：
-     · .item.course 原本是白底 → 整块换成玻璃（浅 40% 白 / 深 --lg-panel-dark）；
-     · .wrap 原本带分类色（编程入门=红 / 算法基础=绿 / 算法进阶=蓝）→
-       只叠"玻璃三件"（镜面光斑 + 斜向缎面 + 亮上缘/内发光）与模糊，**不动它的底色**，
-       否则等于把分类语义抹掉。
-   ★ 容器（.course-container / .courses / .course-section-select / .top）一律透明，避免多层玻璃。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉟ 网校首页卡片：白色卡片换成玻璃 + 深浅适配（用户：「把这些白色」） */
 /* ① 容器透明（玻璃只给卡片） */
 .home-wrapper .course-container,
 .home-wrapper .courses,
@@ -6347,12 +5203,7 @@ html[data-sl-theme="dark"] .footer-container,
 /* ② 课程卡 → 玻璃。
    ★★ 关键修正（用户：「他这个的结构是鼠标悬浮消失露出后面的文字，重写逻辑让鼠标不在的时候
       后面隐藏不就得了」）：
-      这张卡原本是「**封面 + 悬浮露出背面文字**」的设计 —— 我上一版直接改写它的
-      background-image，等于把封面那层抹掉，于是背面文字**一直露着**（截图里文字叠在一起）。
-      现在两件事：
-        ① 玻璃的"面"改挂 **::after**（绝对定位 + pointer-events:none），
-           **不再动卡片自己的 background-image**（封面还给它们）；
-        ② 背面文字默认隐藏、仅悬停显示（见下面 ⑥ 段）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉟ 网校首页卡片：白色卡片换成玻璃 + 深浅适配（用户：「把这些白色卡」） */
 .home-wrapper .item.course {
     background-color: light-dark(
         color-mix(in srgb, #ffffff 40%, transparent),
@@ -6389,20 +5240,8 @@ html[data-sl-theme="dark"] .footer-container,
 /* ③ 分类卡：**保留分类色**，只叠玻璃的"面"。
    ★★★ 这一步是把前面三次失败一次解决的地方（用户 DevTools 实证）：
       实证结构 = div.course-container > div.wrap > div.card > div.brief
-        · .brief（360 × 156）＝ **文字块**（标题 / 三行说明 / 按钮）
-        · 封面是它的底层/兄弟元素，靠 position/z-index 盖在文字上，悬停时让开
-          —— 即用户说的「鼠标悬浮消失露出后面的文字」。
-      ❌ 我先后踩了三个坑：
-         ① 在 .wrap 上写 backdrop-filter  → 它**创建层叠上下文**，封面的 z-index 被重排，
-            盖不住文字（文字一直露着）；
-         ② 把玻璃挪到 .wrap::after          → 伪元素带 z-index 盖在内容之上，
-            它的 backdrop-filter **把卡片自己的封面和文字一起糊掉**（用户：「emmmm」+ 满屏糊）；
-         ③ 试图用 opacity 隐藏文字          → 方向本身就错了。
-      ✅ 正解：**玻璃的面放回 .wrap 自己的 background-image** ——
-            background-image 在内容之下绘制（正是玻璃该在的位置），
-            而且它**不创建层叠上下文**（不像 backdrop-filter / filter / isolation）。
-            同时**去掉模糊**：这一族卡片不做 backdrop-filter，换取层叠正确。
-            分类色仍在 .wrap 的 background-color 上，我们**不碰**它。 */
+      实证结构 = div.course-container > div.wrap > div.card > div.brief
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㉟ 网校首页卡片：白色卡片换成玻璃 + 深浅适配（用户：「把这些白色卡」） */
 .home-wrapper .wrap {
     background-image:
         radial-gradient(86% 54% at 13% -16%,
@@ -6446,65 +5285,29 @@ html[data-sl-theme="dark"] .home-wrapper :is(.item.course, .wrap) :is(h1, h2, h3
 /* ★★★ 第十次修正（也是最后一次碰这里）：**撤回所有对分类卡内部的改动**。
    复盘：我先后猜过三次 ——
      ① 把 .card 与 .brief 一起透明化 → 用户：「还有这个白色卡片，直接移除」之后我又做过头；
-     ② 把 .card 与 .brief 一起 opacity:0 → 用户：「上面文字怎么全没了」（卡上空白）；
-     ③ 只隐藏 .brief → 用户：「这啥东西」（背面文字全露着，封面不在）。
    三次都没猜中这一层的真实分工 —— 说明**我没有这张卡的准确 DOM**。
-   按项目铁律（不猜类名 / 能拿到证据就别猜），这里停止改动：
-     · 卡片内部（.card / .brief 及其子元素）**一律不碰**，交回网校自己的交互；
-     · 只保留**外壳**那层：容器透明 + .wrap 上叠玻璃（见 ㉟ 段）。
-   要精准适配这张卡，需要一行面包屑 + 说明"封面是哪个元素、背面文字是哪个元素"。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「（未分节）」） */
 /* ==========================================================================
    ㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白色卡片，直接移除」）
    --------------------------------------------------------------------------
    实证 DOM（用户 DevTools，2026-10-04，Home 模板）：
-       div.home-wrapper > div.course-container > div.wrap        ← 分类卡（红/绿/蓝）
          div.card                                               ← ★ 白色内卡（要移除的那层）
-           div.brief
-             h3.lfe-h3.main-title 洛谷入门计划【后期】
-             div.row.lfe-caption > div.title 内容
-             div.row.lfe-caption > div.content 适用于学习完 C++ 语言的…
-   处理：把 .wrap 里的 .card / .brief 整层设为透明（背景 / 描边 / 阴影 / 模糊全去掉），
-   让说明文字**直接落在分类卡上** —— 还是那条原则：一层区域只留一个承载体。
-   ★ 只作用于 `.wrap` 内部的 .card，不碰首页其它位置的 .card（避免误伤）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白」） */
 /* ★★ 结构澄清（用户两次反馈后定论）：
        div.wrap                      ← 分类卡（红/绿/蓝底 + 玻璃）
          div.card                    ← **封面那层**（正面）—— 完全不动，含它自己的背景图
-           div.brief                 ← **背面文字**（标题 + 说明 + 标签 + 了解详情）
-   之前我把 .card 与 .brief 一起透明化、又一起 opacity:0，于是卡上**什么都没有**
-   （用户：「上面文字怎么全没了」）。
-   现在只处理 .brief：它是"白色卡片"本体（用户最早说「还有这个白色卡片，直接移除」），
-   背景交回外层，自己不留底。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白色」） */
 /* --------------------------------------------------------------------------
    ★★ 分类卡（.wrap）的「背面」默认隐藏、仅悬停显示
    --------------------------------------------------------------------------
-   用户连着两次指出同一件事：
-     「他这个的结构是鼠标悬浮消失露出后面的文字，重写逻辑让鼠标不在的时候后面隐藏不就得了」
-   我上一版把这条逻辑**只写给了 .item.course**（"最近在学"那张卡），而你截图里这两排
-   （洛谷入门计划【前期/后期】、信奥入门训练营【前期/后期】）其实是 **.wrap 分类卡** ——
-   所以"没用"。这里把同一条逻辑补到 .wrap 家族。
    实证 DOM：div.course-container > div.wrap > div.card > div.brief
-               > h3.lfe-h3.main-title / div.row.lfe-caption > div.title / div.content
-   做法：背面容器（.card 与 .brief）默认 opacity:0，:hover / :focus-within 才显示；
-        .wrap 自己的封面背景图**不动**（它是正面那层，原本的交互会把它隐掉）。 */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㊱ 网校首页：分类卡里的白色内卡**直接移除**（用户：「还有这个白色」） */
 /* ==========================================================================
    ㊲ 网校首页「学习体系」大图：用**用户抠好的图**替换，并给玻璃承载层
    --------------------------------------------------------------------------
-   用户：「把这个抠图后用玻璃承载替换」。
    实证（用户 DevTools + 我把 SVG 下下来逐层看过）：
-       div.home-wrapper > img[src="https://fecdn.luogu.com.cn/yugu/course-level.svg?b1265f3"]
-       尺寸 1200 × 320，style="max-width: 100%; width: 100%"
-   SVG 内部结构（evidence/网校语料/course-level.svg，457 KB，文字已转 path）：
-     · <rect width="1200" height="320" fill="white"/>   ← **白底板**（唯一一个整幅尺寸的 rect）
-     · 若干**短路径**（500~900 字符）用平板色 #9DC3E6 / #5B9BD5 / #70AD47
-       —— 它们是蓝色/绿色的**面板衬底**（圆角矩形，路径短）
      · 其余几千字符的 fill="white" / "black" 路径全是**文字笔画**，必须保留
-     · fill="url(#paint0_linear_7969_84)" 只有一个元素：彩虹进度带（#FF4400→…→#9254DE，
-       fill-opacity=".8"）—— 那是语义图形，保留
-   ★ 结论：**抠图**＝去掉「白底板 + 平板色短路径」，保留文字 / 色块 / 彩虹带；
-     这一步由脚本在网校页 fetch 改写 SVG 完成（457 KB 不适合内嵌进样式表），
-     CSS 这边只负责给它一个**玻璃承载层**。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㊲ 网校首页「学习体系」大图：用**用户抠好的图**替换，并给玻璃承」） */
 /* ★ 换图由下面那条 content: url(...) 完成（纯 CSS），所以脚本那块已删除 ——
    img 的 src 属性始终是网校原来的 course-level.svg，选择器用 [src*="course-level"] 就够，
    不需要 data-sl-level 标记或图床地址匹配（用户：「js 脚本里不用适配了吧，删掉那块」）。 */
@@ -6550,13 +5353,8 @@ html[data-sl-theme="dark"] .home-wrapper > img[src*="course-level"] {
    ㊳ 网校首页：去掉几条**整行白条**（用户连发三张图：「去除白块」「是这些」）
    --------------------------------------------------------------------------
    实证（用户 DevTools，2026-10-04，Home 模板，选中项尺寸都写明了）：
-       a.link-bottom.color-default        1200 × 56   ← 「查看更多」/「查看所有课程」
-       div.container                      1264 × 64   ← 顶栏那一行（header-layout.tiny > .container）
-       div.link-container                              ← 顶栏里的链接容器
-   这三条都是**整幅宽度的白条**，把壁纸挡成一横条一横条的。
    ★ 只点这几个类名，且 .container 必须带 .header-layout 前缀 ——
-     .container 是全站通用的类名，裸写会波及所有页面（本项目踩过同类坑）。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㊳ 网校首页：去掉几条**整行白条**（用户连发三张图：「去除白块」」） */
 .home-wrapper a.link-bottom,
 .home-wrapper a.link-bottom.color-default,
 .homepage-main .header-layout .container,
@@ -6607,18 +5405,7 @@ html[data-sl-theme="dark"] .homepage-main .header-layout .container {
    --------------------------------------------------------------------------
    用户：「把这种窗口用玻璃适配，注意深浅色」。
    实证 DOM（用户 DevTools，2026-10-04，网校播放页点「复制笔记」）：
-       <html class="no-js swal2-shown swal2-height-auto">
-       <body class="swal2-shown swal2-height-auto" style="padding-right: 15px">
-         <div id="app" class="lfe-vars" aria-hidden="true"></div>   ← SA2 把页面藏起来
-         <div class="swal2-container swal2-center swal2-fade swal2-show">
-           <div class="swal2-popup swal2-modal swal2-show" role="dialog" aria-modal="true">
-             div.swal2-header / div.swal2-content / div.swal2-actions / div.swal2-footer
-   ★ 为什么网校这边没生效：我这套 SA2 玻璃规则**只写在 www 域块里** ——
-     @-moz-document 按域生效，网校（class.luogu.com.cn）拿不到，所以那边还是 SA2 自带浅色皮肤。
-   这里补一份网校版，配方与 ⑦-b / ⑦-c 完全一致（镜面光斑 + 斜向缎面 + 亮上缘 + 暗下缘 +
-   内发光 + 模糊 + 描边 + 圆角）。深浅两条路都写：light-dark() 与 data-sl-theme 属性驱动。
-   ★ 遮罩只给居中弹窗（.swal2-center），toast 形态不遮罩 —— 与 www 侧同一条判断。
-   ========================================================================== */
+   ★ 详细过程与取证见 evidence/设计决策.md（搜「㊴ 网校：SweetAlert2 弹窗（「复制成功」这类）用玻璃 +」） */
 /* ① 遮罩：居中弹窗才压暗 + 模糊；toast 完全透明 */
 .swal2-container.swal2-center {
     background-color: var(--lg-mask) !important;
