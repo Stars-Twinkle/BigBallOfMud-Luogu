@@ -5203,6 +5203,104 @@ html[data-sl-theme="dark"] .footer a {
     color: #c9d1db;
 }
 
+/* ==========================================================================
+   ㉛ 网校学习中心（/learn）：浅色下的文字与图标 + 标签栏多层玻璃
+   --------------------------------------------------------------------------
+   用户反馈：「文字和图表在浅色模式下看不清，另外多层玻璃」
+   实证 DOM（用户 DevTools，2026-10-04，UserLearning 模板）：
+       main.wrapped.lfe-body
+         div.full-container[currenttemplate="UserLearning"]
+           div.card.padding-default
+             div[slot="header"] > div.category        ← 我的课程 / 正在学习（**标签栏容器**）
+           div.card.padding-default
+             h3 直播课程提醒
+             ul > li.lesson-item
+               div.row[style="padding: .5em .8em"]
+                 span.icon[title="视频直播"] > svg.svg-inline--fa > path[fill="currentColor"]
+                 div.column > a.name.color-default[href="/classroom/…"] 进阶图论
+   两个坑：
+     ① `.category` 在**这一页是标签栏容器**（不是状态片），它自己的底又叠了一层玻璃；
+        上一版我按状态片把它排除在外，所以在学习中心仍叠着。这里只把它的**背景**透明化，
+        **颜色**仍按状态走（选中的那个标签的强调色不受影响）。
+     ② `a.color-default` 在网校的语义是**浅色文字**（原本配深底导航），放到浅色正文里就看不见；
+        而 `span.icon` 里的 svg 用的是 fill="currentColor"，所以名字不着色，图标也一起发白。
+        处理：按属性给出明确的前景/次要色，覆盖整族（名字 / 图标 / 时间 / 标题 / 标签）。
+   ========================================================================== */
+/* ① 标签栏容器不再叠一层玻璃（背景透明、颜色保留） */
+.full-container .card [slot="header"],
+.full-container .card > div[slot="header"],
+.full-container .card .category {
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html[data-sl-theme="light"] .full-container .card .category,
+html[data-sl-theme="dark"] .full-container .card .category {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* ② 浅色下：名字 / 图标 / 时间 / 标题 / 标签统一给可读的前景色 */
+html[data-sl-theme="light"] :is(
+    .full-container .lesson-item .name,
+    .full-container .lesson-item a.name.color-default,
+    .full-container .lesson-item .column a,
+    .full-container .card h3,
+    .full-container .card h2,
+    .full-container .card h4,
+    .full-container .card .category
+) {
+    color: #1f2329;
+}
+
+html[data-sl-theme="light"] :is(
+    .full-container .lesson-item .icon,
+    .full-container .lesson-item .time,
+    .full-container .lesson-item span.icon svg,
+    .full-container .lesson-item svg path
+) {
+    color: #4a5560;
+    fill: currentColor;
+}
+
+/* ③ 深色下对应给亮色 */
+html[data-sl-theme="dark"] :is(
+    .full-container .lesson-item .name,
+    .full-container .lesson-item a.name.color-default,
+    .full-container .lesson-item .column a,
+    .full-container .card h3,
+    .full-container .card h2,
+    .full-container .card h4
+) {
+    color: #f2f5f8;
+}
+
+html[data-sl-theme="dark"] :is(
+    .full-container .lesson-item .icon,
+    .full-container .lesson-item .time,
+    .full-container .lesson-item span.icon svg,
+    .full-container .lesson-item svg path
+) {
+    color: #c9d1db;
+    fill: currentColor;
+}
+
+/* ④ 不依赖属性也确保可读（没有属性时按主题走） */
+.full-container .lesson-item .name,
+.full-container .lesson-item a.name.color-default,
+.full-container .lesson-item .column a,
+.full-container .card h3 {
+    color: var(--lg-text);
+}
+
+.full-container .lesson-item .icon,
+.full-container .lesson-item .time {
+    color: var(--lg-text-weak);
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
