@@ -4505,6 +4505,74 @@ ul.padding-default,
     background-image: none !important;
 }
 
+/* ==========================================================================
+   ㉕ 网校：属性驱动的**可见**切换（播放页为主，用户实测「输入 light 后没变亮」）
+   --------------------------------------------------------------------------
+   现象（用户 DevTools 控制台实测）：
+       [true, sl-theme-toggle sl-theme-toggle-school]    ← 按钮在，且是新版
+       document.documentElement.dataset.slTheme = light   ← 写入成功
+       页面**没有变亮** ✗
+   原因：网校播放页的可见面（侧栏 / 播放区 / 控制条）此前只由 light-dark() 驱动，
+   一旦这条链在那边没生效（或规则没进浏览器），整页就毫无反应。
+   这里补一组**直连属性**的覆盖：data-sl-theme 一变，这几块必然换色。
+   它同时也是「样式到底有没有生效」的判定器 —— 若连它都无变化，就是样式没加载。
+   ★ 依据仍是真实产物（本地 chunks/ 与 player.css），类名全部来自源码。
+   ========================================================================== */
+/* ① 网校侧栏 / 顶栏容器：原产物把深色写在**内联** style 上，必须 !important 才压得住 */
+nav.lfe-body,
+.homepage-main,
+.header-layout .container,
+.user-nav,
+.link-container,
+.mobile-action {
+    background-color: transparent !important;
+    background-image: none !important;
+    color: var(--lg-text);
+}
+
+/* 侧栏/顶栏本体（内联深色所在的那个元素） */
+nav.lfe-body {
+    background-color: light-dark(
+        color-mix(in srgb, #ffffff 66%, transparent),
+        var(--lg-nav-dark)
+    ) !important;
+    border-radius: var(--lg-radius) !important;
+    box-shadow: inset 0 1.5px 0 var(--lg-rim-color) !important;
+    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+    color: var(--lg-text);
+}
+
+nav.lfe-body a {
+    color: var(--lg-text);
+}
+
+/* ② 属性驱动的兜底（不经过 light-dark()，保证一看就知道换了） */
+html[data-sl-theme="light"] nav.lfe-body,
+html[data-sl-theme="light"] .player-wrap.class-room .main,
+html[data-sl-theme="light"] .player-wrap.class-room .side,
+html[data-sl-theme="light"] .player-wrap.class-room .controller {
+    background-color: rgba(255, 255, 255, .74) !important;
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] nav.lfe-body,
+html[data-sl-theme="dark"] .player-wrap.class-room .main,
+html[data-sl-theme="dark"] .player-wrap.class-room .side,
+html[data-sl-theme="dark"] .player-wrap.class-room .controller {
+    background-color: rgba(18, 21, 27, .62) !important;
+    color: #f2f5f8;
+}
+
+/* 正文标题也跟着属性走（网校自身不带主题层，只能我们兜） */
+html[data-sl-theme="light"] .player-wrap.class-room :is(.lfe-h1, .lfe-h2, .lfe-h3) {
+    color: #1f2329;
+}
+
+html[data-sl-theme="dark"] .player-wrap.class-room :is(.lfe-h1, .lfe-h2, .lfe-h3) {
+    color: #f2f5f8;
+}
+
 /* ── 头像 / 统计块 ── */
 .avatar, .avatar-top {
     border-radius: 999px !important;
