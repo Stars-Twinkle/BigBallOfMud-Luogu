@@ -5506,27 +5506,46 @@ html[data-sl-theme="dark"] .footer-container,
     -webkit-backdrop-filter: none !important;
 }
 
-/* ② 课程白卡 → 完整玻璃 */
+/* ② 课程卡 → 玻璃。
+   ★★ 关键修正（用户：「他这个的结构是鼠标悬浮消失露出后面的文字，重写逻辑让鼠标不在的时候
+      后面隐藏不就得了」）：
+      这张卡原本是「**封面 + 悬浮露出背面文字**」的设计 —— 我上一版直接改写它的
+      background-image，等于把封面那层抹掉，于是背面文字**一直露着**（截图里文字叠在一起）。
+      现在两件事：
+        ① 玻璃的"面"改挂 **::after**（绝对定位 + pointer-events:none），
+           **不再动卡片自己的 background-image**（封面还给它们）；
+        ② 背面文字默认隐藏、仅悬停显示（见下面 ⑥ 段）。 */
 .home-wrapper .item.course {
     background-color: light-dark(
         color-mix(in srgb, #ffffff 40%, transparent),
         var(--lg-panel-dark)
     ) !important;
-    background-image:
-        radial-gradient(86% 54% at 13% -16%,
-            var(--lg-spec-color) 0%,
-            rgba(255, 255, 255, 0) 58%),
-        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
     border: 1px solid var(--lg-border) !important;
     border-radius: var(--lg-radius) !important;
     box-shadow:
         inset 0 1.5px 0 var(--lg-rim-color),
         inset -1px -1px 0 var(--lg-shade),
-        inset 0 0 22px var(--lg-glow),
         0 8px 30px var(--lg-shadow-color) !important;
     backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     color: var(--lg-text);
+    position: relative;
+}
+
+/* 玻璃的镜面光斑 + 斜向缎面：挂在伪元素上，不占卡片自己的 background-image */
+.home-wrapper .item.course::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%);
+    background-repeat: no-repeat;
+    z-index: 1;
 }
 
 /* ③ 分类卡：**保留分类色**，只叠玻璃层与模糊 */
@@ -5544,6 +5563,20 @@ html[data-sl-theme="dark"] .footer-container,
         0 8px 30px var(--lg-shadow-color) !important;
     backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
     -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+}
+
+/* ★ 背面文字：**默认隐藏，仅悬停显示**（用户要求「鼠标不在的时候后面隐藏」）。
+   按元素类型隐藏（h1-h6 / p / span / a / button / 标签 / 徽章）——
+   封面是 <img> 或带背景图的 <div>，不受影响，仍然默认可见。 */
+.home-wrapper .item.course :is(h1, h2, h3, h4, h5, h6, p, span, a[href], button, .tag, .badge, .caption) {
+    opacity: 0;
+    transition: opacity .22s ease;
+}
+
+/* 悬停（或键盘聚焦）时才露出来 —— 与它们原本"悬浮露出背面"的交互一致 */
+.home-wrapper .item.course:hover :is(h1, h2, h3, h4, h5, h6, p, span, a[href], button, .tag, .badge, .caption),
+.home-wrapper .item.course:focus-within :is(h1, h2, h3, h4, h5, h6, p, span, a[href], button, .tag, .badge, .caption) {
+    opacity: 1;
 }
 
 /* ④ 属性驱动兜底：深浅两态都明确给一次（白卡） */
