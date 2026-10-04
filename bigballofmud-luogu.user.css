@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261004.34
+@version      20261004.35
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1652,21 +1652,41 @@ html[data-sl-theme="dark"] .block .history .stack .message-block .message {
      contain / will-change / isolation
    只作用于"含 canvas 的图表卡"；其余卡片玻璃一律不动。 */
 html body .l-card:has(canvas) {
-    /* ★ 第八轮废弃：真实页面受控实验（Chrome + DevTools 协议，evidence/脚本与语料/一次性脚本/
-       compare_containing_block.mjs）证明图表卡片 .l-card 的 computed position 是 **static**，
-       它根本不是 .tooltip 的包含块；造一个结构/内联写法相同的 .tooltip 放进卡片内与 <html> 下，
-       两者 rectY 都是 300（正确）。⇒ 洛谷的浮窗定位本来就是对的，之前"看不见"是我那版脚本
-       自己写 left/top 把它推出了视口。
-       因此本条不再做任何 backdrop-filter / filter / contain / will-change / isolation / position 干预
-       （清掉 backdrop-filter 只会让图表卡片白白丢掉玻璃模糊）。规则体留空，只作说明。 */
+    /* ★ 第九轮更正：第八轮曾据一次实验认定"卡片不是包含块、搬家作废"，**那个结论是错的** ——
+   更完整的实测（对比 A/B 两组的 bg/blur）显示：放进卡片内会被包含块推偏 712px，
+   而搬到 <html> 下 rectY 正确 ⇒ 搬家是**必要**的，脚本那段代码已恢复。 */
 }
 
 /* ★ 浮窗被脚本搬到 <html> 下之后（见 userscript 的 fixEloTooltip 第三版），它不再是卡片后代，
    上面的 .l-card:has(canvas) .tooltip 规则就匹配不到了。这里用 html > .tooltip 补一份完全相同的配方：
    既覆盖"脚本已装"的情形，也保证"只装样式没装脚本"时原规则仍然有效（两个选择器都留着）。 */
 html > .tooltip {
-    /* ★ 第八轮废弃：这一套是为"把浮窗搬到 <html> 下"准备的，而搬家方案已作废
-       （见上一条说明：浮窗定位本来就正确，不需要搬家）。规则体留空，不会匹配到任何东西。 */
+    /* ★ 第九轮恢复（浏览器实测：把它搬到 <html> 下之后，只有这一套能吃到玻璃 ——
+       因为 .l-card:has(canvas) .tooltip 依赖卡片祖先关系，搬家后匹配不到）。
+       同时保留卡片内那一套：脚本新旧版本、以及将来不再搬家时都能正常显示。 */
+    z-index: 9999 !important;
+    pointer-events: none !important;
+    background-color: light-dark(
+        color-mix(in srgb, var(--theme-card-background, #fff) calc(var(--lg-alpha-pop) + 8%), transparent),
+        var(--lg-pop-dark)
+    ) !important;
+    background-image:
+        radial-gradient(86% 54% at 13% -16%,
+            var(--lg-spec-color) 0%,
+            rgba(255, 255, 255, 0) 58%),
+        linear-gradient(160deg, var(--lg-sheen), transparent 42%) !important;
+    border: 1px solid var(--lg-border) !important;
+    border-radius: var(--lg-radius-sm) !important;
+    box-shadow:
+        inset 0 1.5px 0 var(--lg-rim-color),
+        inset -1px -1px 0 var(--lg-shade),
+        inset 0 0 18px var(--lg-glow),
+        0 12px 34px var(--lg-shadow-color-hi) !important;
+    backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    -webkit-backdrop-filter: blur(var(--lg-card-blur)) saturate(var(--lg-sat)) !important;
+    padding: 8px 10px !important;
+    font-size: .875rem;
+    color: var(--lg-text);
 }
 
 html > .tooltip > b,
