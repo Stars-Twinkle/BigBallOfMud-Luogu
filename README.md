@@ -7,6 +7,21 @@
 
 ---
 
+## 一键安装
+
+| 要装的东西 | 装到哪 | 点这里安装 |
+|---|---|---|
+| **美化样式**（必需） | [Stylus](https://add0n.com/stylus.html) | **[⬇ 安装美化样式](https://userstyles.world/style/30507)** |
+| **配色开关 + 对比度守卫**（可选） | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
+
+先装上面两个管理器扩展，再点对应的安装链接 —— 管理器会自己弹出安装界面，确认即可。
+
+> **以后怎么更新**：从这两个链接装的，管理器会自己检查更新
+> （Stylus 在样式页点「检查更新」；篡改猴默认每 24 小时查一次，也可在管理面板手动「检查更新」）。
+> 手动粘贴代码装的**查不到更新**，所以建议用上面的链接装。
+
+---
+
 ## 两个文件是什么
 
 | 文件 | 装到哪 | 必需？ | 作用 |
@@ -23,14 +38,20 @@
 
 ### 1. 样式（必需）
 
-**方式 A：从 URL 安装（推荐，方便以后更新）**
+**方式 A：点安装链接（推荐，方便以后更新）**
 
 1. 装 [Stylus](https://add0n.com/stylus.html) 扩展
-2. 打开 Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接粘进样式正文里
-   （Stylus 会自动识别 `==UserStyle==` 头；若你的版本没有"从 URL 安装"，用方式 B）：
-   `https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu.user.css`
+2. 点 **[⬇ 安装美化样式](https://userstyles.world/style/30507)** → Stylus 会弹出安装页 → 确认
+   （userstyles.world 是 UserCSS 的托管站，样式页上也有「Install style」按钮）
 
-**方式 B：手动粘贴**
+**方式 B：从 raw 文件安装**
+
+Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接粘进样式正文里
+（Stylus 会自动识别 `==UserStyle==` 头；有些版本没有"从 URL 安装"，那就用方式 C）：
+
+`https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu.user.css`
+
+**方式 C：手动粘贴**
 
 1. 打开 Stylus → 「管理样式」→「**编写新样式**」
 2. 把 `bigballofmud-luogu.user.css` 的全部内容粘进去 → `Ctrl+S`
@@ -38,9 +59,18 @@
 
 ### 2. 脚本（可选）
 
+**方式 A：点安装链接（推荐）**
+
 1. 装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 油猴图标 → 「**添加新脚本**」→ 清空编辑区 → 粘贴 `bigballofmud-luogu-switch.user.js` 全部内容 → `Ctrl+S`
-3. 刷新洛谷，顶栏「私信 / 通知」右边会出现一个圆形配色按钮
+2. 点 **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)**
+   → 篡改猴弹出安装页 → 确认
+
+**方式 B：手动粘贴**
+
+油猴图标 → 「**添加新脚本**」→ 清空编辑区 → 粘贴 `bigballofmud-luogu-switch.user.js` 全部内容 → `Ctrl+S`
+
+装好后刷新洛谷，顶栏「私信 / 通知」右边会出现一个圆形配色按钮（网校则在侧栏「学习」下面、
+或首页顶栏客服图标左边）。
 
 > **怎么区分两个文件？** 脚本文件第一行是 `// ==UserScript==`（油猴靠它识别）；
 > 样式文件开头是 `/* ==UserStyle==`。粘错地方不会生效，但也不会弄坏什么。
@@ -69,6 +99,9 @@
 - **链接悬停**：渐变色文字 + 下划线从中间划入（犇犇、讨论区、文章正文都覆盖）
 - **标签 / 徽章悬停**：一道高光扫过 + 轻微抬起
 - **卡片、按钮、表单、浮层**：同一套玻璃语言，并带柔和阴影与悬停反馈
+- **洛谷网校**（`class.luogu.com.cn`）：首页、播放页（课堂）、学习中心的侧栏 / 顶栏 / 播放区 /
+  控制条 / 聊天面板与输入框 / 课程卡 / 分类卡 / 页脚 / 标签栏，都按各自前端产物逐条适配，
+  深浅色与玻璃一致；「学习体系」那张大图抠掉底板后由玻璃承载
 
 ---
 
@@ -80,11 +113,11 @@
 
 | 变量 | 默认 | 管什么 |
 |---|---|---|
-| `--lg-alpha` | `26%` | 主卡片 |
-| `--lg-alpha-soft` | `20%` | 列表 / 表格 / 分页 / 搜索框 |
-| `--lg-alpha-pop` | `26%` | 模态 / 下拉 / 气泡 / 通知（与卡片同值，避免色差）|
-| `--lg-alpha-field` | `44%` | 输入框 / 文本域 / 下拉选择 |
-| `--lg-nav-alpha` | `42%` | 顶栏两个胶囊 + 左右侧栏 |
+| `--lg-alpha` | `18%` | 主卡片 |
+| `--lg-alpha-soft` | `13%` | 列表 / 表格 / 分页 / 搜索框 |
+| `--lg-alpha-pop` | `18%` | 模态 / 下拉 / 气泡 / 通知（与卡片同值，避免色差）|
+| `--lg-alpha-field` | `36%` | 输入框 / 文本域 / 下拉选择 |
+| `--lg-nav-alpha` | `34%` | 顶栏两个胶囊 + 左右侧栏 |
 
 ### 液态玻璃质感
 
@@ -155,8 +188,9 @@
 - **浏览器**：需要支持 `light-dark()`，即 Chrome / Edge 111+、Safari 16.4+、Firefox 120+。
   更老的浏览器会退化：文件里有 `@supports not (color: light-dark(#fff, #000))` 兜底块，
   保留固定浅色玻璃（深色模式不生效）。
-- **站点范围**：只作用于 `www.luogu.com.cn` 主站。
-  `ti.luogu.com.cn`（有题）与 `class.luogu.com.cn`（网校）是另外两套前端，本样式不覆盖。
+- **站点范围**：主站 `www.luogu.com.cn` 与**网校** `class.luogu.com.cn`（首页 / 播放页 / 学习中心等
+  已按各自产物适配，深浅色与玻璃都覆盖）。
+  `ti.luogu.com.cn`（有题）是另一套前端，暂不覆盖。
 - **随洛谷更新可能失效**：洛谷前端发版会改 DOM 结构与类名。本样式**刻意不使用** `data-v-*` 哈希
   （每构建都会变），但仍然依赖稳定的语义类名，洛谷大改版后个别地方可能需要跟进。
 
