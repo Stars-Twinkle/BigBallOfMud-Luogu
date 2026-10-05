@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.03
+// @version      20261005.04
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -579,11 +579,8 @@
             var tp = document.querySelector('.theme-page');
             var v = tp ? getComputedStyle(tp).getPropertyValue('--theme-body-image').trim() : '';
             var m = /url\((['"]?)(.*?)\1\)/.exec(v);
-            // 抓不到中景图 ⇒ 用样式里的 --sl-bg-fallback（我们自己的兜底图）；
-            // 连它也没有，才退回洛谷官方默认图（浅/深各一张）。
-            var fb = getComputedStyle(el).getPropertyValue('--sl-bg-fallback').trim();
-            if (!fb || fb === 'none') fb = isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT;
-            var want = m && m[2] ? 'url("' + m[2] + '")' : fb;
+            // 中景与写死的都没有 ⇒ 直接用洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）。
+            var want = m && m[2] ? 'url("' + m[2] + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
     }
