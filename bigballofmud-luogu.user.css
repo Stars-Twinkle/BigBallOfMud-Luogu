@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.07
+@version      20261005.08
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3222,15 +3222,16 @@ footer a:hover {
         0 4px 14px var(--lg-shadow-color-hi) !important;
 }
 /* ① 新前端题目列表：难度胶囊与 Tag 胶囊（结构选择器，只命中内层胶囊） */
-/* 难度：洛谷的难度胶囊固定是「列 > span > span」两层（表头只有一层，天然不命中）。 */
-.difficulty > span > span,
-/* Tag：洛谷把标签胶囊统一放在 .tags 容器里，形态有两种 ——
-   题目列表行内是 .tag > .tags > span；题目页的标签卡是 .l-card .tags > a > span。
-   用 .tags 这个确定的容器类做作用域，既能覆盖两处，又不会碰到表头
-   （表头是 .header-container.tag > span，里面没有 .tags）。 */
-.tags > span,
-.tags > a > span,
-.tags > a,
+/* ★ 真胶囊的判据（用户 DevTools 实证）：洛谷把语义底色写在内联 style 里 ——
+   <a …><span style="background-color: rgb(19,194,194); border-color: …; color:#fff">字符串</span></a>
+   但两种形态的「胶囊本体」不同：
+     · 题目列表行内：胶囊是 <a>（DevTools 里选中的 a 尺寸 93×28 = 胶囊尺寸）；
+     · 题目页标签卡：胶囊是 <a> 里的 <span>。
+   所以不能用固定层级，改判「谁身上有内联 background-color，谁就是胶囊」。
+   这样自然排除包装元素（div.tag / div.tags / 无内联色的 a / 外层 span）与表头，
+   也就不会出现「一个胶囊两层玻璃」以及随之而来的双层位移。 */
+.tags [style*="background-color"],
+.difficulty [style*="background-color"],
 /* 旧首页徽章（含「置顶」「Rated」「官方比赛」等） */
 .am-badge,
 [class*="lg-bg-"],
@@ -3263,16 +3264,11 @@ footer a:hover {
     vertical-align: middle;
 }
 
-/* 悬停：只对**最内层胶囊**生效（抬 2px、不放大，与全站悬停语言一致）。
-   ★ 这里刻意不写 .difficulty > span:hover / .tag > span:hover —— 那是外层包装，
-     鼠标停在任意一个胶囊上时它也在 :hover 内，于是：① 同列所有胶囊一起浮起；
-     ② 内层再浮一次，难度的位移变成别的标签的两倍（用户：「一个标签块下面为什么悬浮后
-     标签会一同悬浮」「题目难度标签的动画要跟别的同步」）。 */
-.difficulty > span > span:hover,
-.tags > span:hover,
-.tags > a > span:hover,
-.tags > a:hover,
-.tags > span.tag:hover,
+/* 悬停：位移只加在「真胶囊」上，一层一次，避免包装+胶囊双层位移（用户：「悬浮还是不对」）。
+   难度列每行只有一个胶囊，直接给它的包装 span 也安全（该包装不存在第二个胶囊，不会连带）。 */
+.difficulty > span:hover,
+.tags [style*="background-color"]:hover,
+.difficulty [style*="background-color"]:hover,
 .am-badge:hover,
 [class*="lg-bg-"]:hover,
 .badge:hover {
