@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.14
+// @version      20261005.15
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -601,10 +601,11 @@
                 // ② 主站：**每次页面更新都先把缓存作废，然后重新拉一次中景图**（用户要求），
                 //    保证缓存里始终是"主站最近一次看到的真实值"。
                 //    判据用地址变化：SPA 换页 / 首屏都算一次更新；同一个页面内 300ms 的高频调用不作废。
-                if (bgLastHref !== location.href) {
-                    bgLastHref = location.href;
-                    bgCacheSet('');                                   // 先废掉
-                }
+                // ★ 页面更新时**重新拉一次**中景图，但**不要先把缓存清空** ——
+                //   首轮 .theme-page 还没渲染，清空后读不到就只能退到官方兜底图，
+                //   用户会看到「默认图闪一瞬间」。这里改成：先用手上的缓存，
+                //   本页抓到新值就覆盖它（主题真变了下一轮就换过来）。
+                if (bgLastHref !== location.href) bgLastHref = location.href;
                 // 洛谷把主题值**内联**写在 .theme-page 的 style 属性上
                 // （实测：style="--theme-body-back:#f0f4fa; --theme-body-image:url(...)"），
                 // 所以先读属性（快、不等渲染），再退回计算值。
@@ -621,7 +622,11 @@
             }
 
             // ④ 缓存也没有 ⇒ 洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）
-            var want = url ? 'url("' + url + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
+            // ★ 中景图与缓存都没有时**不写官方兜底图** —— 洛谷那张 luogu4-bg-l/d 就是"默认主题"，
+            //   写它会先闪一下默认图再被真图替换（用户：「有的时候默认图还是会闪一瞬间」）。
+            //   宁可这一瞬间只剩底色（画布 background-color 已由样式给了）。
+            var want = url ? 'url("' + url + '")' : '';
+            if (!want) { if (el.style.getPropertyValue('--sl-bg-active')) el.style.removeProperty('--sl-bg-active'); return; }
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
     }
