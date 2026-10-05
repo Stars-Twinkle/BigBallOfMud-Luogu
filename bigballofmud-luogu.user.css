@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.13
+@version      20261005.14
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3304,6 +3304,11 @@ html body .tags [style*="255,255,255"] {
     vertical-align: baseline;
     /* 边框不参与撑高，避免 1px 描边把胶囊整体顶下去 2px */
     box-sizing: border-box;
+    /* ★ 过渡：没有它，悬停位移是**瞬间跳**的（用户：「现在的悬浮动画是瞬间位移，不是浮起」）。
+       曲线与时长照抄全站悬停语言（顶栏胶囊 / 卡片 / 测试点方块都用同一组）。 */
+    transition: translate .26s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .3s ease,
+                background-position .6s cubic-bezier(.4, 0, .2, 1);
 }
 
 /* 悬停：位移只加在「真胶囊」上，一层一次，避免包装+胶囊双层位移（用户：「悬浮还是不对」）。
@@ -3317,6 +3322,7 @@ html body .tags [style*="255,255,255"] {
 [class*="lg-bg-"]:hover,
 .badge:hover {
     translate: 0 -2px;
+    background-position: 34% 12%, 0 0 !important;
     box-shadow:
         inset 0 1px 0 light-dark(rgba(255, 255, 255, .85), rgba(255, 255, 255, .30)),
         inset 0 -1px 0 rgba(0, 0, 0, .24),
