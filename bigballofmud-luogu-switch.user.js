@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.06
+// @version      20261005.07
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -17,8 +17,6 @@
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        GM.getValue
-// @grant        GM.setValue
 //                ↑ 用篡改猴的跨域存储记住「主题中景图」的地址：
 //                  首页（旧前端）与网校（另一套前端）自己页面上都没有这个变量，
 //                  只能靠在这里存一份、两个域名共享（localStorage 是按域名隔离的，读不到）。
@@ -574,16 +572,16 @@
     var BG_FALLBACK_LIGHT = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg")';
     var BG_FALLBACK_DARK  = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg")';
     var BG_CACHE_KEY = 'sl-theme-bg-image';
-    // 跨域名共享的缓存读写：优先用篡改猴的 GM 存储（www 与 class 两个域名能互相看到），
+    // 跨域名共享的缓存读写：优先用篡改猴的 GM 存储（www 与 class 两个域名能互相看到）。
+    // ★ 只用**同步**的旧式 GM_getValue / GM_setValue：新式的 getValue / setValue（挂在 GM 对象上）返回 Promise，
+    //   这个读取函数是同步的，拿到 Promise 会直接当 URL 用而坏掉。
     // 没有 GM 时退回本域名的 localStorage。
     function bgCacheGet() {
         try { if (typeof GM_getValue === 'function') return GM_getValue(BG_CACHE_KEY, '') || ''; } catch (e) { /* 忽略 */ }
-        try { if (typeof GM !== 'undefined' && GM && GM.getValue) return GM.getValue(BG_CACHE_KEY, '') || ''; } catch (e) { /* 忽略 */ }
         try { return localStorage.getItem(BG_CACHE_KEY) || ''; } catch (e) { return ''; }
     }
     function bgCacheSet(v) {   // v 传空串 = 作废这条缓存
         try { if (typeof GM_setValue === 'function') { GM_setValue(BG_CACHE_KEY, v); return; } } catch (e) { /* 忽略 */ }
-        try { if (typeof GM !== 'undefined' && GM && GM.setValue) { GM.setValue(BG_CACHE_KEY, v); return; } } catch (e) { /* 忽略 */ }
         try { localStorage.setItem(BG_CACHE_KEY, v); } catch (e) { /* 忽略 */ }
     }   // 记下最近一次从主题读到的中景图 URL（首页没有 .theme-page，靠它兜）
 
