@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.08
+// @version      20261005.09
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -645,9 +645,24 @@
                 var el = labels[i];
                 var txt = (el.textContent || '').trim();
                 if (txt === THEME_HIDE_LABEL) {
-                    // 找到承载这一行的那层（.l-form-layout 是那一行的容器），整行不显示
+                    // 找到承载这一行的那层（.l-form-layout 是那一行的容器）
                     var row = el.closest('.l-form-layout') || el.closest('.editor-form-layout') || el.parentElement;
-                    if (row && row.style.display !== 'none') row.style.display = 'none';
+                    // ★ 关键：先把档位拉回「标准」再隐藏。本项目的美化是照「标准」写的，
+                    //   用户若曾选过「关闭 / 轻量」，光是隐藏那一行并不会把值改回来，渲染照样不对。
+                    //   做法：在行内找到文案含「标准」的那个单选项，只有它没被选中时才模拟点它一次
+                    //   （用 label.click() 走洛谷自己的交互，避免直接改状态与 Vue 不同步；
+                    //     点了也只是改了编辑器里的待保存状态，仍需用户点「应用主题」才生效）。
+                    if (row) {
+                        var labels2 = row.querySelectorAll('label');
+                        for (var k = 0; k < labels2.length; k++) {
+                            if ((labels2[k].textContent || '').indexOf('标准') < 0) continue;
+                            var radio = labels2[k].querySelector('input[type="radio"]');
+                            var checked = radio ? radio.checked : /checked|active|selected/.test(labels2[k].className);
+                            if (!checked) { try { labels2[k].click(); } catch (e) { /* 忽略 */ } }
+                            break;
+                        }
+                        if (row.style.display !== 'none') row.style.display = 'none';
+                    }
                 }
                 if (THEME_RENAME[txt]) el.textContent = THEME_RENAME[txt];
             }
