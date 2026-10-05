@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.19
+@version      20261005.20
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -2931,7 +2931,9 @@ footer a:hover {
      · --theme-body-image: none  → 洛谷那边也不再往内容层塞图；
      · ::before 只保留"不挡点击"，背景与遮罩都清掉。 */
 .theme-page {
-    --theme-body-image: none !important;
+    /* ★ 这里**不能擦掉** --theme-body-image —— 脚本要读它来抓洛谷主题的「中景图片」；
+       擦掉之后脚本永远读到 none，就只能回退官方默认图（表现就是「还是默认主题」）。
+       让内容层不画壁纸靠的是下面 ::before 那几条，与变量无关。 */
     --theme-body-image-size: cover !important;
     --theme-body-image-position: center !important;
     --theme-body-image-repeat: no-repeat !important;
