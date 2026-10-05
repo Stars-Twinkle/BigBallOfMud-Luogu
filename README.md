@@ -2,8 +2,9 @@
 
 洛谷新版前端（columba / lfe）的**液态玻璃**美化 + **深浅双模式**。
 
-纯 CSS 实现，不需要油猴脚本也能用；想要"页面内可点的配色按钮"和"深色对比度自动校正"，
-再额外装那个可选脚本即可。
+样式负责外观、脚本负责行为，**两个都要装**：
+脚本提供页面内可点的三态配色开关，并负责深色下的**对比度校正**与**悬停反馈**
+（样式里有一部分表面是由脚本写入的 `data-sl-theme` 属性驱动的，脚本缺席时那些地方会退化）。
 
 ---
 
@@ -12,7 +13,7 @@
 | 要装的东西 | 装到哪 | 点这里安装 |
 |---|---|---|
 | **美化样式**（必需） | [Stylus](https://add0n.com/stylus.html) | **[⬇ 安装美化样式](https://userstyles.world/api/style/30507.user.css)** |
-| **配色开关 + 对比度守卫**（可选） | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
+| **配色开关 + 对比度守卫**（必需） | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
 
 先装上面两个管理器扩展，再点对应的安装链接 —— 管理器会自己弹出安装界面，确认即可。
 
@@ -33,10 +34,11 @@
 | 文件 | 装到哪 | 必需？ | 作用 |
 |---|---|---|---|
 | [`bigballofmud-luogu.user.css`](bigballofmud-luogu.user.css) | **Stylus**（或其它 UserCSS 管理器）| **必需** | 全部外观：液态玻璃、深浅配色、顶栏胶囊、侧栏、链接悬停、标签动画…… |
-| [`bigballofmud-luogu-switch.user.js`](bigballofmud-luogu-switch.user.js) | **Tampermonkey**（油猴）| 可选 | ① 顶栏放一个可点的三态配色开关（选择被记住）② 深色下自动修正对比度不足的文字 |
+| [`bigballofmud-luogu-switch.user.js`](bigballofmud-luogu-switch.user.js) | **Tampermonkey**（油猴）| **必需** | ① 顶栏放一个可点的三态配色开关（选择被记住）② 深色下自动修正对比度不足的文字 ③ 写入 `data-sl-theme`，供样式的属性驱动规则与悬停反馈使用 |
 
-> 两个文件是**配合**关系：脚本只负责"行为"，一行 CSS 都不注入；
-> 样式只负责"外观"，不写任何 JS。所以可以只装样式、也可以两个都装。
+> 两个文件是**配合**关系：脚本只负责"行为"，一行 CSS 都不注入；样式只负责"外观"，不写任何 JS。
+> **但两个都要装** —— 缺了脚本，顶栏配色按钮、深色下的对比度校正、
+> 以及依赖 `data-sl-theme` 的那部分悬停反馈都不会生效。
 
 ---
 
@@ -64,7 +66,7 @@ Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接�
 2. 把 `bigballofmud-luogu.user.css` 的全部内容粘进去 → `Ctrl+S`
 3. 打开洛谷刷新，即可看到效果
 
-### 2. 脚本（可选）
+### 2. 脚本（必需）
 
 **方式 A：点安装链接（推荐）**
 
@@ -167,7 +169,7 @@ Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接�
 **Q：深色下某处还是白的 / 某段文字看不清？**
 两件事可以试：
 1. 确认 Stylus 里是最新版（在编辑器里搜一个特征字符串，例如 `--lg-pop-dark`，搜得到就是新版）
-2. 装上可选脚本 —— 它的「对比度守卫」会读取**最终计算出来**的颜色，自动把不达标的文字修到可读
+2. 装上脚本（必需）—— 它的「对比度守卫」会读取**最终计算出来**的颜色，自动把不达标的文字修到可读
 
 **Q：浅色模式和洛谷原版一样吗？**
 一样。样式的浅色分支一律"就地消费"洛谷的主题变量，且深色重映射用的浅色值都等于洛谷原值

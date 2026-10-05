@@ -1,10 +1,10 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.15
+@version      20261005.16
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
-              纯样式实现，不需要任何脚本。
+              需配合油猴脚本使用（脚本提供配色开关、深色对比度校正与悬停反馈）。
 @author       acerkaio（新版前端适配）
 @license      CC BY-NC-SA
 @var select colorMode "配色模式" {
