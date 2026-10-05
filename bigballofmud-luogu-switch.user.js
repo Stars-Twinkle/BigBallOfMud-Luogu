@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.19
+// @version      20261005.20
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -743,6 +743,37 @@
             }
         } catch (e) { /* 忽略 */ }
     }
+    /* ======================================================================
+       文章广场 / 个人主页文章列表：深色下的标题内联黑字
+       ----------------------------------------------------------------------
+       实测：标题是 .l-card .row.title 下的无类名 <a>，洛谷把 color 内联写成
+       rgba(0, 0, 0, 0.85)。内联色赢过任何选择器，而项目铁律不许在样式里写
+       color: … !important，所以只能由脚本直接改内联值。
+       做法：深色时记下原值再改成主题文字色；浅色时把原值写回（幂等，可反复调用）。
+       ====================================================================== */
+    var DARK_ARTICLE_SEL = ".l-card .row.title > a";
+
+    function fixDarkArticleText() {
+        try {
+            if (!isMain) return;
+            var dark = isDarkNow();
+            var links = document.querySelectorAll(DARK_ARTICLE_SEL);
+            for (var i = 0; i < links.length; i++) {
+                var a = links[i];
+                var inline = a.style.color || '';
+                if (dark) {
+                    var cs = getComputedStyle(document.documentElement);
+                    var want = cs.getPropertyValue('--lg-text').trim() || '#f7fafc';
+                    // 记下洛谷的原始内联值（只记一次），再换掉
+                    if (!a.dataset.slOrigColor && inline) a.dataset.slOrigColor = inline;
+                    if (a.style.color !== want) a.style.color = want;
+                } else if (a.dataset.slOrigColor) {
+                    // 回到浅色：把洛谷原来的内联值写回去
+                    if (a.style.color !== a.dataset.slOrigColor) a.style.color = a.dataset.slOrigColor;
+                }
+            }
+        } catch (e) { /* 忽略 */ }
+    }
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
@@ -767,6 +798,10 @@
         // 主题编辑器微调（只在 /theme/ 路径下生效：隐藏「卡片毛玻璃」、把「中景图片」改成「背景图」）
         tweakThemeEditor();
         if (isMain) setInterval(tweakThemeEditor, 500);   // 有 /theme/ 路径守卫，其它页面是空操作
+
+        // 文章广场 / 个人主页文章列表：深色下把标题的内联黑字换掉（低频，列表是 SPA 渲染的）
+        fixDarkArticleText();
+        if (isMain) setInterval(fixDarkArticleText, 800);
 
         // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
         syncThemeBackground();

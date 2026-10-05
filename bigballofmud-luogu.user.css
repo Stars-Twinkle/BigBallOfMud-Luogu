@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.25
+@version      20261005.26
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3308,6 +3308,29 @@ a:has(> span[style*="background-color"][style*="border-color"]) {
 html body .tags [style*="255, 255, 255"],
 html body .tags [style*="255,255,255"] {
     color: #1f2329;
+}
+
+/* ── ⑯-c-8 文章广场 / 个人主页文章列表：深色下的标题与摘要 ─────────────────────
+   实测（headless ✗ 强制深色 + 注入本样式）：
+     · 标题是无类名 <a>（父 .row.title ✗ 祖 .l-card ✗）✗ **内联**写着 color: rgba(0, 0, 0, 0.85)；
+     · 摘要是 .content ✗ 计算色 rgba(0, 0, 0, 0.75)（来自洛谷样式表 ✗ 没有内联）；
+     · 两者对比度都只有 **1.15** —— 黑字压深底 ✗ 几乎不可读（用户截图：「个人主页的文章列表深色模式下的文字」）。
+   为什么对比度守卫救不了：标题带内联 color ✗ 而 CONFIG.guardSkipInlineColor 会跳过这类元素（尊重站点的内联语义色）✗
+   所以必须由样式接管。浅色分支**保持洛谷原来的黑字**（用 light-dark 只在深色换 ✗ 避免浅色下把标题洗淡）。
+   ★ 选择器限定在 .l-card .row 之内 ✗ 不写成裸的 .content（那个类名太常见 ✗ 会外溢）。
+   ★ 这里**不能用 !important**（项目铁律：全文不许有 color 声明带 !important）✗ 所以：
+     · 摘要 .content 没有内联色 ⇒ 靠特异性就能覆盖 ✗ 本节负责它；
+     · 标题带**内联** color ⇒ 任何选择器都赢不了内联（除非 !important）✗ 所以交给脚本的
+       fixDarkArticleText() 直接改内联值（脚本本来就在做"修内联色"这件事）。 */
+.l-card .row.title > a,
+.l-card .row.title > a:visited,
+.l-card .row > .content {
+    color: light-dark(rgba(0, 0, 0, 0.85), var(--lg-text));
+}
+
+
+.l-card .row > .content {
+    color: light-dark(rgba(0, 0, 0, 0.75), var(--lg-text-weak));
 }
 
 .tags [style*="background-color"],
