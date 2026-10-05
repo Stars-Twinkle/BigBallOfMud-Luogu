@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.24
+@version      20261005.25
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3284,6 +3284,25 @@ footer a:hover {
 .am-badge::after,
 .badge::after {
     content: none !important;
+}
+
+/* ── 标签胶囊里的链接不要下划线 ─────────────────────────────────────────────
+   项目给全站链接加的下划线是 a::after 的渐变线；而标签本身常常就是 <a>
+   （排行榜 a > span、题目列表 a[block] > span、弹出的用户卡里也是 a 包裹），
+   那条线会从玻璃胶囊下面穿出来（用户：「所有标签带的链接都不应该有超链接下滑线啊」）。
+   ★ :has() 单独成条（项目铁律：不许与普通选择器混写）。 */
+a:has(> span[style*="background-color"][style*="border-color"])::after,
+a:has(> span[style*="background-color"][style*="border-color"]):hover::after {
+    content: none !important;
+}
+
+a:has(> span[style*="background-color"][style*="border-color"]) {
+    text-decoration: none !important;
+}
+
+/* 同上：这些标签族的 <a> 也一律不留 text-decoration（旧规则只关了 ::after）。 */
+:is(.tags, .difficulty, .badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag) a {
+    text-decoration: none !important;
 }
 
 html body .tags [style*="255, 255, 255"],
