@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.15
+// @version      20261005.16
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -569,8 +569,6 @@
        把结果写到 <html> 的行内 --sl-bg-active，样式那边画布用
        var(--sl-bg-active, var(--sl-bg-image)) 消费它。
        ====================================================================== */
-    var BG_FALLBACK_LIGHT = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg")';
-    var BG_FALLBACK_DARK  = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg")';
     var BG_CACHE_KEY = 'sl-theme-bg-image';
     // 跨域名共享的缓存读写：优先用篡改猴的 GM 存储（www 与 class 两个域名能互相看到）。
     // ★ 只用**同步**的旧式 GM_getValue / GM_setValue：新式的 getValue / setValue（挂在 GM 对象上）返回 Promise，
