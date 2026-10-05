@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.07
+// @version      20261005.08
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -625,6 +625,34 @@
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
     }
+    /* ======================================================================
+       主题编辑器（/theme/…）微调
+       ----------------------------------------------------------------------
+       用户要求两件事：
+         ① 把「卡片毛玻璃」那一行**隐藏**（它会让渲染不对，默认的「标准」才是对的）；
+         ② 把「中景图片」这个描述的文案改成「背景图」。
+       做法：编辑器里这两处都没有能稳定指向它们的类名（那一行只是 .l-form-layout，
+             和「中景淡出」等同级同构），所以按**文案**定位，只在 /theme/ 路径下动手。
+       ====================================================================== */
+    var THEME_HIDE_LABEL = '卡片毛玻璃';      // 整行隐藏
+    var THEME_RENAME = { '中景图片': '背景图' };  // 文案替换
+
+    function tweakThemeEditor() {
+        if (!/\/theme(\/|$)/.test(location.pathname)) return;
+        try {
+            var labels = document.querySelectorAll('.adjust-bars .lfe-caption, .adjust-bars .lfe-h3, .l-form-layout .lfe-caption');
+            for (var i = 0; i < labels.length; i++) {
+                var el = labels[i];
+                var txt = (el.textContent || '').trim();
+                if (txt === THEME_HIDE_LABEL) {
+                    // 找到承载这一行的那层（.l-form-layout 是那一行的容器），整行不显示
+                    var row = el.closest('.l-form-layout') || el.closest('.editor-form-layout') || el.parentElement;
+                    if (row && row.style.display !== 'none') row.style.display = 'none';
+                }
+                if (THEME_RENAME[txt]) el.textContent = THEME_RENAME[txt];
+            }
+        } catch (e) { /* 忽略 */ }
+    }
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
@@ -645,6 +673,10 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
+
+        // 主题编辑器微调（只在 /theme/ 路径下生效：隐藏「卡片毛玻璃」、把「中景图片」改成「背景图」）
+        tweakThemeEditor();
+        if (isMain) setInterval(tweakThemeEditor, 600);
 
         // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
         syncThemeBackground();
