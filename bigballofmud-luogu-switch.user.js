@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.17
+// @version      20261005.18
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -659,7 +659,9 @@
         if (!/\/theme(\/|$)/.test(location.pathname)) return;
         try {
             // ★ 扫全页：原来限定在 .adjust-bars / .l-form-layout 里，漏掉了「中景图片」那个 label
-            var labels = document.querySelectorAll('.lfe-caption, .lfe-h3, label');
+            // ★ 选择器必须带上 .image-label > span：那个「中景图片」是**裸 span**，没有 lfe-caption 类
+            //   （结构：div.image-label > span + div.image-switch；它带 data-v-* 哈希，项目禁用，只能用结构定位）
+            var labels = document.querySelectorAll('.lfe-caption, .lfe-h3, label, .image-label > span');
             for (var i = 0; i < labels.length; i++) {
                 var el = labels[i];
                 var txt = (el.textContent || '').trim();
@@ -717,7 +719,7 @@
                     }
                     if (row && row.style.display !== 'none') row.style.display = 'none';
                 }
-                if (THEME_RENAME[txt]) el.textContent = THEME_RENAME[txt];
+                if (THEME_RENAME[txt] && el.children.length === 0) el.textContent = THEME_RENAME[txt];
             }
             }
         } catch (e) { /* 忽略 */ }
