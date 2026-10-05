@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.01
+// @version      20261005.02
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -553,6 +553,36 @@
         setInterval(hoist, 200);
     }
 
+    /* ======================================================================
+       背景图：样式没写死时，抓洛谷主题商店设置的背景图顶上
+       ----------------------------------------------------------------------
+       规则（用户要求）：
+         · 样式里 --sl-bg-image **写了值** ⇒ 一律不动，脚本完全不插手；
+         · 样式里留空 ⇒ 读 .theme-page 上的 --theme-body-image（洛谷把主题图放这里，
+           实测：.theme-page { --theme-body-image: url("…/luogu4-bg-l.jpg") }，
+           真正画图的是 .theme-page::before，而 html 上取不到这个变量）；
+         · 连主题图也没有 ⇒ 用它自己的官方默认图（浅/深两张）。
+       把结果写到 <html> 的行内 --sl-bg-active，样式那边画布用
+       var(--sl-bg-active, var(--sl-bg-image)) 消费它。
+       ====================================================================== */
+    var BG_FALLBACK_LIGHT = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg")';
+    var BG_FALLBACK_DARK  = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg")';
+
+    function syncThemeBackground() {
+        try {
+            var el = document.documentElement;
+            if (!el) return;
+            // ① 样式里写死了 ⇒ 撤掉我们写过的值，交回样式
+            var own = getComputedStyle(el).getPropertyValue('--sl-bg-image').trim();
+            if (own && own !== 'none') { el.style.removeProperty('--sl-bg-active'); return; }
+            // ② 抓主题图
+            var tp = document.querySelector('.theme-page');
+            var v = tp ? getComputedStyle(tp).getPropertyValue('--theme-body-image').trim() : '';
+            var m = /url\((['"]?)(.*?)\1\)/.exec(v);
+            var want = m && m[2] ? 'url("' + m[2] + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
+            if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
+        } catch (e) { /* 忽略 */ }
+    }
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
@@ -573,6 +603,10 @@
         else reapply();
         // 有些环境（测试用的假 DOM / 极简浏览器）没有 window.addEventListener，保护一下
         try { window.addEventListener('load', reapply, { once: true }); } catch (e) { /* 忽略 */ }
+
+        // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
+        syncThemeBackground();
+        setInterval(syncThemeBackground, 1500);
 
         // 主站个人主页：图表浮窗改成指针驱动定位（详见 六·二）
         if (isMain) fixEloTooltip();
