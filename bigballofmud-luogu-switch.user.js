@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.02
+// @version      20261005.03
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -579,7 +579,11 @@
             var tp = document.querySelector('.theme-page');
             var v = tp ? getComputedStyle(tp).getPropertyValue('--theme-body-image').trim() : '';
             var m = /url\((['"]?)(.*?)\1\)/.exec(v);
-            var want = m && m[2] ? 'url("' + m[2] + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
+            // 抓不到中景图 ⇒ 用样式里的 --sl-bg-fallback（我们自己的兜底图）；
+            // 连它也没有，才退回洛谷官方默认图（浅/深各一张）。
+            var fb = getComputedStyle(el).getPropertyValue('--sl-bg-fallback').trim();
+            if (!fb || fb === 'none') fb = isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT;
+            var want = m && m[2] ? 'url("' + m[2] + '")' : fb;
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
     }

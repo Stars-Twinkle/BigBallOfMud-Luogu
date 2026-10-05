@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.17
+@version      20261005.18
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -250,6 +250,10 @@
    **想固定成自己的图**：把下面这行的分号前填上 url("…") 即可 ——
    脚本检测到这一行有值就完全不插手（用户要求：写死了就不替换）。 */
     --sl-bg-image: ;
+    /* 兜底图：脚本抓不到洛谷主题的「中景图片」时用这张（用户实测：主题设置里只有中景，
+       没有单独的背景图选项；所以拿不到中景就等于没有背景图，这时用我们自己的这张）。
+       想换兜底图就改这一行。 */
+    --sl-bg-fallback: url("https://rhythm-assets.cn-nb1.rains3.com/objects/7a83566b723fa54bbd104146cfb1d94559ab7962710be389e0c99e97a67e6189/webp");
 
     /* ----------------------------------------------------------------------
        ③ 玻璃自有光泽：这些不涉及主题色，直接给浅/深两个颜色
@@ -354,7 +358,7 @@ html {
         /* 深色压暗（补回原来 .theme-page::before 那层 58%，合成后约 .84） */
         linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
                         light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84))),
-        var(--sl-bg-active, var(--sl-bg-image)) !important;
+        var(--sl-bg-active, var(--sl-bg-image, var(--sl-bg-fallback))) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
     background-position: center, center !important;
@@ -5055,6 +5059,10 @@ rect.highcharts-point.highcharts-color-1 {
    **想固定成自己的图**：把下面这行的分号前填上 url("…") 即可 ——
    脚本检测到这一行有值就完全不插手（用户要求：写死了就不替换）。 */
     --sl-bg-image: ;
+    /* 兜底图：脚本抓不到洛谷主题的「中景图片」时用这张（用户实测：主题设置里只有中景，
+       没有单独的背景图选项；所以拿不到中景就等于没有背景图，这时用我们自己的这张）。
+       想换兜底图就改这一行。 */
+    --sl-bg-fallback: url("https://rhythm-assets.cn-nb1.rains3.com/objects/7a83566b723fa54bbd104146cfb1d94559ab7962710be389e0c99e97a67e6189/webp");
 
     /* ----------------------------------------------------------------------
        ③ 玻璃自有光泽：这些不涉及主题色，直接给浅/深两个颜色
@@ -5192,7 +5200,7 @@ body, #app.lg-container, .lg-container, .lfe-body {
    注意：项目禁止 @media (prefers-color-scheme)，跟随系统一律用 light-dark() 表达。
    ========================================================================== */
 html {
-    background-image: var(--sl-bg-active, var(--sl-bg-image)) !important;
+    background-image: var(--sl-bg-active, var(--sl-bg-image, var(--sl-bg-fallback))) !important;
     background-repeat: no-repeat !important;
     background-size: cover !important;
     background-position: center !important;
@@ -5204,7 +5212,7 @@ html:not([data-sl-theme]) {
     background-image:
         linear-gradient(light-dark(rgba(255, 255, 255, .24), rgba(0, 0, 0, .72)),
                         light-dark(rgba(255, 255, 255, .24), rgba(0, 0, 0, .72))),
-        var(--sl-bg-active, var(--sl-bg-image)) !important;
+        var(--sl-bg-active, var(--sl-bg-image, var(--sl-bg-fallback))) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
     background-position: center, center !important;
@@ -5215,7 +5223,7 @@ html[data-sl-theme="light"] {
     background-color: #eef1f7 !important;
     background-image:
         linear-gradient(rgba(255, 255, 255, .34), rgba(255, 255, 255, .34)),
-        var(--sl-bg-active, var(--sl-bg-image)) !important;
+        var(--sl-bg-active, var(--sl-bg-image, var(--sl-bg-fallback))) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
     background-position: center, center !important;
@@ -5226,7 +5234,7 @@ html[data-sl-theme="dark"] {
     background-color: #14161a !important;
     background-image:
         linear-gradient(rgba(0, 0, 0, .72), rgba(0, 0, 0, .72)),
-        var(--sl-bg-active, var(--sl-bg-image)) !important;
+        var(--sl-bg-active, var(--sl-bg-image, var(--sl-bg-fallback))) !important;
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
     background-position: center, center !important;
