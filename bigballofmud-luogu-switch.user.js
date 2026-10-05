@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.05
+// @version      20261005.06
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -15,7 +15,13 @@
 // @match        https://www.luogu.com.cn/*
 // @match        https://class.luogu.com.cn/*
 // @run-at       document-start
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM.getValue
+// @grant        GM.setValue
+//                ↑ 用篡改猴的跨域存储记住「主题中景图」的地址：
+//                  首页（旧前端）与网校（另一套前端）自己页面上都没有这个变量，
+//                  只能靠在这里存一份、两个域名共享（localStorage 是按域名隔离的，读不到）。
 // ==/UserScript==
 
 /* ★ 这个文件是装进 **Tampermonkey（油猴）** 的。
@@ -567,29 +573,56 @@
        ====================================================================== */
     var BG_FALLBACK_LIGHT = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg")';
     var BG_FALLBACK_DARK  = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg")';
-    var BG_CACHE_KEY = 'sl-theme-bg-image';   // 记下最近一次从主题读到的中景图 URL（首页没有 .theme-page，靠它兜）
+    var BG_CACHE_KEY = 'sl-theme-bg-image';
+    // 跨域名共享的缓存读写：优先用篡改猴的 GM 存储（www 与 class 两个域名能互相看到），
+    // 没有 GM 时退回本域名的 localStorage。
+    function bgCacheGet() {
+        try { if (typeof GM_getValue === 'function') return GM_getValue(BG_CACHE_KEY, '') || ''; } catch (e) { /* 忽略 */ }
+        try { if (typeof GM !== 'undefined' && GM && GM.getValue) return GM.getValue(BG_CACHE_KEY, '') || ''; } catch (e) { /* 忽略 */ }
+        try { return localStorage.getItem(BG_CACHE_KEY) || ''; } catch (e) { return ''; }
+    }
+    function bgCacheSet(v) {   // v 传空串 = 作废这条缓存
+        try { if (typeof GM_setValue === 'function') { GM_setValue(BG_CACHE_KEY, v); return; } } catch (e) { /* 忽略 */ }
+        try { if (typeof GM !== 'undefined' && GM && GM.setValue) { GM.setValue(BG_CACHE_KEY, v); return; } } catch (e) { /* 忽略 */ }
+        try { localStorage.setItem(BG_CACHE_KEY, v); } catch (e) { /* 忽略 */ }
+    }   // 记下最近一次从主题读到的中景图 URL（首页没有 .theme-page，靠它兜）
+
+    /* 当前页地址，用来判断 SPA 是否换了页面 */
+    var bgLastHref = '';
 
     function syncThemeBackground() {
         try {
             var el = document.documentElement;
             if (!el) return;
-            // ① 样式里写死了 ⇒ 撤掉我们写过的值，交回样式
+            // ① 样式里写死了 --sl-bg-image ⇒ 撤掉我们写过的值，交回样式
             var own = getComputedStyle(el).getPropertyValue('--sl-bg-image').trim();
             if (own && own !== 'none') { el.style.removeProperty('--sl-bg-active'); return; }
-            // ② 读当前页的「中景图片」。
-            //    洛谷把主题值**内联**写在 .theme-page 的 style 属性上（实测：
-            //    style="--theme-body-back:#f0f4fa; --theme-body-image:url(...)"），
-            //    所以先读属性（快，且不等渲染），再退回计算值。
-            var tp = document.querySelector('.theme-page');
-            var raw = tp ? String(tp.getAttribute('style') || '') : '';
-            var m = /--theme-body-image:\s*url\((['"]?)(.*?)\1\)/.exec(raw);
-            if (!m && tp) m = /url\((['"]?)(.*?)\1\)/.exec(getComputedStyle(tp).getPropertyValue('--theme-body-image') || '');
-            var url = m && m[2] ? m[2] : '';
-            // ③ 记下它 —— 首页（/）是旧前端，压根没有 .theme-page，拿不到中景图，
-            //    靠这个缓存让首页也用上同一张（换主题后内页先变、首页随后跟上）。
-            if (url) { try { localStorage.setItem(BG_CACHE_KEY, url); } catch (e) { /* 忽略 */ } }
-            else { try { url = localStorage.getItem(BG_CACHE_KEY) || ''; } catch (e) { /* 忽略 */ } }
-            // ④ 中景与写死的都没有 ⇒ 洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）
+
+            var url = '';
+            if (isMain) {
+                // ② 主站：**每次页面更新都先把缓存作废，然后重新拉一次中景图**（用户要求），
+                //    保证缓存里始终是"主站最近一次看到的真实值"。
+                //    判据用地址变化：SPA 换页 / 首屏都算一次更新；同一个页面内 300ms 的高频调用不作废。
+                if (bgLastHref !== location.href) {
+                    bgLastHref = location.href;
+                    bgCacheSet('');                                   // 先废掉
+                }
+                // 洛谷把主题值**内联**写在 .theme-page 的 style 属性上
+                // （实测：style="--theme-body-back:#f0f4fa; --theme-body-image:url(...)"），
+                // 所以先读属性（快、不等渲染），再退回计算值。
+                var tp = document.querySelector('.theme-page');
+                var raw = tp ? String(tp.getAttribute('style') || '') : '';
+                var m = /--theme-body-image:\s*url\((['"]?)(.*?)\1\)/.exec(raw);
+                if (!m && tp) m = /url\((['"]?)(.*?)\1\)/.exec(getComputedStyle(tp).getPropertyValue('--theme-body-image') || '');
+                url = m && m[2] ? m[2] : '';
+                if (url) bgCacheSet(url);                              // 抓到了就刷新缓存
+                else url = bgCacheGet() || '';                         // 这一页没有（首页等）⇒ 用缓存里现值
+            } else {
+                // ③ 网校：**不复用抓取逻辑，直接复用主站留下的缓存**（用户要求）。
+                url = bgCacheGet() || '';
+            }
+
+            // ④ 缓存也没有 ⇒ 洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）
             var want = url ? 'url("' + url + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
