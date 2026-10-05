@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.12
+// @version      20261005.13
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -655,7 +655,8 @@
     function tweakThemeEditor() {
         if (!/\/theme(\/|$)/.test(location.pathname)) return;
         try {
-            var labels = document.querySelectorAll('.adjust-bars .lfe-caption, .adjust-bars .lfe-h3, .l-form-layout .lfe-caption');
+            // ★ 扫全页：原来限定在 .adjust-bars / .l-form-layout 里，漏掉了「中景图片」那个 label
+            var labels = document.querySelectorAll('.lfe-caption, .lfe-h3, label');
             for (var i = 0; i < labels.length; i++) {
                 var el = labels[i];
                 var txt = (el.textContent || '').trim();
@@ -728,7 +729,7 @@
 
         // 主题编辑器微调（只在 /theme/ 路径下生效：隐藏「卡片毛玻璃」、把「中景图片」改成「背景图」）
         tweakThemeEditor();
-        if (isMain) setInterval(tweakThemeEditor, 600);
+        if (isMain) setInterval(tweakThemeEditor, 200);
 
         // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
         syncThemeBackground();
@@ -741,6 +742,20 @@
                 new MutationObserver(syncThemeBackground).observe(document.documentElement, {
                     subtree: true, attributes: true, attributeFilter: ['style', 'class']
                 });
+            }
+        } catch (e) { /* 忽略 */ }
+
+        // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
+        // 所以在这里另挂一个**含 childList** 的观察器，并做 80ms 节流；只在 /theme/ 路径下才挂。
+        try {
+            if (isMain && /\/theme(\/|$)/.test(location.pathname) && window.MutationObserver) {
+                var tePending = false;
+                var teObserver = new MutationObserver(function () {
+                    if (tePending) return;
+                    tePending = true;
+                    setTimeout(function () { tePending = false; tweakThemeEditor(); }, 80);
+                });
+                teObserver.observe(document.documentElement, { childList: true, subtree: true });
             }
         } catch (e) { /* 忽略 */ }
 
