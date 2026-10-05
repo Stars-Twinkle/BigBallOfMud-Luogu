@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.20
+@version      20261005.21
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -1092,8 +1092,11 @@ nav.sidebar {
                div.wrapper
                  div.contest-card              ← 每个比赛（要保留的玻璃）
    ⑥-e 只清到 .list-wrap 那一层，外面这张 .l-card 还铺着玻璃，所以"还有外层"。
-   ★ 判定条件写成"这张 .l-card 里装着逐项卡片"，覆盖用户先后提过的三处：
-       .contest-card（比赛列表）· .ticket-card（工单列表）· .l-card.log（陶片放逐）
+   ★ 判定条件写成"这张 .l-card 里装着逐项卡片"。覆盖两处：
+       .contest-card（比赛列表）· .l-card.log（陶片放逐）
+   ★ **工单列表不在其中**（用户：「工单这块少个玻璃面板」）：那里每行是
+     `div.row > div.wrapper > div.ticket-card` 的**行内区块**，本身不铺玻璃 ——
+     所以外层那张 .l-card 必须继续当唯一的玻璃承载体，清掉它整页就没有玻璃了。
      没有逐项卡片的普通列表**不受影响**（那张 .l-card 仍是唯一的玻璃容器）。
    ========================================================================== */
 /* 比赛行本体：整行一块玻璃（含左侧状态列）+ 内边距 */
@@ -1166,7 +1169,7 @@ nav.sidebar {
                          > div.card-row / div.lfe-marked-wrap.content > div.lfe-marked > p
    所以把 .notice-card **从本名单移除**：外层 .l-card 继续当唯一承载体；
    每条的 .notice-card 由 ⑥-g 显式清成透明。 */
-.l-card:has(:is(.contest-card, .ticket-card, .l-card.log)) {
+.l-card:has(:is(.contest-card, .l-card.log)) {
     background-color: transparent !important;
     background-image: none !important;
     border-color: transparent !important;

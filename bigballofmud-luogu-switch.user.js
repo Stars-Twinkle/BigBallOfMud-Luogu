@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.13
+// @version      20261005.14
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -554,7 +554,7 @@
                 document.documentElement.appendChild(t);
             }
         }
-        setInterval(hoist, 200);
+        setInterval(hoist, 500);   // 只在有浮窗时才有实际动作
     }
 
     /* ======================================================================
@@ -729,21 +729,16 @@
 
         // 主题编辑器微调（只在 /theme/ 路径下生效：隐藏「卡片毛玻璃」、把「中景图片」改成「背景图」）
         tweakThemeEditor();
-        if (isMain) setInterval(tweakThemeEditor, 200);
+        if (isMain) setInterval(tweakThemeEditor, 500);   // 有 /theme/ 路径守卫，其它页面是空操作
 
         // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
         syncThemeBackground();
-        // 300ms 起步（此前 1500ms，用户反馈「其他页面替换慢一步」）；
-        // 再叠一个 style 属性监听：洛谷换主题时会重写 .theme-page 的内联 style，那一刻立刻同步。
+        // 低频轮询即可：换页时靠 href 变化作废缓存，换主题时下一次轮询（或用户刷新）就会读到新值。
+        // ★ 这里**不要**再挂「全站 style/class 变化」的 MutationObserver —— 那会让全站每个元素的
+        //   样式变化都触发一次 getComputedStyle（强制样式重算），SPA 上几乎每帧触发，
+        //   用户实测「刚换回来了，延迟巨大」。当时为了修「替换慢一步」加的，代价远大于收益。
         syncThemeBackground();
-        setInterval(syncThemeBackground, 300);
-        try {
-            if (window.MutationObserver) {
-                new MutationObserver(syncThemeBackground).observe(document.documentElement, {
-                    subtree: true, attributes: true, attributeFilter: ['style', 'class']
-                });
-            }
-        } catch (e) { /* 忽略 */ }
+        setInterval(syncThemeBackground, 1000);
 
         // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
         // 所以在这里另挂一个**含 childList** 的观察器，并做 80ms 节流；只在 /theme/ 路径下才挂。
