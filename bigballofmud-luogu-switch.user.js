@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.11
+// @version      20261005.12
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -672,6 +672,21 @@
                     //   （用 label.click() 走洛谷自己的交互，避免直接改状态与 Vue 不同步；
                     //     点了也只是改了编辑器里的待保存状态，仍需用户点「应用主题」才生效）。
                     if (row) {
+                    // ★「文字颜色」特例：它同时影响图标；而深色模式下不管选什么颜色，
+                    //   最后都会渲染成白色 —— 与其留着一个改了也没用的颜色选择器，
+                    //   不如把它固定回默认的白色，再把这一项隐藏（用户要求）。
+                    if (txt.indexOf('文字颜色') === 0) {
+                        var colorInputs = row.querySelectorAll('input[type="color"], input[type="text"], input');
+                        for (var c = 0; c < colorInputs.length; c++) {
+                            var ci = colorInputs[c];
+                            var cur = String(ci.value || '').trim().toLowerCase();
+                            if (cur && cur !== '#ffffff' && cur !== 'rgb(255, 255, 255)') {
+                                try { ci.value = '#ffffff'; } catch (e2) { /* 忽略 */ }
+                                try { ci.dispatchEvent(new Event('input', { bubbles: true })); } catch (e2) { /* 忽略 */ }
+                                try { ci.dispatchEvent(new Event('change', { bubbles: true })); } catch (e2) { /* 忽略 */ }
+                            }
+                        }
+                    }
                     // 只有「卡片毛玻璃」需要先把档位拉回「标准」
                     if (txt.indexOf('卡片毛玻璃') === 0) {
                         var labels2 = row.querySelectorAll('label');
