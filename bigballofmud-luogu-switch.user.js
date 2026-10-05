@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.10
+// @version      20261005.11
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -645,6 +645,10 @@
         '图片重复',
         '图片尺寸',
         '图片位置',     // 覆盖「图片位置 X（0%）」与「图片位置 Y（0%）」两项
+        '背景底色',     // 用户：这些设置也没用，隐掉
+        '中景颜色',
+        '文字颜色',     // 在「亮色导航」块里（Logo 颜色保留，那一项有用）
+        '亮色主体',     // 这一块的标题（下面两项也各自隐藏）
     ];
     var THEME_RENAME = { '中景图片': '背景图' };  // 文案替换
 
