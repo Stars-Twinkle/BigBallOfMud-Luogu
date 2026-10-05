@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.08
+@version      20261005.09
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3254,14 +3254,18 @@ footer a:hover {
     box-shadow:
         inset 0 1px 0 light-dark(rgba(255, 255, 255, .72), rgba(255, 255, 255, .20)),
         inset 0 -1px 0 light-dark(rgba(255, 255, 255, .30), rgba(0, 0, 0, .24)),
-        0 2px 10px light-dark(rgba(31, 41, 55, .16), rgba(0, 0, 0, .42)) !important;
+        0 1px 6px light-dark(rgba(31, 41, 55, .14), rgba(0, 0, 0, .38)) !important;
     -webkit-backdrop-filter: blur(8px) saturate(150%);
     backdrop-filter: blur(8px) saturate(150%);
     /* ★ 关键：translate 对 display:inline 的元素**不生效**。洛谷这些胶囊是无类名 <span>（默认 inline），
        而旧首页的 .am-badge 自带 display:inline-block —— 这就是「题目难度标签跟置顶啥的动画不一样」的原因
        （置顶会浮、难度不动）。这里统一成 inline-block，让两者的悬停位移一致。 */
     display: inline-block;
-    vertical-align: middle;
+    /* ★ vertical-align 用 baseline：之前写 middle 会让 inline-block 相对父级基线整体下移，
+       用户反馈「胶囊现在未悬浮的时候有点偏下」。 */
+    vertical-align: baseline;
+    /* 边框不参与撑高，避免 1px 描边把胶囊整体顶下去 2px */
+    box-sizing: border-box;
 }
 
 /* 悬停：位移只加在「真胶囊」上，一层一次，避免包装+胶囊双层位移（用户：「悬浮还是不对」）。
