@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.10
+@version      20261005.11
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3190,13 +3190,6 @@ footer a:hover {
      · 项目不变式也禁止 color 加 !important。
    ★ 作用域用 id 精确锁定，只影响这一个选项卡，不碰其它 .am-nav。
    ========================================================================== */
-/* 未选中的标签：白底 + 黑字（用户明确要求）。
-   ★ color 靠特异性取胜、不写 !important（§12 不变式）；background-color 是在压内联，必须 !important。 */
-html body .tags [style*="255, 255, 255"],
-html body .tags [style*="255,255,255"] {
-    background-color: #fff !important;
-    color: #1f2329;
-}
 
 #home-center-nav.am-nav-pills > .feed-selector > a,
 #home-center-nav.am-nav-pills > .feed-selector > a:focus,
@@ -3238,10 +3231,18 @@ html body .tags [style*="255,255,255"] {
    所以不能用固定层级，改判「谁身上有内联 background-color，谁就是胶囊」。
    这样自然排除包装元素（div.tag / div.tags / 无内联色的 a / 外层 span）与表头，
    也就不会出现「一个胶囊两层玻璃」以及随之而来的双层位移。 */
-/* 白底的标签是「未选中」，不参与玻璃（用户：这块只有选中的时候会变成玻璃，修）——
-   洛谷给未选中标签写的是 #fff 内联底，这里用属性选择器排除掉。 */
-.tags [style*="background-color"]:not([style*="255, 255, 255"]),
-.difficulty [style*="background-color"]:not([style*="255, 255, 255"]),
+/* ★ 未选中的白底标签**也要玻璃**（用户：「不是，应该是黑字的玻璃，现在未选中标签还是原来的」）——
+   之前用 :not([style*="255,255,255"]) 把它们排除在玻璃之外，结果它们**照样有悬浮**
+   （悬停选择器没排除）却仍是原来的白底，外观自相矛盾。现在一律给玻璃。 */
+/* ★ 未选中的标签（白底）玻璃之上用**黑字**：玻璃是浅底，白字会看不清。
+   color 不写 !important（§12 不变式），靠 html body 前缀把特异性提到 (0,3,0)。 */
+html body .tags [style*="255, 255, 255"],
+html body .tags [style*="255,255,255"] {
+    color: #1f2329;
+}
+
+.tags [style*="background-color"],
+.difficulty [style*="background-color"],
 /* 旧首页徽章（含「置顶」「Rated」「官方比赛」等） */
 .am-badge,
 [class*="lg-bg-"],
