@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.18
+// @version      20261005.19
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -570,6 +570,9 @@
        var(--sl-bg-active, var(--sl-bg-image)) 消费它。
        ====================================================================== */
     var BG_CACHE_KEY = 'sl-theme-bg-image';
+    // 洛谷自己的默认中景图：用户把主题里的地址**清空**时要回滚到它（用户：「地址如果是空的要回滚成默认」）。
+    var BG_FALLBACK_LIGHT = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg")';
+    var BG_FALLBACK_DARK  = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg")';
     // 跨域名共享的缓存读写：优先用篡改猴的 GM 存储（www 与 class 两个域名能互相看到）。
     // ★ 只用**同步**的旧式 GM_getValue / GM_setValue：新式的 getValue / setValue（挂在 GM 对象上）返回 Promise，
     //   这个读取函数是同步的，拿到 Promise 会直接当 URL 用而坏掉。
@@ -595,6 +598,7 @@
             if (own && own !== 'none') { el.style.removeProperty('--sl-bg-active'); return; }
 
             var url = '';
+            var useDefault = false;   // 主题里地址被清空时要回滚默认图
             if (isMain) {
                 // ② 主站：**每次页面更新都先把缓存作废，然后重新拉一次中景图**（用户要求），
                 //    保证缓存里始终是"主站最近一次看到的真实值"。
@@ -608,22 +612,37 @@
                 // （实测：style="--theme-body-back:#f0f4fa; --theme-body-image:url(...)"），
                 // 所以先读属性（快、不等渲染），再退回计算值。
                 var tp = document.querySelector('.theme-page');
-                var raw = tp ? String(tp.getAttribute('style') || '') : '';
-                var m = /--theme-body-image:\s*url\((['"]?)(.*?)\1\)/.exec(raw);
-                if (!m && tp) m = /url\((['"]?)(.*?)\1\)/.exec(getComputedStyle(tp).getPropertyValue('--theme-body-image') || '');
-                url = m && m[2] ? m[2] : '';
-                if (url) bgCacheSet(url);                              // 抓到了就刷新缓存
-                else url = bgCacheGet() || '';                         // 这一页没有（首页等）⇒ 用缓存里现值
+                if (!tp) {
+                    // ★ 情形 A：这一页**根本没有** .theme-page（旧首页），或新前端还没渲染出来。
+                    //   此时若写默认图，会先闪一下默认图再被真图替换 ⇒ 所以只用手上的缓存；
+                    //   缓存也空就什么都不写（画布只剩底色）。
+                    url = bgCacheGet() || '';
+                } else {
+                    var raw = String(tp.getAttribute('style') || '');
+                    var m = /--theme-body-image:\s*url\((['"]?)(.*?)\1\)/.exec(raw);
+                    if (!m) m = /url\((['"]?)(.*?)\1\)/.exec(getComputedStyle(tp).getPropertyValue('--theme-body-image') || '');
+                    url = m && m[2] ? m[2] : '';
+                    if (url) {
+                        bgCacheSet(url);                              // 抓到了就刷新缓存
+                    } else {
+                        // ★ 情形 B：.theme-page 在，但里面**没有图** —— 用户在主题里把地址清空了。
+                        //   这时要回滚成洛谷自己的默认中景图（用户：「地址如果是空的要回滚成默认」），
+                        //   并把缓存清掉，免得别处（首页 / 网校）继续用旧地址。
+                        bgCacheSet('');
+                        url = '';
+                        useDefault = true;
+                    }
+                }
             } else {
                 // ③ 网校：**不复用抓取逻辑，直接复用主站留下的缓存**（用户要求）。
                 url = bgCacheGet() || '';
             }
 
             // ④ 缓存也没有 ⇒ 洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）
-            // ★ 中景图与缓存都没有时**不写官方兜底图** —— 洛谷那张 luogu4-bg-l/d 就是"默认主题"，
-            //   写它会先闪一下默认图再被真图替换（用户：「有的时候默认图还是会闪一瞬间」）。
-            //   宁可这一瞬间只剩底色（画布 background-color 已由样式给了）。
-            var want = url ? 'url("' + url + '")' : '';
+            // ① 拿到了地址 ⇒ 用它；
+            // ② 主题里被清空 ⇒ 回滚成洛谷默认中景图（useDefault）；
+            // ③ 页面还没渲染出来又没有缓存 ⇒ 什么都不写，避免先闪一下默认图。
+            var want = url ? 'url("' + url + '")' : (useDefault ? (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT) : '');
             if (!want) { if (el.style.getPropertyValue('--sl-bg-active')) el.style.removeProperty('--sl-bg-active'); return; }
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
