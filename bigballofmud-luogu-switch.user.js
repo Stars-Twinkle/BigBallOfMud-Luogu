@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.16
+// @version      20261005.17
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -669,7 +669,20 @@
                 }
                 if (hit) {
                     // 找到承载这一行的那层（.l-form-layout 是那一行的容器）
-                    var row = el.closest('.l-form-layout') || el.closest('.editor-form-layout') || el.parentElement;
+                    // ★ 取「最小单元」：从 label 逐级向上，选第一个内部**只含这一个 .lfe-caption** 的祖先。
+                    //   直接 closest('.l-form-layout') 会踩坑 —— 区块标题 .lfe-h3 不在 .l-form-layout 里，
+                    //   上溯会命中包住整块的大容器，把一整块设置全隐藏（用户：「会闪一下然后啥都没了」）。
+                    var row = null;
+                    if (el.classList.contains('lfe-h3')) {
+                        row = el;                      // 区块标题：只隐藏它自己
+                    } else {
+                        var cur = el.parentElement;
+                        while (cur && cur !== document.body) {
+                            if (cur.querySelectorAll('.lfe-caption').length <= 1) { row = cur; break; }
+                            cur = cur.parentElement;
+                        }
+                        if (!row) row = el.parentElement;   // 兜底：至少别动到更大的容器
+                    }
                     // ★ 关键：先把档位拉回「标准」再隐藏。本项目的美化是照「标准」写的，
                     //   用户若曾选过「关闭 / 轻量」，光是隐藏那一行并不会把值改回来，渲染照样不对。
                     //   做法：在行内找到文案含「标准」的那个单选项，只有它没被选中时才模拟点它一次
