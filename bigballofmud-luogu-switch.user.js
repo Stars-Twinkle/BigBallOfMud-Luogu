@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.09
+// @version      20261005.10
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -634,7 +634,18 @@
        做法：编辑器里这两处都没有能稳定指向它们的类名（那一行只是 .l-form-layout，
              和「中景淡出」等同级同构），所以按**文案**定位，只在 /theme/ 路径下动手。
        ====================================================================== */
-    var THEME_HIDE_LABEL = '卡片毛玻璃';      // 整行隐藏
+    // 要整行隐藏的设置项（按文案**前缀**匹配 —— 标题里常带当前值，如「渐变角度（0°）」）：
+    // 这些都是背景图相关的调节项，美化自己管背景，留着只会互相冲突（用户：「这些设置都没用，
+    // 为防止冲突，删掉隐藏」）。
+    var THEME_HIDE_PREFIX = [
+        '卡片毛玻璃',   // 必须先拉回「标准」再隐藏（美化是照标准写的）
+        '渐变角度',
+        '中景亮度',
+        '中景淡出',
+        '图片重复',
+        '图片尺寸',
+        '图片位置',     // 覆盖「图片位置 X（0%）」与「图片位置 Y（0%）」两项
+    ];
     var THEME_RENAME = { '中景图片': '背景图' };  // 文案替换
 
     function tweakThemeEditor() {
@@ -644,7 +655,11 @@
             for (var i = 0; i < labels.length; i++) {
                 var el = labels[i];
                 var txt = (el.textContent || '').trim();
-                if (txt === THEME_HIDE_LABEL) {
+                var hit = false;
+                for (var p = 0; p < THEME_HIDE_PREFIX.length; p++) {
+                    if (txt.indexOf(THEME_HIDE_PREFIX[p]) === 0) { hit = true; break; }
+                }
+                if (hit) {
                     // 找到承载这一行的那层（.l-form-layout 是那一行的容器）
                     var row = el.closest('.l-form-layout') || el.closest('.editor-form-layout') || el.parentElement;
                     // ★ 关键：先把档位拉回「标准」再隐藏。本项目的美化是照「标准」写的，
@@ -653,6 +668,8 @@
                     //   （用 label.click() 走洛谷自己的交互，避免直接改状态与 Vue 不同步；
                     //     点了也只是改了编辑器里的待保存状态，仍需用户点「应用主题」才生效）。
                     if (row) {
+                    // 只有「卡片毛玻璃」需要先把档位拉回「标准」
+                    if (txt.indexOf('卡片毛玻璃') === 0) {
                         var labels2 = row.querySelectorAll('label');
                         for (var k = 0; k < labels2.length; k++) {
                             if ((labels2[k].textContent || '').indexOf('标准') < 0) continue;
@@ -661,10 +678,11 @@
                             if (!checked) { try { labels2[k].click(); } catch (e) { /* 忽略 */ } }
                             break;
                         }
-                        if (row.style.display !== 'none') row.style.display = 'none';
                     }
+                    if (row && row.style.display !== 'none') row.style.display = 'none';
                 }
                 if (THEME_RENAME[txt]) el.textContent = THEME_RENAME[txt];
+            }
             }
         } catch (e) { /* 忽略 */ }
     }
