@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261005.04
+// @version      20261005.05
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -567,6 +567,7 @@
        ====================================================================== */
     var BG_FALLBACK_LIGHT = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-l.jpg")';
     var BG_FALLBACK_DARK  = 'url("https://cdn.luogu.com.cn/images/bg/fe/luogu4-bg-d.jpg")';
+    var BG_CACHE_KEY = 'sl-theme-bg-image';   // 记下最近一次从主题读到的中景图 URL（首页没有 .theme-page，靠它兜）
 
     function syncThemeBackground() {
         try {
@@ -575,12 +576,21 @@
             // ① 样式里写死了 ⇒ 撤掉我们写过的值，交回样式
             var own = getComputedStyle(el).getPropertyValue('--sl-bg-image').trim();
             if (own && own !== 'none') { el.style.removeProperty('--sl-bg-active'); return; }
-            // ② 抓主题图
+            // ② 读当前页的「中景图片」。
+            //    洛谷把主题值**内联**写在 .theme-page 的 style 属性上（实测：
+            //    style="--theme-body-back:#f0f4fa; --theme-body-image:url(...)"），
+            //    所以先读属性（快，且不等渲染），再退回计算值。
             var tp = document.querySelector('.theme-page');
-            var v = tp ? getComputedStyle(tp).getPropertyValue('--theme-body-image').trim() : '';
-            var m = /url\((['"]?)(.*?)\1\)/.exec(v);
-            // 中景与写死的都没有 ⇒ 直接用洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）。
-            var want = m && m[2] ? 'url("' + m[2] + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
+            var raw = tp ? String(tp.getAttribute('style') || '') : '';
+            var m = /--theme-body-image:\s*url\((['"]?)(.*?)\1\)/.exec(raw);
+            if (!m && tp) m = /url\((['"]?)(.*?)\1\)/.exec(getComputedStyle(tp).getPropertyValue('--theme-body-image') || '');
+            var url = m && m[2] ? m[2] : '';
+            // ③ 记下它 —— 首页（/）是旧前端，压根没有 .theme-page，拿不到中景图，
+            //    靠这个缓存让首页也用上同一张（换主题后内页先变、首页随后跟上）。
+            if (url) { try { localStorage.setItem(BG_CACHE_KEY, url); } catch (e) { /* 忽略 */ } }
+            else { try { url = localStorage.getItem(BG_CACHE_KEY) || ''; } catch (e) { /* 忽略 */ } }
+            // ④ 中景与写死的都没有 ⇒ 洛谷官方默认图（浅 luogu4-bg-l / 深 luogu4-bg-d）
+            var want = url ? 'url("' + url + '")' : (isDarkNow() ? BG_FALLBACK_DARK : BG_FALLBACK_LIGHT);
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
     }
@@ -607,7 +617,17 @@
 
         // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
         syncThemeBackground();
-        setInterval(syncThemeBackground, 1500);
+        // 300ms 起步（此前 1500ms，用户反馈「其他页面替换慢一步」）；
+        // 再叠一个 style 属性监听：洛谷换主题时会重写 .theme-page 的内联 style，那一刻立刻同步。
+        syncThemeBackground();
+        setInterval(syncThemeBackground, 300);
+        try {
+            if (window.MutationObserver) {
+                new MutationObserver(syncThemeBackground).observe(document.documentElement, {
+                    subtree: true, attributes: true, attributeFilter: ['style', 'class']
+                });
+            }
+        } catch (e) { /* 忽略 */ }
 
         // 主站个人主页：图表浮窗改成指针驱动定位（详见 六·二）
         if (isMain) fixEloTooltip();
