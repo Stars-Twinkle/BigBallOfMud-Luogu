@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.12
+@version      20261005.13
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3029,6 +3029,12 @@ footer a:hover {
    在拿到确切结构之前，这里保持为空 —— 宁可漏修，也不要弄坏列表。
    ========================================================================== */
 
+/* ★ 第十九轮修正：把 .tag 从⑳的悬停列表里删掉 —— 它是列容器，不是标签。
+   实证（headless + 真实指针位置）：div.tag[table-cell] > div.tags[flex] > a[block] > span[inline-block]，
+   鼠标停在某个胶囊上时 .tag 同样在 :hover，它自己 translate 0 -2px + scale 1.04，
+   里面的两个胶囊整体跟着动 ⇒ 「两个标签一起浮起来」（用户三次反馈）。
+   这正是 ⑲-b 的教训：别拿类名当语义。 */
+
 /* ==========================================================================
    ⑳ 标签 / 徽章的悬浮渐变动画
    --------------------------------------------------------------------------
@@ -3043,7 +3049,7 @@ footer a:hover {
    用 :is() 合并选择器：::is() 需要 Chrome 88+，而本文件已经要求 light-dark()
    （Chrome 111+），所以这里可以放心用。
    ========================================================================== */
-:is(.badge, .tag, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
+:is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]) {
     /* ★ 第五轮补充：新前端的彩色标签类名是 **.tag**（比赛页 DevTools 实证：
        span.tag 带内联背景色）。之前刻意排除它是因为早先误把它当行容器加了底色
@@ -3056,7 +3062,7 @@ footer a:hover {
                 filter .18s ease;
 }
 
-:is(.badge, .tag, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
+:is(.badge, .tag-button, .trial-tag, .toggle-tag, .recommend-tag,
     .am-badge, [class*="lg-bg-"]):hover {
     translate: 0 -2px;
     scale: 1.04;
@@ -3236,6 +3242,23 @@ footer a:hover {
    （悬停选择器没排除）却仍是原来的白底，外观自相矛盾。现在一律给玻璃。 */
 /* ★ 未选中的标签（白底）玻璃之上用**黑字**：玻璃是浅底，白字会看不清。
    color 不写 !important（§12 不变式），靠 html body 前缀把特异性提到 (0,3,0)。 */
+/* ★ 标签胶囊**不画链接下划线**：⑯ 段给 .l-card / .feed-card 里的纯文本链接加了一条
+   渐变下划线（::after，left:0 / width:100%）。落到标签上时它会**横跨整行**，
+   看起来像"两个标签一起悬浮"（用户第三次反馈同一件事）。标签不是正文链接，不需要下划线。 */
+.tags a::after,
+.tags a:hover::after,
+.difficulty a::after,
+.difficulty a:hover::after,
+.tag-button::after,
+.tag-button:hover::after,
+.trial-tag::after,
+.toggle-tag::after,
+.recommend-tag::after,
+.am-badge::after,
+.badge::after {
+    content: none !important;
+}
+
 html body .tags [style*="255, 255, 255"],
 html body .tags [style*="255,255,255"] {
     color: #1f2329;
@@ -3285,7 +3308,9 @@ html body .tags [style*="255,255,255"] {
 
 /* 悬停：位移只加在「真胶囊」上，一层一次，避免包装+胶囊双层位移（用户：「悬浮还是不对」）。
    难度列每行只有一个胶囊，直接给它的包装 span 也安全（该包装不存在第二个胶囊，不会连带）。 */
-.difficulty > span:hover,
+/* ★ 难度的位移挂在内层真胶囊上：外层包装 span 是 display:inline，
+   translate 对它无效（这正是「题目难度标签悬浮不对」的原因 —— 它根本不浮）。 */
+.difficulty > span > span:hover,
 .tags [style*="background-color"]:hover,
 .difficulty [style*="background-color"]:hover,
 .am-badge:hover,
