@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.21
+@version      20261005.22
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -359,6 +359,24 @@ html {
     background-size: cover, cover !important;
     background-position: center, center !important;
     background-attachment: fixed, fixed !important;
+}
+
+/* ── 主题编辑器：把「中景图片」这一项的文案在视觉上换成「背景图」 ─────────────────
+   为什么用 CSS 而不是只靠脚本：脚本改 textContent 之后，Vue 下一次 patch 会把文本写回去
+   （脚本每 500ms 才跑一次，而 patch 更频繁），用户实测「名称没改」。CSS 的 content 不会被动摇。
+   结构（来自用户 DevTools）：div.image-label > span（裸 span，无类名）
+   做法：把原文本用 visibility 藏起来（布局与尺寸完全不变），再用绝对定位的 ::after 顶上。 */
+.image-label > span {
+    visibility: hidden !important;
+    position: relative !important;
+}
+.image-label > span::after {
+    content: '背景图';
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    white-space: nowrap;
 }
 
 /* ★★ 已删除（第三十三轮）：这里曾把内容整体抬到 z-index: 2，用于把签名压在内容之下。
