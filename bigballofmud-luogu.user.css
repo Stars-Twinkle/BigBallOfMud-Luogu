@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.22
+@version      20261005.23
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3296,6 +3296,11 @@ html body .tags [style*="255,255,255"] {
 /* 旧首页徽章（含「置顶」「Rated」「官方比赛」等） */
 .am-badge,
 [class*="lg-bg-"],
+/* 用户称号标签（帖子 / 文章 / 排行榜里用户名旁的那些「官方」「犇犇」等）：
+   实测结构是无类名的 a > span，洛谷把语义色**内联**写在它身上，形如
+   background-color: rgb(254,76,97); border-color: rgb(233,64,84); color: …
+   判据要求**同时**含 background-color 与 border-color —— 只用前者会误伤排行榜的分页按钮等。 */
+a > span[style*="background-color"][style*="border-color"],
 /* ★ 未选中的标签（筛选卡 / 「选择标签」弹窗）：它们不在 .tags 容器里，
    所以上面那条 .tags … 规则碰不到 —— 用户反馈「未选中标签没被玻璃渲染」。
    类名取自项目已登记的证据（⑲-b 段记录的那一族），不是猜的。 */
@@ -3342,6 +3347,7 @@ html body .tags [style*="255,255,255"] {
    难度列每行只有一个胶囊，直接给它的包装 span 也安全（该包装不存在第二个胶囊，不会连带）。 */
 /* ★ 难度的位移挂在内层真胶囊上：外层包装 span 是 display:inline，
    translate 对它无效（这正是「题目难度标签悬浮不对」的原因 —— 它根本不浮）。 */
+a > span[style*="background-color"][style*="border-color"]:hover,
 .difficulty > span > span:hover,
 .tags [style*="background-color"]:hover,
 .difficulty [style*="background-color"]:hover,
