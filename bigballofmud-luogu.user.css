@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu — Liquid Glass Theme (Light/Dark)
-@version      20261005.05
+@version      20261005.06
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3255,11 +3255,13 @@ footer a:hover {
     backdrop-filter: blur(8px) saturate(150%);
 }
 
-/* 悬停：玻璃再亮一点（与全站悬停语言一致：抬 2px、不放大） */
+/* 悬停：只对**最内层胶囊**生效（抬 2px、不放大，与全站悬停语言一致）。
+   ★ 这里刻意不写 .difficulty > span:hover / .tag > span:hover —— 那是外层包装，
+     鼠标停在任意一个胶囊上时它也在 :hover 内，于是：① 同列所有胶囊一起浮起；
+     ② 内层再浮一次，难度的位移变成别的标签的两倍（用户：「一个标签块下面为什么悬浮后
+     标签会一同悬浮」「题目难度标签的动画要跟别的同步」）。 */
 .list-wrap .row > .difficulty > span > span:hover,
-.list-wrap .row > .difficulty > span:hover,
 .list-wrap .row > .tag .tags span:hover,
-.list-wrap .row > .tag > span:hover,
 .tags > span.tag:hover,
 .am-badge:hover,
 [class*="lg-bg-"]:hover,
