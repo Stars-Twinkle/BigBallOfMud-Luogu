@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261005.27
+@version      20261006.01
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -3308,6 +3308,18 @@ a:has(> span[style*="background-color"][style*="border-color"]) {
 html body .tags [style*="255, 255, 255"],
 html body .tags [style*="255,255,255"] {
     color: #1f2329;
+}
+
+/* ── ⑯-c-10 关注 / 粉丝列表里的用户简介：深色下读不清 ────────────────────────
+   用户截图（个人中心 → 关注我/TA的人 ✗ 深色 ✗）：每一行的简介都是暗灰 ✗
+   压在玻璃卡片上几乎看不见（用户名与关注数都是亮的 ✗ 只有这一行暗 ✗ 明显不协调）。
+   结构取自用户 DevTools 面包屑：
+     div.row > div.follow-container > div.follow-left > div.avatar-right > div.description
+   ⇒ 用 .follow-left 前缀限定 ✗ **不写裸 .description**（那个类名别处也可能用 ✗ 会外溢）。
+   --lg-text-weak 就是"次要文字"那一档 ✗ 语义正对 ✗ 深浅自动。 */
+.follow-left .description,
+.follow-left .avatar-right > .description {
+    color: var(--lg-text-weak);
 }
 
 /* ── ⑯-c-9 内页大标题（工单 / 文章详情等）：深色下读不清 ─────────────────────
