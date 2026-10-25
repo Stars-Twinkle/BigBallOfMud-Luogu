@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.03
+// @version      20261025.04
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -903,10 +903,18 @@
         return Math.sqrt(ax * ax + ay * ay) + Math.min(Math.max(qx, qy), 0) - r;
     }
 
-    /* 位移图：边缘带按 falloff 弯折，内部与外部填中性 128 */
+    /* 位移图：边缘带按 falloff 弯折，内部与外部填中性 128。
+       ★ 性能（用户："载入界面时会有一会界面是死的"）：逐像素 SDF 是同步的，
+         1:1 尺寸下 1168×204 的卡片要算 30 万像素、每像素 5 次 SDF ≈ 150 万次运算，
+         会把主线程卡住一两百毫秒。两处优化：
+         ① 位移图降到 1/MAP_SCALE 分辨率 —— 位移场本身平滑，feImage 拉伸后看不出差别，
+            运算量直接降到 1/4；
+         ② 只在元素的边框内那一圈扫，内部整片跳过。 */
+    var MAP_SCALE = 0.5;
+
     function buildDisplacementMap(w, h, radius, bezel, amount) {
-        var W = w + REFRACT_PAD * 2;
-        var H = h + REFRACT_PAD * 2;
+        var W = Math.max(2, Math.round((w + REFRACT_PAD * 2) * MAP_SCALE));
+        var H = Math.max(2, Math.round((h + REFRACT_PAD * 2) * MAP_SCALE));
         var cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
         var ctx = cv.getContext('2d', { willReadFrequently: true });
@@ -916,10 +924,15 @@
         var i, n = W * H;
         for (i = 0; i < n; i++) { d[i * 4] = 128; d[i * 4 + 1] = 128; d[i * 4 + 2] = 0; d[i * 4 + 3] = 255; }
         var r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
-        for (var py = 0; py < H; py++) {
-            for (var px = 0; px < W; px++) {
-                var x = px - REFRACT_PAD + 0.5;
-                var y = py - REFRACT_PAD + 0.5;
+        var pad = REFRACT_PAD;
+        var x0 = Math.max(0, Math.floor(pad * MAP_SCALE));
+        var x1 = Math.min(W - 1, Math.ceil((pad + w) * MAP_SCALE));
+        var y0 = Math.max(0, Math.floor(pad * MAP_SCALE));
+        var y1 = Math.min(H - 1, Math.ceil((pad + h) * MAP_SCALE));
+        for (var py = y0; py <= y1; py++) {
+            var y = py / MAP_SCALE - pad;
+            for (var px = x0; px <= x1; px++) {
+                var x = px / MAP_SCALE - pad;
                 var dist = sdfRoundRect(x, y, w, h, r);
                 if (dist > 0 || dist < -bezel) continue;      // 只弯折边框内那一圈
                 var e = 1;
