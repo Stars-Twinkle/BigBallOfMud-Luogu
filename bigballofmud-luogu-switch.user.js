@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.15
+// @version      20261025.16
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -842,11 +842,15 @@
        夹在 [20, 160]），于是小卡片整块都在弯折范围里、大卡片也覆盖大半个面；
        衰减曲线从 1−√(1−t²)（1/3 处只剩 0.13）换成 1−t^1.6（1/3 处还有 0.55），
        让位移在更大范围内保持可见。PAD 必须 ≥ 强度，否则会采样到图外而"拉丝"。 */
-    var REFRACT_AMOUNT = 40;
-    var REFRACT_BEZEL_RATIO = 0.42;
-    var REFRACT_BEZEL_MIN = 20;
-    var REFRACT_BEZEL_MAX = 160;
-    var REFRACT_PAD = 44;
+    // ★ 位移绝不能超过「采样点到元素边界的距离」，否则 backdrop-filter 采不到内容，
+    //   表现为一条横向裂缝（用户截图：「这怎么裂开了」）。所以强度按短边动态取，
+    //   并且强制 ≤ 短边 × 0.12；边缘带也跟着收，内部才不会被误弯折。
+    var REFRACT_AMOUNT_RATIO = 0.12;
+    var REFRACT_AMOUNT_MAX = 26;
+    var REFRACT_BEZEL_RATIO = 0.26;
+    var REFRACT_BEZEL_MIN = 16;
+    var REFRACT_BEZEL_MAX = 90;
+    var REFRACT_PAD = 30;
     var refractDone = false;
     var refractSeq = 0;
     var refractMaps = {};      // key = w|h|r → dataURL
@@ -972,10 +976,13 @@
         var key = w + '|' + h + '|' + radius;
         var url = refractMaps[key];
         if (!url) {
-            // 边缘带按卡片短边动态取：小卡片整块都在弯折范围内、大卡片也覆盖大半个面
-            // （用户：「尝试覆盖整个卡片的大部分区域」）。
-            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(Math.min(w, h) * REFRACT_BEZEL_RATIO, REFRACT_BEZEL_MAX));
-            url = buildDisplacementMap(w, h, radius, bez, REFRACT_AMOUNT);
+            // 强度与边缘带都按短边动态取：
+            // · amount ≤ 短边 × 0.12（再大就会把采样点推出元素矩形 → 撕裂）
+            // · bez 取短边 × 0.26，让弯折覆盖到大半个面（用户要求），但内部仍有一段平区
+            var shortSide = Math.min(w, h);
+            var amount = Math.max(4, Math.min(Math.round(shortSide * REFRACT_AMOUNT_RATIO), REFRACT_AMOUNT_MAX));
+            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(shortSide * REFRACT_BEZEL_RATIO, REFRACT_BEZEL_MAX));
+            url = buildDisplacementMap(w, h, radius, bez, amount);
             if (!url) return null;
             refractMaps[key] = url;
         }
@@ -1005,7 +1012,7 @@
         var feDisp = document.createElementNS(ns, 'feDisplacementMap');
         feDisp.setAttribute('in', 'SourceGraphic');
         feDisp.setAttribute('in2', 'map');
-        feDisp.setAttribute('scale', String(REFRACT_AMOUNT * 2));
+        feDisp.setAttribute('scale', String(amount * 2));
         feDisp.setAttribute('xChannelSelector', 'R');
         feDisp.setAttribute('yChannelSelector', 'G');
         filter.appendChild(feImg);
