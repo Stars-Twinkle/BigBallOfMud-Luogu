@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.02
+// @version      20261025.03
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -810,6 +810,246 @@
     }
 /* ==SELF-CONTAINED-STYLE-END== */
 
+    /* ======================================================================
+       边缘折射（Apple Liquid Glass 的核心观感）
+       ----------------------------------------------------------------------
+       为什么只能脚本做：折射要在元素的**背景采样**上做非均匀位移，CSS 没有这个能力。
+       做法（Chromium 的 Blink 扩展）：
+         ① canvas 光栅化「圆角矩形 SDF」，把边缘带的弯折编码成位移图
+            （R = x 方向位移、G = y 方向位移，中性值 128）；
+         ② 建一个 <filter>（userSpaceOnUse），<feImage> 载入位移图、
+            <feDisplacementMap> 按 R/G 通道位移；
+         ③ 给元素写 backdrop-filter: <原来的值> url(#id) —— 裸 url() 会被 Chromium
+            静默忽略，前面必须先有一个滤镜函数。
+
+       三条硬约束：
+         · 只有 Chromium 支持 backdrop-filter 里的 url()；Safari / Firefox 会解析但不画，
+           而 @supports 会误报，所以按 UA 判引擎。
+         · CSP 若不允许 img-src data:，位移图被静默拒掉（控制台不报错），所以先探一次。
+         · 祖先里只要有 position: fixed 就创建 backdrop root，url() 静默失效 ——
+           所以顶栏胶囊与左右侧栏**不能**加折射（它们正是 fixed）。
+
+       预算（最关键）：位移图每帧都要重新光栅化，代价 ≈ 面数 × 面积。
+       参考实测量级：20 条整宽玻璃行会把滚动从 63fps 拖到 8.5fps。
+       本项目一屏 230+ 个模糊元素，所以这里严格限量：最多 5 个面、单面 ≤ 490000 px²、
+       同尺寸同圆角共用一张位移图。
+       ====================================================================== */
+    var REFRACT_MAX = 5;
+    var REFRACT_MAX_AREA = 490000;
+    var REFRACT_AMOUNT = 22;   // 弯折强度（px）
+    var REFRACT_BEZEL = 18;    // 边缘带宽度（px）：只有这一圈会被弯折
+    var REFRACT_PAD = 24;      // 位移图比元素大一圈，给滤镜留采样余量
+    var refractDone = false;
+    var refractSeq = 0;
+    var refractMaps = {};      // key = w|h|r → dataURL
+
+    /* 引擎判断：backdrop-filter 里的 url() 是 Blink（Chrome/Edge/Opera）扩展。
+       ★ 不能写 \b(Chrome)\/ —— HeadlessChrome/… 里 Chrome 前面是 s，词边界不成立，
+         会把无头浏览器误判成"不支持"（实测踩到）。这里直接找子串。 */
+    function isChromium() {
+        try {
+            var ua = navigator.userAgent || '';
+            return /Chrome\/|Chromium\/|Edg\/|OPR\//.test(ua);
+        } catch (e) { return false; }
+    }
+
+    /* 真实能力验证：建一条最小滤镜、应用到临时元素上，看计算值里有没有 url()。
+       计算值里出现 url() 说明浏览器**接受**了这个语法（Blink 才会保留它；
+       Safari / Firefox 会把它丢掉）。这是比 UA 更硬的证据，两者都过才动手。 */
+    function acceptsFilterUrl() {
+        try {
+            var ns = 'http://www.w3.org/2000/svg';
+            var svg = document.createElementNS(ns, 'svg');
+            svg.setAttribute('width', '0');
+            svg.setAttribute('height', '0');
+            var f = document.createElementNS(ns, 'filter');
+            f.setAttribute('id', 'bom-refract-probe');
+            f.setAttribute('x', '0'); f.setAttribute('y', '0');
+            f.setAttribute('width', '1'); f.setAttribute('height', '1');
+            f.setAttribute('filterUnits', 'userSpaceOnUse');
+            svg.appendChild(f);
+            (document.body || document.documentElement).appendChild(svg);
+            var probe = document.createElement('div');
+            probe.style.cssText = 'position:absolute;left:-9999px;top:0;width:10px;height:10px;' +
+                'backdrop-filter:blur(1px) url(#bom-refract-probe);-webkit-backdrop-filter:blur(1px) url(#bom-refract-probe);';
+            (document.body || document.documentElement).appendChild(probe);
+            var cs = getComputedStyle(probe);
+            var v = cs.backdropFilter || cs.webkitBackdropFilter || '';
+            probe.remove();
+            svg.remove();
+            return v.indexOf('url(') >= 0;
+        } catch (e) { return false; }
+    }
+
+    /* CSP 探针：能不能加载 data: 图片。被拒时 Chrome 不报错，只能靠 onerror 判断。 */
+    function probeDataImage() {
+        return new Promise(function (resolve) {
+            var img = new Image();
+            var settled = false;
+            var done = function (ok) { if (!settled) { settled = true; resolve(ok); } };
+            img.onload = function () { done(true); };
+            img.onerror = function () { done(false); };
+            setTimeout(function () { done(false); }, 1500);
+            img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+        });
+    }
+
+    /* 圆角矩形 SDF：<0 在里面，=0 在边界，>0 在外面 */
+    function sdfRoundRect(x, y, w, h, r) {
+        var hw = w / 2, hh = h / 2;
+        var qx = Math.abs(x - hw) - (hw - r);
+        var qy = Math.abs(y - hh) - (hh - r);
+        var ax = Math.max(qx, 0), ay = Math.max(qy, 0);
+        return Math.sqrt(ax * ax + ay * ay) + Math.min(Math.max(qx, qy), 0) - r;
+    }
+
+    /* 位移图：边缘带按 falloff 弯折，内部与外部填中性 128 */
+    function buildDisplacementMap(w, h, radius, bezel, amount) {
+        var W = w + REFRACT_PAD * 2;
+        var H = h + REFRACT_PAD * 2;
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var ctx = cv.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return null;
+        var img = ctx.createImageData(W, H);
+        var d = img.data;
+        var i, n = W * H;
+        for (i = 0; i < n; i++) { d[i * 4] = 128; d[i * 4 + 1] = 128; d[i * 4 + 2] = 0; d[i * 4 + 3] = 255; }
+        var r = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+        for (var py = 0; py < H; py++) {
+            for (var px = 0; px < W; px++) {
+                var x = px - REFRACT_PAD + 0.5;
+                var y = py - REFRACT_PAD + 0.5;
+                var dist = sdfRoundRect(x, y, w, h, r);
+                if (dist > 0 || dist < -bezel) continue;      // 只弯折边框内那一圈
+                var e = 1;
+                var gx = sdfRoundRect(x + e, y, w, h, r) - sdfRoundRect(x - e, y, w, h, r);
+                var gy = sdfRoundRect(x, y + e, w, h, r) - sdfRoundRect(x, y - e, w, h, r);
+                var len = Math.sqrt(gx * gx + gy * gy) || 1;
+                gx /= len; gy /= len;
+                var t = 1 + dist / bezel;                     // 边界 0 → 内侧 1
+                if (t < 0) t = 0; if (t > 1) t = 1;
+                var falloff = 1 - Math.sqrt(1 - t * t);        // 边缘最大、内侧趋 0
+                var k = falloff;                               // 相对强度 0..1
+                var vx = 128 - gx * k * 127;
+                var vy = 128 - gy * k * 127;
+                var o = (py * W + px) * 4;
+                d[o] = Math.max(0, Math.min(255, Math.round(vx)));
+                d[o + 1] = Math.max(0, Math.min(255, Math.round(vy)));
+            }
+        }
+        ctx.putImageData(img, 0, 0);
+        try { return cv.toDataURL('image/png'); } catch (e) { return null; }
+    }
+
+    function ensureRefractFilter(w, h, radius) {
+        var key = w + '|' + h + '|' + radius;
+        var url = refractMaps[key];
+        if (!url) {
+            url = buildDisplacementMap(w, h, radius, REFRACT_BEZEL, REFRACT_AMOUNT);
+            if (!url) return null;
+            refractMaps[key] = url;
+        }
+        var id = 'bom-refract-' + (++refractSeq);
+        var ns = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('width', '0');
+        svg.setAttribute('height', '0');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.style.position = 'absolute';
+        svg.style.pointerEvents = 'none';
+        var filter = document.createElementNS(ns, 'filter');
+        filter.setAttribute('id', id);
+        filter.setAttribute('filterUnits', 'userSpaceOnUse');
+        filter.setAttribute('x', String(-REFRACT_PAD));
+        filter.setAttribute('y', String(-REFRACT_PAD));
+        filter.setAttribute('width', String(w + REFRACT_PAD * 2));
+        filter.setAttribute('height', String(h + REFRACT_PAD * 2));
+        filter.setAttribute('color-interpolation-filters', 'sRGB');
+        var feImg = document.createElementNS(ns, 'feImage');
+        feImg.setAttribute('href', url);
+        feImg.setAttribute('x', String(-REFRACT_PAD));
+        feImg.setAttribute('y', String(-REFRACT_PAD));
+        feImg.setAttribute('width', String(w + REFRACT_PAD * 2));
+        feImg.setAttribute('height', String(h + REFRACT_PAD * 2));
+        feImg.setAttribute('result', 'map');
+        var feDisp = document.createElementNS(ns, 'feDisplacementMap');
+        feDisp.setAttribute('in', 'SourceGraphic');
+        feDisp.setAttribute('in2', 'map');
+        feDisp.setAttribute('scale', String(REFRACT_AMOUNT * 2));
+        feDisp.setAttribute('xChannelSelector', 'R');
+        feDisp.setAttribute('yChannelSelector', 'G');
+        filter.appendChild(feImg);
+        filter.appendChild(feDisp);
+        svg.appendChild(filter);
+        (document.body || document.documentElement).appendChild(svg);
+        return id;
+    }
+
+    /* fixed 祖先会让 backdrop root 被切断，折射静默失效 */
+    function hasFixedAncestor(el) {
+        var p = el, guard = 0;
+        while (p && p !== document.documentElement && guard++ < 40) {
+            try { if (getComputedStyle(p).position === 'fixed') return true; } catch (e) { /* 忽略 */ }
+            p = p.parentElement;
+        }
+        return false;
+    }
+
+    function applyRefraction(depth) {
+        // 是否已经成功加过（成功一次就不再试；失败可以重试）
+        if (refractDone) return;
+        depth = depth || 0;
+        // 诊断用：把每一步的结论写到 window.__slRefractWhy，出问题能直接问页面
+        var why = function (msg) { try { window.__slRefractWhy = msg; } catch (e) { /* 忽略 */ } };
+        // ★ 重试窗口要给足：SPA 页面从加载到渲染出 .l-card 往往要好几秒（实测题目列表约 13 秒）
+        //   原来只给 5 轮 × 800ms = 4 秒，卡片还没出来就放弃了 —— 折射一次都没加上。
+        if (depth > 20) { why('重试 20 轮都没成功'); refractDone = true; return; }
+        try {
+            if (!isChromium()) { why('UA 不是 Chromium：' + (navigator.userAgent || '').slice(0, 60)); refractDone = true; return; }
+            if (!acceptsFilterUrl()) { why('backdrop-filter 不接受 url()'); refractDone = true; return; }
+            if (typeof HTMLCanvasElement === 'undefined') { why('没有 HTMLCanvasElement'); refractDone = true; return; }
+            var cands = document.querySelectorAll('.l-card, .am-panel, .lg-article');
+            // 卡片还没渲染出来（SPA）⇒ 等一下再试，别把这次机会浪费掉
+            if (!cands.length) { why('第 ' + depth + ' 轮：还没有卡片'); setTimeout(function () { applyRefraction(depth + 1); }, 1000); return; }
+            probeDataImage().then(function (ok) {
+                if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
+                var applied = 0;
+                var skipped = [];   // 诊断：记录每个候选被哪条规则筛掉
+                for (var i = 0; i < cands.length && applied < REFRACT_MAX; i++) {
+                    var el = cands[i];
+                    var rect = el.getBoundingClientRect();
+                    var w = Math.round(rect.width), h = Math.round(rect.height);
+                    if (w < 80 || h < 40) { skipped.push(i + ':太小' + w + 'x' + h); continue; }
+                    if (w * h > REFRACT_MAX_AREA) { skipped.push(i + ':面积' + (w * h)); continue; }
+                    if (hasFixedAncestor(el)) { skipped.push(i + ':fixed祖先'); continue; }
+                    var cs = getComputedStyle(el);
+                    var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
+                    if (!base || base === 'none') { skipped.push(i + ':无backdrop'); continue; }
+                    if (base.indexOf('url(') >= 0) { skipped.push(i + ':已有url'); continue; }
+                    var radius = parseFloat(cs.borderTopLeftRadius) || 0;
+                    if (radius <= 0) { skipped.push(i + ':无圆角'); continue; }
+                    var id = ensureRefractFilter(w, h, radius);
+                    if (!id) { skipped.push(i + ':生成位移图失败'); continue; }
+                    el.style.backdropFilter = base + ' url(#' + id + ')';
+                    el.style.webkitBackdropFilter = base + ' url(#' + id + ')';
+                    applied++;
+                }
+                if (applied) {
+                    refractDone = true;
+                    why('成功 ' + applied + ' 个；跳过：' + skipped.join(' / '));
+                    if (window.__slDebug) {
+                        try { console.log('[bom] 边缘折射已加到 ' + applied + ' 个面'); } catch (e) { /* 忽略 */ }
+                    }
+                } else {
+                    why('第 ' + depth + ' 轮全被筛掉：' + skipped.join(' / '));
+                    // 这一轮一个都没加上（尺寸/面积/fixed 全被筛掉）⇒ 再试几轮，卡片可能还在长
+                    setTimeout(function () { applyRefraction(depth + 1); }, 1000);
+                }
+            }).catch(function () { refractDone = true; });
+        } catch (e) { refractDone = true; }
+    }
+
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
@@ -847,6 +1087,10 @@
         //   用户实测「刚换回来了，延迟巨大」。当时为了修「替换慢一步」加的，代价远大于收益。
         syncThemeBackground();
         setInterval(syncThemeBackground, 1000);
+
+        // 边缘折射（Apple Liquid Glass 的核心观感）。它会自己重试几轮等卡片渲染出来，
+        // 成功一次就停；非 Chromium 或 CSP 拦 data: 图片时安静放弃（只保留纯模糊）。
+        applyRefraction();
 
         // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
         // 所以在这里另挂一个**含 childList** 的观察器，并做 80ms 节流；只在 /theme/ 路径下才挂。
