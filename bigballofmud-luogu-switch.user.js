@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.09
+// @version      20261025.10
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1049,15 +1049,23 @@
                     if (radius <= 0) { skipped.push(i + ':无圆角'); continue; }
                     var id = ensureRefractFilter(w, h, radius);
                     if (!id) { skipped.push(i + ':生成位移图失败'); continue; }
-                    el.style.backdropFilter = base + ' url(#' + id + ')';
-                    el.style.webkitBackdropFilter = base + ' url(#' + id + ')';
-                    // ★ 写完立刻读回：Blink 如果丢掉了 url()（例如 filter 引用无效、或被祖先的
-                    //   backdrop root 切断），说明这条声明根本没被接受 —— 撤掉，别留一条无效声明，
-                    //   也别把它算进"成功"里（否则会出现"日志说加了、屏幕上看不到"的假象）。
+                    // ★★ 关键：必须用 setProperty(..., 'important')。
+                    //   样式里 .l-card / .lg-article 的 backdrop-filter 都带 !important，
+                    //   CSS 规定「样式表的 !important」**赢过**「inline 的普通声明」——
+                    //   所以以前 el.style.backdropFilter = … 写进去后，计算值仍是样式那条，
+                    //   折射从来没真正生效（实测：设 blur(2px) url(#lab-f)，读回还是 blur(8px) …）。
+                    try {
+                        el.style.setProperty('backdrop-filter', base + ' url(#' + id + ')', 'important');
+                        el.style.setProperty('-webkit-backdrop-filter', base + ' url(#' + id + ')', 'important');
+                    } catch (e) { skipped.push(i + ':写入失败'); continue; }
+                    // 写完读回验证：真的生效了才算数。
                     var after = '';
                     try { after = getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || ''; } catch (e) { /* 忽略 */ }
                     if (after.indexOf('url(') < 0) {
-                        try { el.style.backdropFilter = base; el.style.webkitBackdropFilter = base; } catch (e) { /* 忽略 */ }
+                        try {
+                            el.style.removeProperty('backdrop-filter');
+                            el.style.removeProperty('-webkit-backdrop-filter');
+                        } catch (e) { /* 忽略 */ }
                         skipped.push(i + ':浏览器丢弃了url()');
                         continue;
                     }
