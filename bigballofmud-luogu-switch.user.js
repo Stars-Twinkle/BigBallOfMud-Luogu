@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.25
+// @version      20261025.26
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1039,10 +1039,17 @@
         filter.setAttribute('color-interpolation-filters', 'sRGB');
         var feImg = document.createElementNS(ns, 'feImage');
         feImg.setAttribute('href', url);
-        feImg.setAttribute('x', String(-REFRACT_PAD));
-        feImg.setAttribute('y', String(-REFRACT_PAD));
-        feImg.setAttribute('width', String(w + REFRACT_PAD * 2));
-        feImg.setAttribute('height', String(h + REFRACT_PAD * 2));
+        /* ★★ 这两个属性缺一不可，否则折射区域会与元素错开（用户截图里那条贯穿画面的水平分界）：
+           ① preserveAspectRatio="none" —— 默认是 xMidYMid meet（等比缩放 + 居中），
+              而位移图是 0.4 倍分辨率（例如 608×126 要塞进 1216×252 的区域），
+              等比缩放后位置和尺寸都对不上，折射就跑到元素外面去了。
+           ② x/y/width/height 必须和 filter 区域用同一个 fPad —— 原来这里用 REFRACT_PAD（30）、
+              而 filter 用 fPad = REFRACT_PAD + 2（32），两者差了 2px，同样会造成错位。 */
+        feImg.setAttribute('preserveAspectRatio', 'none');
+        feImg.setAttribute('x', String(-fPad));
+        feImg.setAttribute('y', String(-fPad));
+        feImg.setAttribute('width', String(w + fPad * 2));
+        feImg.setAttribute('height', String(h + fPad * 2));
         feImg.setAttribute('result', 'map');
         var feDisp = document.createElementNS(ns, 'feDisplacementMap');
         feDisp.setAttribute('in', 'SourceGraphic');
@@ -1113,7 +1120,12 @@
                     if (!ael.offsetWidth && !ael.offsetHeight) continue;
                     var abf = '';
                     try { abf = getComputedStyle(ael).backdropFilter || getComputedStyle(ael).webkitBackdropFilter || ''; } catch (e) { continue; }
-                    if (!abf || abf === 'none' || abf.indexOf('url(') >= 0) continue;
+                    /* ★★ 不要把「已有 url()」的元素过滤掉：那是上一轮加过折射的，
+                       而 SPA 早期布局未定（实测先按 70px 宽加了滤镜、稳定后是 238px），
+                       这种错位的滤镜需要被重建 —— 一旦在这里过滤掉，循环里那段
+                       「尺寸变了就重做」就成了死代码，错位滤镜永远留着
+                       （用户截图里那条贯穿画面的水平分界）。 */
+                    if (!abf || abf === 'none') continue;
                     cands.push(ael);
                 }
             } catch (e) { /* 忽略 */ }
@@ -1137,8 +1149,16 @@
                 var budgetLeft = REFRACT_BUDGET;
                 for (var i = 0; i < order.length && applied < REFRACT_MAX; i++) {
                     var el = order[i].el;
-                    var w = order[i].w, h = order[i].h;
+                    /* ★★ 这里必须重新读一次真实尺寸，不能用扫描时缓存的 order[i].w/h。
+                       扫描发生在页面还没布局完的时刻（实测某个元素当时 70px 宽、实际是 238px），
+                       于是位移图按 70px 生成、却被拉伸到 302px 的滤镜区域 —— 位移场整个错位，
+                       表现就是「折射的边界跑到元素外面」（用户截图里那条贯穿画面的水平分界）。 */
+                    var rrNow = el.getBoundingClientRect();
+                    var w = Math.round(rrNow.width), h = Math.round(rrNow.height);
                     if (w < 32 || h < 22) { skipped.push(i + ':太小' + w + 'x' + h); continue; }
+                    // 细长条（例如 64px 宽的侧栏）折射看不出来，还占预算
+                    if (w < 80 && h > 300) { skipped.push(i + ':太窄' + w + 'x' + h); continue; }
+                    if (h < 40 && w > 300) { skipped.push(i + ':太扁' + w + 'x' + h); continue; }
                     if (w * h > REFRACT_MAX_AREA) { skipped.push(i + ':面积' + (w * h)); continue; }
                     if (w * h < REFRACT_MIN_AREA) { skipped.push(i + ':过小'); continue; }
                     if (w * h > budgetLeft) { skipped.push(i + ':预算用尽'); continue; }
@@ -1146,7 +1166,25 @@
                     var cs = getComputedStyle(el);
                     var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
                     if (!base || base === 'none') { skipped.push(i + ':无backdrop'); continue; }
-                    if (base.indexOf('url(') >= 0) { skipped.push(i + ':已有url'); continue; }
+                    /* ★★ 已有 url 不能直接跳过：如果元素尺寸变了（SPA 早期布局未定，
+                       实测某个元素先按 70px 宽加了滤镜、稳定后是 238px），那个滤镜就是错位的，
+                       而它永远不会被修正（补齐轮次看到 url 就跳过）。所以尺寸变了要重做。 */
+                    if (base.indexOf('url(') >= 0) {
+                        var nowKey = w + 'x' + h;
+                        if (el.__slRefractKey && el.__slRefractKey !== nowKey) {
+                            try {
+                                el.style.removeProperty('backdrop-filter');
+                                el.style.removeProperty('-webkit-backdrop-filter');
+                            } catch (e) { /* 忽略 */ }
+                            el.__slRefractKey = '';
+                            base = getComputedStyle(el).backdropFilter || base;
+                            base = base.replace(/\s*url\([^)]*\)/g, '').trim();
+                            if (!base || base === 'none') { skipped.push(i + ':重建失败-无backdrop'); continue; }
+                        } else {
+                            skipped.push(i + ':已有url');
+                            continue;
+                        }
+                    }
                     var radius = parseFloat(cs.borderTopLeftRadius) || 0;
                     if (radius <= 0) { skipped.push(i + ':无圆角'); continue; }
                     var id = ensureRefractFilter(w, h, radius);
@@ -1182,6 +1220,8 @@
                         }
                     } catch (e) { /* 忽略 */ }
                     applied++;
+                    // 记下加滤镜时的尺寸：补齐轮次靠它判断「元素尺寸是否已经变了」
+                    try { el.__slRefractKey = w + 'x' + h; } catch (e) { /* 忽略 */ }
                     budgetLeft -= w * h;                              // 扣预算（成本 ≈ 面积 × 半径）
                 }
                 if (applied) {
