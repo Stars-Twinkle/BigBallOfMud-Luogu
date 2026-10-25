@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.13
+// @version      20261025.14
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -10,7 +10,7 @@
 //                  若你的网络访问不了 raw.githubusercontent.com，把上面两行换成 jsDelivr 镜像：
 //                  https://cdn.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js
 // @description  液态玻璃主题（样式已打包在本脚本内，由它注入）。装这一个就够了，不需要 Stylus。功能：① 注入全部外观（约 21 万字符，按域名分主站 / 网校两组）；② 顶栏"私信、通知"右边放一个可点的三态配色开关（跟随系统/深色/浅色，选择被记住）；③ 深色下运行"对比度守卫"，自动修掉洛谷写死的浅字浅底/深字深底。
-// @author       acerkaio
+// @author       StarsTwinkle
 // @license      CC BY-NC-SA
 // @match        https://www.luogu.com.cn/*
 // @match        https://class.luogu.com.cn/*
