@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.19
+// @version      20261025.20
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -854,7 +854,7 @@
     var REFRACT_AMOUNT_RATIO = 0.12;
     var REFRACT_AMOUNT_MAX = 26;
     var REFRACT_BEZEL_RATIO = 0.26;
-    var REFRACT_BEZEL_MIN = 16;
+    var REFRACT_BEZEL_MIN = 8;    // 小元件短边只有 32px 时，16px 的下限会让整块都在弯折带里
     var REFRACT_BEZEL_MAX = 90;
     var REFRACT_PAD = 30;
     var refractDone = false;
@@ -1080,12 +1080,24 @@
             if (typeof HTMLCanvasElement === 'undefined') { why('没有 HTMLCanvasElement'); refractDone = true; return; }
             // ★ 候选扩到「所有玻璃面」：卡片 / 面板 / 按钮 / 标签 / 输入框 / 胶囊
             //   （用户：「给所有玻璃覆盖」）。真正的筛选靠下面的面积预算，不靠选择器。
-            var cands = document.querySelectorAll(
-                '.l-card, .am-panel, .lg-article, .am-btn, .lg-inline-up, .lfe-input, .refined-input, ' +
-                '[class*="lfe-card"], [class*="lfe-panel"], .am-badge, [class*="lg-bg-"], .badge'
-            );
-            // 卡片还没渲染出来（SPA）⇒ 等一下再试，别把这次机会浪费掉
-            if (!cands.length) { why('第 ' + depth + ' 轮：还没有卡片'); setTimeout(function () { applyRefraction(depth + 1); }, 1000); return; }
+            /* ★ 不再用类名枚举候选（用户：「底下的犇犇卡没命中」「我的意思是没有折射」）——
+               犇犇 / 动态那类卡片用的是我们没登记过的类名，枚举法永远会漏。
+               改成**直接判断「这个元素是不是玻璃面」**：扫全页，凡是 computed
+               backdrop-filter 不是 none（且还没有 url）的，就是玻璃面，都能当候选。
+               一次扫描约 30~60ms，只在初始化跑一次。 */
+            var cands = [];
+            try {
+                var allEls = document.querySelectorAll('body *');
+                for (var ai = 0; ai < allEls.length; ai++) {
+                    var ael = allEls[ai];
+                    var abf = '';
+                    try { abf = getComputedStyle(ael).backdropFilter || getComputedStyle(ael).webkitBackdropFilter || ''; } catch (e) { continue; }
+                    if (!abf || abf === 'none' || abf.indexOf('url(') >= 0) continue;
+                    cands.push(ael);
+                }
+            } catch (e) { /* 忽略 */ }
+            // 玻璃面还没渲染出来（SPA）⇒ 等一下再试，别把这次机会浪费掉
+            if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 1000); return; }
             probeDataImage().then(function (ok) {
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
@@ -1105,7 +1117,7 @@
                 for (var i = 0; i < order.length && applied < REFRACT_MAX; i++) {
                     var el = order[i].el;
                     var w = order[i].w, h = order[i].h;
-                    if (w < 80 || h < 40) { skipped.push(i + ':太小' + w + 'x' + h); continue; }
+                    if (w < 32 || h < 22) { skipped.push(i + ':太小' + w + 'x' + h); continue; }
                     if (w * h > REFRACT_MAX_AREA) { skipped.push(i + ':面积' + (w * h)); continue; }
                     if (w * h < REFRACT_MIN_AREA) { skipped.push(i + ':过小'); continue; }
                     if (w * h > budgetLeft) { skipped.push(i + ':预算用尽'); continue; }
