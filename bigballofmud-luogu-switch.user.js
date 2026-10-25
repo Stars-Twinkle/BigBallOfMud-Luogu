@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.23
+// @version      20261025.24
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -838,8 +838,12 @@
        成本 ≈ Σ(元素面积 × 半径)；小元件（按钮 / 标签 / 输入框）面积很小，
        加起来也不贵，真正贵的是少数大容器。所以按面积**从小到大**排序：
        小元件优先全给，预算用完后跳过剩下的大块。 */
-    var REFRACT_BUDGET = 12e6;       // 预算放开（≈11 个视口，实际等于不设限）—— 用户要求覆盖所有玻璃
-    var REFRACT_MAX = 400;           // 兜底上限（只防病态页面）
+    // ★ 覆盖面与帧率是直接兑换关系（实测同页滚动 30 帧，headless 无 GPU）：
+    //     预算 130 万 → 1496ms；300 万 → 约 1800ms；不设限 → 2890ms。
+    //   每一条带折射的玻璃 = 一条每帧重光栅化的滤镜链，所以没法既要全覆盖又要流畅。
+    //   默认 300 万（约 3 个视口）：覆盖主要玻璃面，也不会把滚动拖垮。
+    var REFRACT_BUDGET = 3e6;
+    var REFRACT_MAX = 40;            // 兜底上限（3e6 预算通常先触发）
     var REFRACT_MIN_AREA = 600;      // 太小的不值得（< 25×25）
     var REFRACT_MAX_AREA = 3000000;  // 单面上限放到 300 万 —— 大卡也要覆盖（用户要求）
     /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
@@ -858,6 +862,7 @@
     var REFRACT_BEZEL_MAX = 90;
     var REFRACT_PAD = 30;
     var refractDone = false;
+    var refractIdle = 0;        // 连续「没有任何新成功」的轮数，用来决定何时收工
     var refractSeq = 0;
     var refractMaps = {};      // key = w|h|r → dataURL
 
@@ -907,7 +912,7 @@
             var done = function (ok) { if (!settled) { settled = true; resolve(ok); } };
             img.onload = function () { done(true); };
             img.onerror = function () { done(false); };
-            setTimeout(function () { done(false); }, 1500);
+            setTimeout(function () { done(false); }, 400);
             img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
         });
     }
@@ -935,7 +940,7 @@
         var H = Math.max(2, Math.round((h + REFRACT_PAD * 2) * MAP_SCALE));
         var cv = document.createElement('canvas');
         cv.width = W; cv.height = H;
-        var ctx = cv.getContext('2d', { willReadFrequently: true });
+        var ctx = cv.getContext('2d');   // ★ 不要 willReadFrequently：只 putImageData 一次，带上它会强制软件光栅化
         if (!ctx) return null;
         var img = ctx.createImageData(W, H);
         var d = img.data;
@@ -976,7 +981,7 @@
                    直边上看不出来，但**位移场在 45° 方向梯度最大**，采样点被斜着推出
                    元素矩形，于是沿边界留下一道浅色接缝。乘一个 3px 斜坡让位移在边界
                    平滑归零，往里仍然"越靠边越狠"。 */
-                var edgeFade = Math.min(1, (-dist) / 3);
+                var edgeFade = Math.min(1, (-dist) / 6);
                 if (edgeFade < 1) falloff *= edgeFade;
                 var k = falloff;                               // 相对强度 0..1
                 var vx = 128 - gx * k * 127;
@@ -1085,7 +1090,7 @@
         };
         // ★ 重试窗口要给足：SPA 页面从加载到渲染出 .l-card 往往要好几秒（实测题目列表约 13 秒）
         //   原来只给 5 轮 × 800ms = 4 秒，卡片还没出来就放弃了 —— 折射一次都没加上。
-        if (depth > 20) { why('重试 20 轮都没成功'); refractDone = true; return; }
+        if (depth > 80) { why('重试 20 轮都没成功'); refractDone = true; return; }
         try {
             if (!isChromium()) { why('UA 不是 Chromium：' + (navigator.userAgent || '').slice(0, 60)); refractDone = true; return; }
             if (!acceptsFilterUrl()) { why('backdrop-filter 不接受 url()'); refractDone = true; return; }
@@ -1099,9 +1104,11 @@
                一次扫描约 30~60ms，只在初始化跑一次。 */
             var cands = [];
             try {
-                var allEls = document.querySelectorAll('body *');
+                var allEls = document.querySelectorAll('div, section, article, aside, header, footer, nav, main, button, input, select, textarea, a, span, p, li, table, td, form, label');
                 for (var ai = 0; ai < allEls.length; ai++) {
                     var ael = allEls[ai];
+                    // 零尺寸元素不可能画出玻璃，白算一次 getComputedStyle
+                    if (!ael.offsetWidth && !ael.offsetHeight) continue;
                     var abf = '';
                     try { abf = getComputedStyle(ael).backdropFilter || getComputedStyle(ael).webkitBackdropFilter || ''; } catch (e) { continue; }
                     if (!abf || abf === 'none' || abf.indexOf('url(') >= 0) continue;
@@ -1109,7 +1116,7 @@
                 }
             } catch (e) { /* 忽略 */ }
             // 玻璃面还没渲染出来（SPA）⇒ 等一下再试，别把这次机会浪费掉
-            if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 1000); return; }
+            if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 250); return; }
             probeDataImage().then(function (ok) {
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
@@ -1176,15 +1183,31 @@
                     budgetLeft -= w * h;                              // 扣预算（成本 ≈ 面积 × 半径）
                 }
                 if (applied) {
-                    refractDone = true;
+                    /* ★ 成功一次不算完：SPA 会在随后几秒继续渲染出更多玻璃面
+                       （实测 1.8s 时只有 3 个）。所以继续补齐，每轮只处理
+                       「还没有 url() 的新元素」，已处理过的会被 cands 过滤掉。 */
+                    refractIdle = 0;
+                    // ★ 补齐要有终点：每轮都要扫全页 + 逐元素 getComputedStyle，
+                    //   无限轮询会把滚动帧率拖下去（实测主页 1939 → 2264ms）。
+                    //   首发 + 12 轮补齐（约 9 秒）足够覆盖 SPA 的首屏渲染。
+                    if (depth < 12) {
+                        setTimeout(function () { applyRefraction(depth + 1); }, 700);
+                    } else {
+                        refractDone = true;
+                    }
                     why('成功 ' + applied + ' 个；跳过：' + skipped.join(' / '));
                     if (window.__slDebug) {
                         try { console.log('[bom] 边缘折射已加到 ' + applied + ' 个面'); } catch (e) { /* 忽略 */ }
                     }
                 } else {
-                    why('第 ' + depth + ' 轮全被筛掉：' + skipped.join(' / '));
-                    // 这一轮一个都没加上（尺寸/面积/fixed 全被筛掉）⇒ 再试几轮，卡片可能还在长
-                    setTimeout(function () { applyRefraction(depth + 1); }, 1000);
+                    /* 这一轮没有任何新成功。可能是「页面还没渲染出玻璃面」，
+                       也可能是「该处理的都处理完了」—— 靠连续空轮数区分：
+                       前者会持续到页面渲染出来，后者几轮之后就该收工，
+                       否则会一路空转到上限（曾经空转 20 秒）。 */
+                    refractIdle++;
+                    why('第 ' + depth + ' 轮无新成功（连续 ' + refractIdle + ' 轮）：' + skipped.join(' / '));
+                    if (refractIdle >= 12) { refractDone = true; return; }
+                    setTimeout(function () { applyRefraction(depth + 1); }, 250);
                 }
             }).catch(function () { refractDone = true; });
         } catch (e) { refractDone = true; }
