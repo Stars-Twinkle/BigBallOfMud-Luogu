@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.28
+// @version      20261025.29
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1113,6 +1113,9 @@
     function mountPlayer() {
         if (!PLAYER_HTML || !PLAYER_JS) return;
         if (document.getElementById('bom-player')) return;
+        /* ★ 只在主站注入（用户要求）。网校 class.luogu.com.cn 上不挂播放器。
+           这里限制的只是**播放器**；样式美化仍然覆盖主站 + 网校两个域名。 */
+        if (location.hostname !== 'www.luogu.com.cn') return;
         if (window.innerWidth < 900) return;              // 窄屏不挂
 
         /* 样式：只注入一次 */
