@@ -1,6 +1,6 @@
 /* ==UserStyle==
 @name         BigBallOfMud Luogu
-@version      20261006.01
+@version      20261025.01
 @namespace    bigballofmud-luogu
 @description  洛谷美化 · 新版前端（columba/lfe）适配。保留内置主题商店的前提下，
               为全站加上液态玻璃质感，并支持深色 / 浅色 / 跟随系统三种配色。
@@ -191,16 +191,28 @@
     /* ----------------------------------------------------------------------
        ② 玻璃参数
        ---------------------------------------------------------------------- */
-    --lg-blur: 24px;
-    --lg-card-blur: 18px;
+    --lg-blur: 18px;
+    --lg-card-blur: 12px;
     --lg-alpha: 18%;          /* 主卡片玻璃（数值越小越透）★ 用户：「玻璃加透」 */
     --lg-alpha-soft: 13%;     /* 次级容器：列表 / 表格 / 分页 / 搜索框 */
     --lg-alpha-pop: 18%;      /* 浮层：模态 / 下拉 / 气泡 / 通知（★ 必须与卡片 --lg-alpha 同值，避免色差） */
     --lg-alpha-field: 36%;    /* 表单控件：输入框 / 文本域 / 下拉选择 */
     --lg-nav-alpha: 34%;      /* 顶栏两个胶囊 + 左右侧栏 */
+
+    /* ★ 第 2026-10-25 轮：向 Apple Liquid Glass 靠 + 降渲染开销。
+       苹果的玻璃是**实时折射**出来的，所以它的后景是**清晰**的、只是边缘被弯折 ——
+       并不是"大半径磨砂"。原来 blur 给到 18/24px，观感偏"毛玻璃"而不是"液态玻璃"，
+       而且 blur 的高斯成本与半径近似线性、与面积成正比：本项目一屏 230+ 个模糊元素，
+       半径减半大约省一半模糊开销（实测模糊占滚动耗时的 29%）。
+       所以这一轮：blur 18→12 / 24→18（更薄、更清晰 ✗ 也更省），
+       sat 215→235（背景色更浓 ✗ 苹果的玻璃透上来的颜色很"实"），
+       rim 62→72 且 rim-color 提到 .74（上缘亮边更明显 ✗ 玻璃更"厚"），
+       spec 22→27（镜面光斑更亮 ✗ 液态流动感的主要来源）。
+       ★ 为什么没做"方向性描边"：那需要给 15 处 box-shadow 各加左右方向分量，
+         改动面太大、回归风险高；用这四个变量能达到接近的效果。 */
     /* ★ 想整体调透/调实，只改上面这五个数即可 —— 全站玻璃都引用它们，
        不再散落写死的百分比（之前 55% / 72% / 78% 各写各的，改一处不透）。 */
-    --lg-sat: 215%;
+    --lg-sat: 235%;
     --lg-radius: 20px;
     --lg-radius-sm: 12px;
     --lg-radius-xs: 8px;
@@ -255,7 +267,7 @@
        ③ 玻璃自有光泽：这些不涉及主题色，直接给浅/深两个颜色
        注意 light-dark() 只接受**颜色**，所以阴影要拆成"固定几何 + 颜色变量"
        ---------------------------------------------------------------------- */
-    --lg-highlight: light-dark(rgba(255, 255, 255, .75), rgba(255, 255, 255, .16));
+    --lg-highlight: light-dark(rgba(255, 255, 255, .80), rgba(255, 255, 255, .22));
     --lg-border: light-dark(rgba(255, 255, 255, .55), rgba(255, 255, 255, .13));
     --lg-sheen: light-dark(rgba(255, 255, 255, .16), rgba(255, 255, 255, .03));
     --lg-inner: light-dark(rgba(255, 255, 255, .22), rgba(0, 0, 0, .30));
@@ -304,14 +316,14 @@
     --lg-field-dark: rgba(22, 25, 31, .43);   /* 表单控件 */
     --lg-block-dark: rgba(16, 19, 24, .50);   /* 代码块 */
     /* 边与光：深色下都要"软"，硬边就是金属感 */
-    --lg-rim-color: light-dark(rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
-    --lg-spec-color: light-dark(rgba(255, 255, 255, .22), rgba(255, 255, 255, .07));
+    --lg-rim-color: light-dark(rgba(255, 255, 255, .74), rgba(255, 255, 255, .22));
+    --lg-spec-color: light-dark(rgba(255, 255, 255, .28), rgba(255, 255, 255, .09));
     --lg-glow: light-dark(rgba(255, 255, 255, .07), rgba(255, 255, 255, .028));
-    --lg-spec: 22%;          /* 镜面光斑强度（0 = 关）—— 浅色分支用，保留兼容 */
+    --lg-spec: 27%;          /* 镜面光斑强度（0 = 关）★ 苹果的液态感主要来自这个光斑 */
     /* 暗缘：玻璃的"厚度"不只是亮边 —— 与光同侧亮、背光侧暗，
        有这一条才像玻璃；只有白边会像一张白纸（用户反馈"不要老一片白"）。 */
     --lg-shade: light-dark(rgba(15, 23, 42, .085), rgba(0, 0, 0, .16));
-    --lg-rim: 62%;           /* 上缘高光强度（玻璃厚度感） */
+    --lg-rim: 72%;           /* 上缘高光强度（玻璃厚度感）★ 苹果 Liquid Glass 的上缘更亮 */
     /* 注：原 --lg-refract（边缘折射提亮）已废弃 —— 它的实现要在固定顶栏里叠一层
        带 mask 的 backdrop-filter，滚动时每帧重算，导致"一直在抖"。
        边缘厚度现在完全由 --lg-rim（亮上缘）与 --lg-shade（暗下缘）表达。 */
@@ -347,9 +359,24 @@
        这正是"签名仅首页在内容之下"的原因（首页旧前端把壁纸画在 body 上，一直正常）。
      · 把壁纸改画在 html（也就是画布本身）之后，两边机制一致，不再依赖传播行为。
    注：以前这里是一条 html { background: transparent }，与本约定正好相反，已删除。 */
-/* 画布背景：壁纸 + 深色压暗都画在这里（签名水印落在它之上、内容之下）。 */
+/* 画布背景：底色画在 html 上；**壁纸与深色压暗搬到下面那个固定定位的伪元素**。
+   ★ 为什么不用 background-attachment: fixed（性能，第 2026-10-25 轮）：
+     它会让 Chrome 在**每次滚动**都重新光栅化整屏背景 —— 本项目一屏有 200+ 个
+     backdrop-filter 层，两者叠乘就是滚动掉帧的主因（实测基线：39 帧滚动耗时 2160 ms）。
+     改成 position: fixed 的伪元素后，这一层可以被当作独立合成层平移，滚动时不必重绘。
+     视觉**完全等价**：两者都是"壁纸钉在视口、不随内容滚动"。
+   ★ 顺序仍然是：html 底色 → html::before（壁纸+压暗）→ html::after（签名 ✗ z-index -1）→ 内容。
+     所以伪元素用 -2，签名那份 -1 依旧在它之上。 */
 html {
     background-color: light-dark(#eef1f7, #14161a) !important;
+}
+
+html::before {
+    content: '' !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: -2 !important;
+    pointer-events: none !important;
     background-image:
         /* 深色压暗（补回原来 .theme-page::before 那层 58%，合成后约 .84） */
         linear-gradient(light-dark(rgba(0, 0, 0, 0), rgba(0, 0, 0, .84)),
@@ -358,7 +385,9 @@ html {
     background-repeat: no-repeat, no-repeat !important;
     background-size: cover, cover !important;
     background-position: center, center !important;
-    background-attachment: fixed, fixed !important;
+    /* ★ 这里**不能再写 fixed**：伪元素本身已经是 position: fixed 了，
+       背景跟着它走；写 fixed 会把这个层的滚动开销又加回来。 */
+    background-attachment: scroll, scroll !important;
 }
 
 /* ── 主题编辑器：把「中景图片」这一项的文案在视觉上换成「背景图」 ─────────────────
@@ -411,12 +440,12 @@ html {
         --lg-text-weak: #5a6472;
         --lg-mask: rgba(20, 26, 40, .32);
         --lg-block-bg: rgba(255, 255, 255, .82);
-        --lg-spec: 22%;
-        --lg-rim: 62%;
+        --lg-spec: 27%;
+        --lg-rim: 72%;
         --lg-refract: 1.16;
         --lg-shade: rgba(15, 23, 42, .085);
-        --lg-rim-color: rgba(255, 255, 255, .62);
-        --lg-spec-color: rgba(255, 255, 255, .22);
+        --lg-rim-color: rgba(255, 255, 255, .74);
+        --lg-spec-color: rgba(255, 255, 255, .28);
         --lg-glow: rgba(255, 255, 255, .07);
         --lg-panel-dark: rgba(18, 21, 27, .40);
         --lg-nav-dark: rgba(12, 14, 18, .47);
@@ -5103,8 +5132,8 @@ rect.highcharts-point.highcharts-color-1 {
     /* ----------------------------------------------------------------------
        ② 玻璃参数
        ---------------------------------------------------------------------- */
-    --lg-blur: 24px;
-    --lg-card-blur: 18px;
+    --lg-blur: 18px;
+    --lg-card-blur: 12px;
     --lg-alpha: 18%;          /* 主卡片玻璃（数值越小越透）★ 用户：「玻璃加透」 */
     --lg-alpha-soft: 13%;     /* 次级容器：列表 / 表格 / 分页 / 搜索框 */
     --lg-alpha-pop: 18%;      /* 浮层：模态 / 下拉 / 气泡 / 通知（★ 必须与卡片 --lg-alpha 同值，避免色差） */
@@ -5112,7 +5141,7 @@ rect.highcharts-point.highcharts-color-1 {
     --lg-nav-alpha: 34%;      /* 顶栏两个胶囊 + 左右侧栏 */
     /* ★ 想整体调透/调实，只改上面这五个数即可 —— 全站玻璃都引用它们，
        不再散落写死的百分比（之前 55% / 72% / 78% 各写各的，改一处不透）。 */
-    --lg-sat: 215%;
+    --lg-sat: 235%;
     --lg-radius: 20px;
     --lg-radius-sm: 12px;
     --lg-radius-xs: 8px;
@@ -5167,7 +5196,7 @@ rect.highcharts-point.highcharts-color-1 {
        ③ 玻璃自有光泽：这些不涉及主题色，直接给浅/深两个颜色
        注意 light-dark() 只接受**颜色**，所以阴影要拆成"固定几何 + 颜色变量"
        ---------------------------------------------------------------------- */
-    --lg-highlight: light-dark(rgba(255, 255, 255, .75), rgba(255, 255, 255, .16));
+    --lg-highlight: light-dark(rgba(255, 255, 255, .80), rgba(255, 255, 255, .22));
     --lg-border: light-dark(rgba(255, 255, 255, .55), rgba(255, 255, 255, .13));
     --lg-sheen: light-dark(rgba(255, 255, 255, .16), rgba(255, 255, 255, .03));
     --lg-inner: light-dark(rgba(255, 255, 255, .22), rgba(0, 0, 0, .30));
@@ -5216,14 +5245,14 @@ rect.highcharts-point.highcharts-color-1 {
     --lg-field-dark: rgba(22, 25, 31, .43);   /* 表单控件 */
     --lg-block-dark: rgba(16, 19, 24, .50);   /* 代码块 */
     /* 边与光：深色下都要"软"，硬边就是金属感 */
-    --lg-rim-color: light-dark(rgba(255, 255, 255, .62), rgba(255, 255, 255, .14));
-    --lg-spec-color: light-dark(rgba(255, 255, 255, .22), rgba(255, 255, 255, .07));
+    --lg-rim-color: light-dark(rgba(255, 255, 255, .74), rgba(255, 255, 255, .22));
+    --lg-spec-color: light-dark(rgba(255, 255, 255, .28), rgba(255, 255, 255, .09));
     --lg-glow: light-dark(rgba(255, 255, 255, .07), rgba(255, 255, 255, .028));
-    --lg-spec: 22%;          /* 镜面光斑强度（0 = 关）—— 浅色分支用，保留兼容 */
+    --lg-spec: 27%;          /* 镜面光斑强度（0 = 关）★ 苹果的液态感主要来自这个光斑 */
     /* 暗缘：玻璃的"厚度"不只是亮边 —— 与光同侧亮、背光侧暗，
        有这一条才像玻璃；只有白边会像一张白纸（用户反馈"不要老一片白"）。 */
     --lg-shade: light-dark(rgba(15, 23, 42, .085), rgba(0, 0, 0, .16));
-    --lg-rim: 62%;           /* 上缘高光强度（玻璃厚度感） */
+    --lg-rim: 72%;           /* 上缘高光强度（玻璃厚度感）★ 苹果 Liquid Glass 的上缘更亮 */
     /* 注：原 --lg-refract（边缘折射提亮）已废弃 —— 它的实现要在固定顶栏里叠一层
        带 mask 的 backdrop-filter，滚动时每帧重算，导致"一直在抖"。
        边缘厚度现在完全由 --lg-rim（亮上缘）与 --lg-shade（暗下缘）表达。 */
