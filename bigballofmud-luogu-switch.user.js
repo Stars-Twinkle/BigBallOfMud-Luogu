@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.26
+// @version      20261025.27
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1130,7 +1130,7 @@
                 }
             } catch (e) { /* 忽略 */ }
             // 玻璃面还没渲染出来（SPA）⇒ 等一下再试，别把这次机会浪费掉
-            if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 250); return; }
+            if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 900); return; }
             probeDataImage().then(function (ok) {
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
@@ -1147,6 +1147,7 @@
                 }
                 order.sort(function (a, b) { return a.area - b.area; });
                 var budgetLeft = REFRACT_BUDGET;
+                var pending = [];   // 两阶段：先收集，循环结束后一次性写入 DOM
                 for (var i = 0; i < order.length && applied < REFRACT_MAX; i++) {
                     var el = order[i].el;
                     /* ★★ 这里必须重新读一次真实尺寸，不能用扫描时缓存的 order[i].w/h。
@@ -1191,38 +1192,50 @@
                     if (!id) { skipped.push(i + ':生成位移图失败'); continue; }
                     // ★★ 关键：必须用 setProperty(..., 'important')。
                     //   样式里 .l-card / .lg-article 的 backdrop-filter 都带 !important，
-                    //   CSS 规定「样式表的 !important」**赢过**「inline 的普通声明」——
-                    //   所以以前 el.style.backdropFilter = … 写进去后，计算值仍是样式那条，
-                    //   折射从来没真正生效（实测：设 blur(2px) url(#lab-f)，读回还是 blur(8px) …）。
-                    try {
-                        el.style.setProperty('backdrop-filter', base + ' url(#' + id + ')', 'important');
-                        el.style.setProperty('-webkit-backdrop-filter', base + ' url(#' + id + ')', 'important');
-                    } catch (e) { skipped.push(i + ':写入失败'); continue; }
-                    // 写完读回验证：真的生效了才算数。
-                    var after = '';
-                    try { after = getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || ''; } catch (e) { /* 忽略 */ }
-                    if (after.indexOf('url(') < 0) {
-                        try {
-                            el.style.removeProperty('backdrop-filter');
-                            el.style.removeProperty('-webkit-backdrop-filter');
-                        } catch (e) { /* 忽略 */ }
-                        skipped.push(i + ':浏览器丢弃了url()');
-                        continue;
-                    }
-                    // ★ 有折射的元素几乎不需要模糊（弯折已经提供边缘细节），
-                    //   把它的 blur 压到 2px —— 等于用折射换掉一半的模糊开销。
-                    try {
-                        var bf = after.replace(/url\([^)]*\)/g, '').trim();
-                        var nb = bf.replace(/blur\([^)]*\)/, 'blur(2px)').trim();
-                        if (nb && nb !== bf) {
-                            el.style.setProperty('backdrop-filter', nb + ' url(#' + id + ')', 'important');
-                            el.style.setProperty('-webkit-backdrop-filter', nb + ' url(#' + id + ')', 'important');
-                        }
-                    } catch (e) { /* 忽略 */ }
+                    /* ★★ 两阶段：这里只**收集**，不写 DOM。
+                       用户反馈「他是先渲染玻璃，折射出来的满」—— 边算边写会让折射
+                       一个一个冒出来（实测 1.7s 到 2.7s 之间逐块出现），看着像没加载完。
+                       改成先全部算好、循环结束后一次性写入，观感是"一起出现"。 */
+                    try { el.setAttribute('data-sl-refract-pending', id); } catch (e) { skipped.push(i + ':标记失败'); continue; }
+                    pending.push({ el: el, id: id, base: base, w: w, h: h });
                     applied++;
-                    // 记下加滤镜时的尺寸：补齐轮次靠它判断「元素尺寸是否已经变了」
-                    try { el.__slRefractKey = w + 'x' + h; } catch (e) { /* 忽略 */ }
                     budgetLeft -= w * h;                              // 扣预算（成本 ≈ 面积 × 半径）
+                }
+
+                /* 统一写入：一帧之内把已经算好的全部挂上去，观感是一次性出现。 */
+                if (pending.length) {
+                    var okList = [];
+                    for (var p = 0; p < pending.length; p++) {
+                        var pt = pending[p];
+                        try {
+                            pt.el.style.setProperty('backdrop-filter', pt.base + ' url(#' + pt.id + ')', 'important');
+                            pt.el.style.setProperty('-webkit-backdrop-filter', pt.base + ' url(#' + pt.id + ')', 'important');
+                        } catch (e) { pt.el.removeAttribute('data-sl-refract-pending'); continue; }
+                        // 读回验证：Blink 若丢掉 url()，撤掉这条无效声明
+                        var after = '';
+                        try { after = getComputedStyle(pt.el).backdropFilter || ''; } catch (e) { /* 忽略 */ }
+                        if (after.indexOf('url(') < 0) {
+                            try {
+                                pt.el.style.removeProperty('backdrop-filter');
+                                pt.el.style.removeProperty('-webkit-backdrop-filter');
+                            } catch (e) { /* 忽略 */ }
+                            pt.el.removeAttribute('data-sl-refract-pending');
+                            continue;
+                        }
+                        // 有折射的元素几乎不需要模糊（弯折已提供边缘细节），blur 压到 2px
+                        try {
+                            var nb = after.replace(/url\([^)]*\)/g, '').replace(/blur\([^)]*\)/, 'blur(2px)').trim();
+                            if (nb && nb.indexOf('blur') >= 0) {
+                                pt.el.style.setProperty('backdrop-filter', nb + ' url(#' + pt.id + ')', 'important');
+                                pt.el.style.setProperty('-webkit-backdrop-filter', nb + ' url(#' + pt.id + ')', 'important');
+                            }
+                        } catch (e) { /* 忽略 */ }
+                        pt.el.removeAttribute('data-sl-refract-pending');
+                        try { pt.el.__slRefractKey = pt.w + 'x' + pt.h; } catch (e) { /* 忽略 */ }
+                        okList.push(pt.el);
+                    }
+                    // 真正生效的才算成功；被浏览器丢掉的从计数里扣回来
+                    applied = okList.length;
                 }
                 if (applied) {
                     /* ★ 成功一次不算完：SPA 会在随后几秒继续渲染出更多玻璃面
@@ -1232,7 +1245,7 @@
                     // ★ 补齐要有终点：每轮都要扫全页 + 逐元素 getComputedStyle，
                     //   无限轮询会把滚动帧率拖下去（实测主页 1939 → 2264ms）。
                     //   首发 + 12 轮补齐（约 9 秒）足够覆盖 SPA 的首屏渲染。
-                    if (depth < 12) {
+                    if (depth < 5) {
                         setTimeout(function () { applyRefraction(depth + 1); }, 700);
                     } else {
                         refractDone = true;
@@ -1248,8 +1261,8 @@
                        否则会一路空转到上限（曾经空转 20 秒）。 */
                     refractIdle++;
                     why('第 ' + depth + ' 轮无新成功（连续 ' + refractIdle + ' 轮）：' + skipped.join(' / '));
-                    if (refractIdle >= 12) { refractDone = true; return; }
-                    setTimeout(function () { applyRefraction(depth + 1); }, 250);
+                    if (refractIdle >= 3) { refractDone = true; return; }
+                    setTimeout(function () { applyRefraction(depth + 1); }, 900);
                 }
             }).catch(function () { refractDone = true; });
         } catch (e) { refractDone = true; }
@@ -1293,9 +1306,19 @@
         syncThemeBackground();
         setInterval(syncThemeBackground, 1000);
 
-        // 边缘折射（Apple Liquid Glass 的核心观感）。它会自己重试几轮等卡片渲染出来，
-        // 成功一次就停；非 Chromium 或 CSP 拦 data: 图片时安静放弃（只保留纯模糊）。
-        applyRefraction();
+        // 边缘折射（Apple Liquid Glass 的核心观感）。
+        // ★ 不在这里直接跑：实测首次扫描是 100ms 级的长任务（扫全页 + 逐元素 getComputedStyle），
+        //   而 whenRoot 在 document-start 执行，这一下正好压在 DOMContentLoaded / LCP 上
+        //   （实测两个长任务 116ms + 114ms 落在 t=1373 与 t=1529，而 DCL=1487、LCP=1696）。
+        //   改成等 DOM 建完：DOMContentLoaded 之后 120ms 跑第一次，那时 DOM 完整、
+        //   一次扫到位也不会重复扫。代价是折射出现时间从 1.7s 变成约 1.9s。
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () {
+                setTimeout(applyRefraction, 120);
+            }, { once: true });
+        } else {
+            setTimeout(applyRefraction, 120);
+        }
 
         // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
         // 所以在这里另挂一个**含 childList** 的观察器，并做 80ms 节流；只在 /theme/ 路径下才挂。
