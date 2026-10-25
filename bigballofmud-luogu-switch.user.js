@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.17
+// @version      20261025.18
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -834,8 +834,14 @@
        本项目一屏 230+ 个模糊元素，所以这里严格限量：最多 5 个面、单面 ≤ 490000 px²、
        同尺寸同圆角共用一张位移图。
        ====================================================================== */
-    var REFRACT_MAX = 3;   // 每帧要重新光栅化滤镜链，面数是硬预算（用户：「模糊渲染太慢了」）
-    var REFRACT_MAX_AREA = 600000;
+    /* ★ 「给所有玻璃覆盖」+「渲染要快」：不按个数限，改成**总面积预算**。
+       成本 ≈ Σ(元素面积 × 半径)；小元件（按钮 / 标签 / 输入框）面积很小，
+       加起来也不贵，真正贵的是少数大容器。所以按面积**从小到大**排序：
+       小元件优先全给，预算用完后跳过剩下的大块。 */
+    var REFRACT_BUDGET = 4200000;    // 总像素预算（约 3.9 个 1464×739 视口）
+    var REFRACT_MAX = 80;            // 兜底上限（正常由预算先触发）
+    var REFRACT_MIN_AREA = 600;      // 太小的不值得（< 25×25）
+    var REFRACT_MAX_AREA = 3000000;  // 单面上限放到 300 万 —— 大卡也要覆盖（用户要求）
     /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
        原来只弯折 18px 的窄边、强度 22px，观感是"边缘一圈"，不像透镜。
        现在：强度 22 → 40px；边缘带不再写死 —— 按卡片短边动态取（短边 × BEZEL_RATIO，
@@ -982,11 +988,18 @@
         var url = refractMaps[key];
         if (!url) {
             // 强度与边缘带都按短边动态取：
-            // · amount ≤ 短边 × 0.12（再大就会把采样点推出元素矩形 → 撕裂）
-            // · bez 取短边 × 0.26，让弯折覆盖到大半个面（用户要求），但内部仍有一段平区
+            /* ★ 按面积分档 —— 依据用户给的 iOS 27.2 截图：
+               苹果的**大卡**（通知 / 播放器 / 资源库面板）边缘弯折其实很轻，
+               它的"面"是靠亮描边 + 极透的底色撑起来的；只有**小元件**（胶囊 / 搜索框）
+               边缘的弯折才明显。所以大卡也覆盖（用户要求），但用更窄的边缘带和更小强度。
+               这同时也更省：位移图要处理的行列数按 bez 缩，大卡不会因为面积大就变贵。 */
             var shortSide = Math.min(w, h);
-            var amount = Math.max(4, Math.min(Math.round(shortSide * REFRACT_AMOUNT_RATIO), REFRACT_AMOUNT_MAX));
-            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(shortSide * REFRACT_BEZEL_RATIO, REFRACT_BEZEL_MAX));
+            var bigCard = w * h > 320000;
+            var ratioAmount = bigCard ? 0.055 : REFRACT_AMOUNT_RATIO;
+            var capAmount = bigCard ? 14 : REFRACT_AMOUNT_MAX;
+            var ratioBezel = bigCard ? 0.10 : REFRACT_BEZEL_RATIO;
+            var amount = Math.max(4, Math.min(Math.round(shortSide * ratioAmount), capAmount));
+            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(shortSide * ratioBezel, REFRACT_BEZEL_MAX));
             url = buildDisplacementMap(w, h, radius, bez, amount);
             if (!url) return null;
             refractMaps[key] = url;
@@ -1002,10 +1015,13 @@
         var filter = document.createElementNS(ns, 'filter');
         filter.setAttribute('id', id);
         filter.setAttribute('filterUnits', 'userSpaceOnUse');
-        filter.setAttribute('x', String(-REFRACT_PAD));
-        filter.setAttribute('y', String(-REFRACT_PAD));
-        filter.setAttribute('width', String(w + REFRACT_PAD * 2));
-        filter.setAttribute('height', String(h + REFRACT_PAD * 2));
+        // ★ 外扩 2px：feDisplacementMap 的输出会被 filter 区域硬裁，元素边缘那一圈
+        //   采样不足 ⇒ 出现一道亮白斜边（用户：「还是有点瑕疵」）。多留 2px 给插值。
+        var fPad = REFRACT_PAD + 2;
+        filter.setAttribute('x', String(-fPad));
+        filter.setAttribute('y', String(-fPad));
+        filter.setAttribute('width', String(w + fPad * 2));
+        filter.setAttribute('height', String(h + fPad * 2));
         filter.setAttribute('color-interpolation-filters', 'sRGB');
         var feImg = document.createElementNS(ns, 'feImage');
         feImg.setAttribute('href', url);
@@ -1055,19 +1071,37 @@
             if (!isChromium()) { why('UA 不是 Chromium：' + (navigator.userAgent || '').slice(0, 60)); refractDone = true; return; }
             if (!acceptsFilterUrl()) { why('backdrop-filter 不接受 url()'); refractDone = true; return; }
             if (typeof HTMLCanvasElement === 'undefined') { why('没有 HTMLCanvasElement'); refractDone = true; return; }
-            var cands = document.querySelectorAll('.l-card, .am-panel, .lg-article');
+            // ★ 候选扩到「所有玻璃面」：卡片 / 面板 / 按钮 / 标签 / 输入框 / 胶囊
+            //   （用户：「给所有玻璃覆盖」）。真正的筛选靠下面的面积预算，不靠选择器。
+            var cands = document.querySelectorAll(
+                '.l-card, .am-panel, .lg-article, .am-btn, .lg-inline-up, .lfe-input, .refined-input, ' +
+                '[class*="lfe-card"], [class*="lfe-panel"], .am-badge, [class*="lg-bg-"], .badge'
+            );
             // 卡片还没渲染出来（SPA）⇒ 等一下再试，别把这次机会浪费掉
             if (!cands.length) { why('第 ' + depth + ' 轮：还没有卡片'); setTimeout(function () { applyRefraction(depth + 1); }, 1000); return; }
             probeDataImage().then(function (ok) {
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
                 var skipped = [];   // 诊断：记录每个候选被哪条规则筛掉
-                for (var i = 0; i < cands.length && applied < REFRACT_MAX; i++) {
-                    var el = cands[i];
-                    var rect = el.getBoundingClientRect();
-                    var w = Math.round(rect.width), h = Math.round(rect.height);
+                /* ★ 按面积**从小到大**排序：小元件（按钮 / 标签 / 输入框）便宜，
+                   优先全部给上；预算留给它们之后，剩下的大块才按预算挑。
+                   这样「所有玻璃覆盖」在观感上成立，同时总成本可控。 */
+                var order = [];
+                for (var q = 0; q < cands.length; q++) {
+                    var rr = cands[q].getBoundingClientRect();
+                    var aw = Math.round(rr.width), ah = Math.round(rr.height);
+                    if (aw < 25 || ah < 25) continue;                 // 太小，忽略
+                    order.push({ el: cands[q], w: aw, h: ah, area: aw * ah });
+                }
+                order.sort(function (a, b) { return a.area - b.area; });
+                var budgetLeft = REFRACT_BUDGET;
+                for (var i = 0; i < order.length && applied < REFRACT_MAX; i++) {
+                    var el = order[i].el;
+                    var w = order[i].w, h = order[i].h;
                     if (w < 80 || h < 40) { skipped.push(i + ':太小' + w + 'x' + h); continue; }
                     if (w * h > REFRACT_MAX_AREA) { skipped.push(i + ':面积' + (w * h)); continue; }
+                    if (w * h < REFRACT_MIN_AREA) { skipped.push(i + ':过小'); continue; }
+                    if (w * h > budgetLeft) { skipped.push(i + ':预算用尽'); continue; }
                     if (hasFixedAncestor(el)) { skipped.push(i + ':fixed祖先'); continue; }
                     var cs = getComputedStyle(el);
                     var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
@@ -1098,6 +1132,7 @@
                         continue;
                     }
                     applied++;
+                    budgetLeft -= w * h;                              // 扣预算（成本 ≈ 面积 × 半径）
                 }
                 if (applied) {
                     refractDone = true;
