@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.16
+// @version      20261025.17
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -834,8 +834,8 @@
        本项目一屏 230+ 个模糊元素，所以这里严格限量：最多 5 个面、单面 ≤ 490000 px²、
        同尺寸同圆角共用一张位移图。
        ====================================================================== */
-    var REFRACT_MAX = 6;
-    var REFRACT_MAX_AREA = 900000;
+    var REFRACT_MAX = 3;   // 每帧要重新光栅化滤镜链，面数是硬预算（用户：「模糊渲染太慢了」）
+    var REFRACT_MAX_AREA = 600000;
     /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
        原来只弯折 18px 的窄边、强度 22px，观感是"边缘一圈"，不像透镜。
        现在：强度 22 → 40px；边缘带不再写死 —— 按卡片短边动态取（短边 × BEZEL_RATIO，
@@ -922,7 +922,7 @@
          ① 位移图降到 1/MAP_SCALE 分辨率 —— 位移场本身平滑，feImage 拉伸后看不出差别，
             运算量直接降到 1/4；
          ② 只在元素的边框内那一圈扫，内部整片跳过。 */
-    var MAP_SCALE = 0.5;
+    var MAP_SCALE = 0.4;   // 位移场平滑，0.4 倍分辨率肉眼无差，运算量再降 36%
 
     function buildDisplacementMap(w, h, radius, bezel, amount) {
         var W = Math.max(2, Math.round((w + REFRACT_PAD * 2) * MAP_SCALE));
@@ -952,14 +952,19 @@
                 var gy = sdfRoundRect(x, y + e, w, h, r) - sdfRoundRect(x, y - e, w, h, r);
                 var len = Math.sqrt(gx * gx + gy * gy) || 1;
                 gx /= len; gy /= len;
-                var t = 1 + dist / bezel;                     // 边界 0 → 内侧 1
+                var t = 1 + dist / bezel;                     // 边界 dist=0 → t=1；内侧 dist=-bezel → t=0
                 if (t < 0) t = 0; if (t > 1) t = 1;
-                /* ★ 越靠边缘越狠。依据是用户给的 iOS 27.2 截图：
-                   资源库文件夹的边缘图标被极度拉伸、中心几乎不变形；搜索胶囊与音乐胶囊
-                   也是两端狠、中间平。所以曲线要「边缘满值 1、往内快速衰减」：
-                   (1-t)^2.2 ⇒ t=0 是 1、t=0.33 约 0.40、t=1 是 0。
-                   （早先的 1−√(1−t²) 边缘也对但衰减略缓；1−t^1.6 太均匀，像整体平移。） */
-                var falloff = Math.pow(1 - t, 2.2);
+                /* ★ 越靠边缘越狠（依据用户给的 iOS 27.2 截图：资源库文件夹的边缘图标被极度拉伸、
+                   中心几乎不变形；搜索胶囊与音乐胶囊也是两端狠、中间平）。
+                   ★★ 方向千万别搞反：t 在【边界】是 1、在【内侧】是 0，
+                   所以「边缘满值」必须是 t 的递增函数 —— 用 t^2.2：
+                     t=1（边界）→ 1.000 满位移
+                     t=0.66      → 0.400
+                     t=0.33      → 0.087
+                     t=0（内侧）  → 0
+                   上一版误写成 (1-t)^2.2，等于把方向翻了过来：边缘不弯、内部满位移；
+                   内部满位移会把采样点推出元素矩形，于是出现斜裂缝（用户：「还是裂的」）。 */
+                var falloff = Math.pow(t, 2.2);
                 var k = falloff;                               // 相对强度 0..1
                 var vx = 128 - gx * k * 127;
                 var vy = 128 - gy * k * 127;
