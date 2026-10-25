@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.20
+// @version      20261025.21
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -838,8 +838,8 @@
        成本 ≈ Σ(元素面积 × 半径)；小元件（按钮 / 标签 / 输入框）面积很小，
        加起来也不贵，真正贵的是少数大容器。所以按面积**从小到大**排序：
        小元件优先全给，预算用完后跳过剩下的大块。 */
-    var REFRACT_BUDGET = 4200000;    // 总像素预算（约 3.9 个 1464×739 视口）
-    var REFRACT_MAX = 80;            // 兜底上限（正常由预算先触发）
+    var REFRACT_BUDGET = 1300000;    // 总像素预算（约 1.2 个 1464×739 视口）—— 覆盖与性能的折中，想要更多就调大
+    var REFRACT_MAX = 30;            // 兜底上限（正常由预算先触发）
     var REFRACT_MIN_AREA = 600;      // 太小的不值得（< 25×25）
     var REFRACT_MAX_AREA = 3000000;  // 单面上限放到 300 万 —— 大卡也要覆盖（用户要求）
     /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
@@ -1050,11 +1050,23 @@
         return id;
     }
 
-    /* fixed 祖先会让 backdrop root 被切断，折射静默失效 */
-    function hasFixedAncestor(el) {
+    /* ★ 什么会切断 backdrop-filter 的折射 —— 这一条写错会误杀一大片元素：
+       `position: fixed` **不会**创建 backdrop root、也不会切断 backdrop-filter；
+       真正会的是祖先带 filter / backdrop-filter / opacity<1 / mask。
+       原来按 fixed 判断，结果页面上凡是有 fixed 包装（侧栏、吸顶栏、弹层容器）的后代
+       全被跳过，犇犇那种卡永远轮不上（用户：「还是没有」）。 */
+    function hasBackdropBlocker(el) {
         var p = el, guard = 0;
         while (p && p !== document.documentElement && guard++ < 40) {
-            try { if (getComputedStyle(p).position === 'fixed') return true; } catch (e) { /* 忽略 */ }
+            try {
+                var cs = getComputedStyle(p);
+                if (cs.filter && cs.filter !== 'none') return true;
+                // 自身是玻璃面不算阻断；祖先若是玻璃面，折射会嵌套，跳过
+                if (p !== el && cs.backdropFilter && cs.backdropFilter !== 'none') return true;
+                if (parseFloat(cs.opacity) < 1) return true;
+                if (cs.maskImage && cs.maskImage !== 'none') return true;
+                if (cs.webkitMaskImage && cs.webkitMaskImage !== 'none') return true;
+            } catch (e) { /* 忽略 */ }
             p = p.parentElement;
         }
         return false;
@@ -1121,7 +1133,7 @@
                     if (w * h > REFRACT_MAX_AREA) { skipped.push(i + ':面积' + (w * h)); continue; }
                     if (w * h < REFRACT_MIN_AREA) { skipped.push(i + ':过小'); continue; }
                     if (w * h > budgetLeft) { skipped.push(i + ':预算用尽'); continue; }
-                    if (hasFixedAncestor(el)) { skipped.push(i + ':fixed祖先'); continue; }
+                    if (hasBackdropBlocker(el)) { skipped.push(i + ':祖先有filter/opacity/mask'); continue; }
                     var cs = getComputedStyle(el);
                     var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
                     if (!base || base === 'none') { skipped.push(i + ':无backdrop'); continue; }
