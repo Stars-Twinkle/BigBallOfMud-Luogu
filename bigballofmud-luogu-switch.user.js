@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.07
+// @version      20261025.08
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1013,8 +1013,13 @@
         // 是否已经成功加过（成功一次就不再试；失败可以重试）
         if (refractDone) return;
         depth = depth || 0;
-        // 诊断用：把每一步的结论写到 window.__slRefractWhy，出问题能直接问页面
-        var why = function (msg) { try { window.__slRefractWhy = msg; } catch (e) { /* 忽略 */ } };
+        // 诊断用：结论**同时**写到 window.__slRefractWhy 与 <html data-sl-refract>。
+        // 为什么要写 DOM：脚本装了 GM_* 之后运行在篡改猴沙箱里，页面控制台读 window 拿不到
+        // （实测用户在页面控制台读 window.__slRefractWhy 永远是 undefined），读 DOM 属性才看得到。
+        var why = function (msg) {
+            try { window.__slRefractWhy = msg; } catch (e) { /* 忽略 */ }
+            try { document.documentElement.setAttribute('data-sl-refract', msg); } catch (e) { /* 忽略 */ }
+        };
         // ★ 重试窗口要给足：SPA 页面从加载到渲染出 .l-card 往往要好几秒（实测题目列表约 13 秒）
         //   原来只给 5 轮 × 800ms = 4 秒，卡片还没出来就放弃了 —— 折射一次都没加上。
         if (depth > 20) { why('重试 20 轮都没成功'); refractDone = true; return; }
@@ -1046,6 +1051,16 @@
                     if (!id) { skipped.push(i + ':生成位移图失败'); continue; }
                     el.style.backdropFilter = base + ' url(#' + id + ')';
                     el.style.webkitBackdropFilter = base + ' url(#' + id + ')';
+                    // ★ 写完立刻读回：Blink 如果丢掉了 url()（例如 filter 引用无效、或被祖先的
+                    //   backdrop root 切断），说明这条声明根本没被接受 —— 撤掉，别留一条无效声明，
+                    //   也别把它算进"成功"里（否则会出现"日志说加了、屏幕上看不到"的假象）。
+                    var after = '';
+                    try { after = getComputedStyle(el).backdropFilter || getComputedStyle(el).webkitBackdropFilter || ''; } catch (e) { /* 忽略 */ }
+                    if (after.indexOf('url(') < 0) {
+                        try { el.style.backdropFilter = base; el.style.webkitBackdropFilter = base; } catch (e) { /* 忽略 */ }
+                        skipped.push(i + ':浏览器丢弃了url()');
+                        continue;
+                    }
                     applied++;
                 }
                 if (applied) {
