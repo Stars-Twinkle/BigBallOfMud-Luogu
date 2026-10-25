@@ -2,9 +2,12 @@
 
 洛谷新版前端（columba / lfe）的**液态玻璃**美化 + **深浅双模式**。
 
-样式负责外观、脚本负责行为，**两个都要装**：
-脚本提供页面内可点的三态配色开关，并负责深色下的**对比度校正**与**悬停反馈**
-（样式里有一部分表面是由脚本写入的 `data-sl-theme` 属性驱动的，脚本缺席时那些地方会退化）。
+**只需要装一个油猴脚本** —— 样式已经打包进脚本里，由它在 `document-start` 注入
+（比 Stylus 还早，不会闪白）。不用再装 Stylus 或任何 UserCSS 管理器。
+
+脚本自己负责两件事：注入全部外观，以及页面内可点的三态配色开关、深色下的**对比度校正**。
+（`bigballofmud-luogu.user.css` 仍然保留：如果你更喜欢用 Stylus 管理样式，装它也可以，
+但**两个不要同时装**，重复注入虽然无害，只是没必要。）
 
 ---
 
@@ -12,10 +15,14 @@
 
 | 要装的东西 | 装到哪 | 点这里安装 |
 |---|---|---|
-| **美化样式**（必需） | [Stylus](https://add0n.com/stylus.html) | **[⬇ 安装美化样式](https://userstyles.world/api/style/30507.user.css)** |
-| **配色开关 + 对比度守卫**（必需） | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
+| **全部内容（样式 + 配色开关 + 对比度守卫）** | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
+| 样式（**可选**，只在你想用 Stylus 管理时才装） | [Stylus](https://add0n.com/stylus.html) | [安装美化样式](https://userstyles.world/api/style/30507.user.css) |
 
-先装上面两个管理器扩展，再点对应的安装链接 —— 管理器会自己弹出安装界面，确认即可。
+先装 [Tampermonkey](https://www.tampermonkey.net/)，再点脚本那个安装链接 —— 管理器会自己弹出安装界面，确认即可。
+**装完就生效**，不需要动洛谷的任何设置。
+
+> **为什么脚本里能带样式**：油猴脚本可以注入 `<style>`，而且 `@run-at document-start` 比 Stylus 还早，
+> 所以首屏不会闪。脚本会按域名只注入对应的那一组（主站 / 网校分开），不会把两套样式混在一起。
 
 > **样式那个链接是什么**：`https://userstyles.world/api/style/30507.user.css` 是 userstyles.world
 > 给这个样式提供的**直装地址** —— 返回的就是一份带 `==UserStyle==` 头的 UserCSS（实测 HTTP 200、
@@ -23,9 +30,9 @@
 > 它同时是**更新检查地址**：从它安装的样式，Stylus 会按 `@version` 发现新版。
 > 想打分、看评论或翻旧版本，去[样式主页](https://userstyles.world/style/30507)。
 
-> **以后怎么更新**：从这两个链接装的，管理器会自己检查更新
-> （Stylus 在样式页点「检查更新」；篡改猴默认每 24 小时查一次，也可在管理面板手动「检查更新」）。
-> 手动粘贴代码装的**查不到更新**，所以建议用上面的链接装。
+> **以后怎么更新**：从上面那个链接装的，篡改猴会自己检查更新
+> （默认每 24 小时一次，也可在管理面板手动点「检查更新」）。
+> 手动粘贴代码装的**查不到更新**，所以建议用链接装。
 
 ---
 
@@ -33,42 +40,20 @@
 
 | 文件 | 装到哪 | 必需？ | 作用 |
 |---|---|---|---|
-| [`bigballofmud-luogu.user.css`](bigballofmud-luogu.user.css) | **Stylus**（或其它 UserCSS 管理器）| **必需** | 全部外观：液态玻璃、深浅配色、顶栏胶囊、侧栏、链接悬停、标签动画…… |
-| [`bigballofmud-luogu-switch.user.js`](bigballofmud-luogu-switch.user.js) | **Tampermonkey**（油猴）| **必需** | ① 顶栏放一个可点的三态配色开关（选择被记住）② 深色下自动修正对比度不足的文字 ③ 写入 `data-sl-theme`，供样式的属性驱动规则与悬停反馈使用 |
+| [`bigballofmud-luogu-switch.user.js`](bigballofmud-luogu-switch.user.js) | **Tampermonkey**（油猴）| **必需（只装它就够了）** | ① 注入全部外观（样式已打包在里面，约 430 KB）② 顶栏放一个可点的三态配色开关（选择被记住）③ 深色下自动修正对比度不足的文字 ④ 写入 `data-sl-theme`，供属性驱动的规则使用 |
+| [`bigballofmud-luogu.user.css`](bigballofmud-luogu.user.css) | **Stylus**（或其它 UserCSS 管理器）| **可选**（想用 Stylus 管理样式时才装）| 与脚本里打包的是同一份样式。**它的好处是能在 Stylus 面板里改参数**；脚本版要改参数就直接改脚本文件 |
 
-> 两个文件是**配合**关系：脚本只负责"行为"，一行 CSS 都不注入；样式只负责"外观"，不写任何 JS。
-> **但两个都要装** —— 缺了脚本，顶栏配色按钮、深色下的对比度校正、
-> 以及依赖 `data-sl-theme` 的那部分悬停反馈都不会生效。
+> 两者**内容同源**：脚本里的样式由 `evidence/脚本与语料/build_userscript.mjs` 从 `.user.css` 自动打包，
+> 所以不会出现"两套不一样"的情况。
+> **同时装两个也不冲突**（规则相同），只是重复注入、没必要。
 
 ---
 
 ## 安装
 
-### 1. 样式（必需）
+### 1. 脚本（唯一必需的一步）
 
 **方式 A：点安装链接（推荐，方便以后更新）**
-
-1. 装 [Stylus](https://add0n.com/stylus.html) 扩展
-2. 点 **[⬇ 安装美化样式](https://userstyles.world/api/style/30507.user.css)** → Stylus 弹出安装页 → 确认
-   （这是 userstyles.world 的直装地址，返回的是标准 UserCSS；同页也是更新检查地址）
-3. 或者打开[样式主页](https://userstyles.world/style/30507)点「Install style」，效果一样
-
-**方式 B：从 raw 文件安装**
-
-Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接粘进样式正文里
-（Stylus 会自动识别 `==UserStyle==` 头；有些版本没有"从 URL 安装"，那就用方式 C）：
-
-`https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu.user.css`
-
-**方式 C：手动粘贴**
-
-1. 打开 Stylus → 「管理样式」→「**编写新样式**」
-2. 把 `bigballofmud-luogu.user.css` 的全部内容粘进去 → `Ctrl+S`
-3. 打开洛谷刷新，即可看到效果
-
-### 2. 脚本（必需）
-
-**方式 A：点安装链接（推荐）**
 
 1. 装 [Tampermonkey](https://www.tampermonkey.net/)
 2. 点 **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)**
@@ -77,22 +62,39 @@ Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接�
 **方式 B：手动粘贴**
 
 油猴图标 → 「**添加新脚本**」→ 清空编辑区 → 粘贴 `bigballofmud-luogu-switch.user.js` 全部内容 → `Ctrl+S`
+（文件约 430 KB，里面包含完整样式，粘贴需要几秒）
 
-装好后刷新洛谷，顶栏「私信 / 通知」右边会出现一个圆形配色按钮（网校则在侧栏「学习」下面、
-或首页顶栏客服图标左边）。
+装好后刷新洛谷就能看到效果，顶栏「私信 / 通知」右边会出现一个圆形配色按钮
+（网校则在侧栏「学习」下面、或首页顶栏客服图标左边）。
+
+> **确认它生效了没**：打开 F12 → 元素面板搜 `bigballofmud-luogu-selfstyle` ——
+> 有一个 `<style>` 标签就说明样式注入成功，它的内容长度约 21 万字符（主站）。
+
+### 2. 样式（可选，只在你想用 Stylus 管理时才装）
+
+> ⚠️ **已经装了脚本的话，跳过这一节。** 样式已经在脚本里了。
+
+**方式 A：点安装链接**
+
+1. 装 [Stylus](https://add0n.com/stylus.html) 扩展
+2. 点 [安装美化样式](https://userstyles.world/api/style/30507.user.css) → Stylus 弹出安装页 → 确认
+
+**方式 B：手动粘贴**
+
+Stylus 管理面板 → 「**编写新样式**」→ 把 `bigballofmud-luogu.user.css` 的全部内容粘进去 → `Ctrl+S`
 
 > **怎么区分两个文件？** 脚本文件第一行是 `// ==UserScript==`（油猴靠它识别）；
-> 样式文件开头是 `/* ==UserStyle==`。粘错地方不会生效，但也不会弄坏什么。
+> 样式文件开头是 `/* ==UserStyle==`（Stylus 靠它识别）。粘错地方不生效，但也不会弄坏什么。
 
 ---
 
-## 配色切换（三种方式，任选）
+## 配色切换
 
-| 方式 | 怎么做 | 是否需要脚本 |
+| 方式 | 怎么做 | 前提 |
 |---|---|---|
-| 顶栏按钮 | 点顶栏那个圆形图标，循环 跟随系统 → 深色 → 浅色，选择会记住 | 需要 |
-| Stylus 面板 | 编辑样式，右侧「配色模式」下拉三选一 → 保存 | 不需要 |
-| 改代码 | 把 ① 段的 `color-scheme: [[colorMode]];` 删掉，只留 `color-scheme: light dark;`（或写死 `light` / `dark`）| 不需要 |
+| **顶栏按钮**（推荐） | 点顶栏那个圆形图标，循环 跟随系统 → 深色 → 浅色，选择会记住 | 装了脚本 |
+| Stylus 面板 | 编辑样式，右侧「配色模式」下拉三选一 → 保存 | **只有装了 UserCSS 才有这个面板** |
+| 改样式代码 | 把 `color-scheme` 那两行删成只剩 `color-scheme: light dark;`（或写死 `light` / `dark`）| 只有装了 UserCSS |
 
 ---
 
@@ -120,7 +122,7 @@ Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接�
 
 | 入口 | 在哪 | 管什么 |
 |---|---|---|
-| **Stylus 面板的下拉框** | 编辑样式时右侧出现的「配色模式」 | 跟随系统 / 强制浅色 / 强制深色（对应样式头部的 `@var select colorMode`）|
+| **Stylus 面板的下拉框**（**仅装了 UserCSS 时有**）| 编辑样式时右侧出现的「配色模式」 | 跟随系统 / 强制浅色 / 强制深色（对应样式头部的 `@var select colorMode`）；**纯脚本版没有这个面板，配色请用顶栏按钮** |
 | **样式里的 CSS 变量** | 样式 ② 段（玻璃参数）、③ 段（光泽与文字色）、⑭ 段（背景图） | 外观的全部数值：透明度、模糊、圆角、尺寸、颜色、背景图 |
 | **脚本里的 CONFIG** | `bigballofmud-luogu-switch.user.js` 顶部的 `var CONFIG = { … }` | 行为开关：配色按钮、对比度守卫、守卫门槛、防抖时长、调试日志 |
 
@@ -282,7 +284,7 @@ Stylus 管理面板 → 「**编写新样式**」→ 把下面这个 raw 链接�
 
 **Q：深色下某处还是白的 / 某段文字看不清？**
 两件事可以试：
-1. 确认 Stylus 里是最新版（在编辑器里搜一个特征字符串，例如 `--lg-pop-dark`，搜得到就是新版）
+1. 确认脚本是最新版（篡改猴管理面板 → 「检查更新」；或比对 `@version` 日期）
 2. 装上脚本（必需）—— 它的「对比度守卫」会读取**最终计算出来**的颜色，自动把不达标的文字修到可读
 
 **Q：浅色模式和洛谷原版一样吗？**
