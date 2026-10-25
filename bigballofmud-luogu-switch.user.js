@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.21
+// @version      20261025.22
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -838,8 +838,8 @@
        成本 ≈ Σ(元素面积 × 半径)；小元件（按钮 / 标签 / 输入框）面积很小，
        加起来也不贵，真正贵的是少数大容器。所以按面积**从小到大**排序：
        小元件优先全给，预算用完后跳过剩下的大块。 */
-    var REFRACT_BUDGET = 1300000;    // 总像素预算（约 1.2 个 1464×739 视口）—— 覆盖与性能的折中，想要更多就调大
-    var REFRACT_MAX = 30;            // 兜底上限（正常由预算先触发）
+    var REFRACT_BUDGET = 12e6;       // 预算放开（≈11 个视口，实际等于不设限）—— 用户要求覆盖所有玻璃
+    var REFRACT_MAX = 400;           // 兜底上限（只防病态页面）
     var REFRACT_MIN_AREA = 600;      // 太小的不值得（< 25×25）
     var REFRACT_MAX_AREA = 3000000;  // 单面上限放到 300 万 —— 大卡也要覆盖（用户要求）
     /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
@@ -1061,8 +1061,8 @@
             try {
                 var cs = getComputedStyle(p);
                 if (cs.filter && cs.filter !== 'none') return true;
-                // 自身是玻璃面不算阻断；祖先若是玻璃面，折射会嵌套，跳过
-                if (p !== el && cs.backdropFilter && cs.backdropFilter !== 'none') return true;
+                // ★ 不再把「祖先有 backdrop-filter」当阻断 —— 嵌套玻璃在 Chromium 上能工作，
+                //   而这行代码把页面上所有嵌套的玻璃后代全掐了（「东一块西一块」的真凶之一）。
                 if (parseFloat(cs.opacity) < 1) return true;
                 if (cs.maskImage && cs.maskImage !== 'none') return true;
                 if (cs.webkitMaskImage && cs.webkitMaskImage !== 'none') return true;
@@ -1162,6 +1162,16 @@
                         skipped.push(i + ':浏览器丢弃了url()');
                         continue;
                     }
+                    // ★ 有折射的元素几乎不需要模糊（弯折已经提供边缘细节），
+                    //   把它的 blur 压到 2px —— 等于用折射换掉一半的模糊开销。
+                    try {
+                        var bf = after.replace(/url\([^)]*\)/g, '').trim();
+                        var nb = bf.replace(/blur\([^)]*\)/, 'blur(2px)').trim();
+                        if (nb && nb !== bf) {
+                            el.style.setProperty('backdrop-filter', nb + ' url(#' + id + ')', 'important');
+                            el.style.setProperty('-webkit-backdrop-filter', nb + ' url(#' + id + ')', 'important');
+                        }
+                    } catch (e) { /* 忽略 */ }
                     applied++;
                     budgetLeft -= w * h;                              // 扣预算（成本 ≈ 面积 × 半径）
                 }
