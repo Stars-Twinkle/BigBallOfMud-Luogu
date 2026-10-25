@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.14
+// @version      20261025.15
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -834,11 +834,19 @@
        本项目一屏 230+ 个模糊元素，所以这里严格限量：最多 5 个面、单面 ≤ 490000 px²、
        同尺寸同圆角共用一张位移图。
        ====================================================================== */
-    var REFRACT_MAX = 5;
-    var REFRACT_MAX_AREA = 490000;
-    var REFRACT_AMOUNT = 22;   // 弯折强度（px）
-    var REFRACT_BEZEL = 18;    // 边缘带宽度（px）：只有这一圈会被弯折
-    var REFRACT_PAD = 24;      // 位移图比元素大一圈，给滤镜留采样余量
+    var REFRACT_MAX = 6;
+    var REFRACT_MAX_AREA = 900000;
+    /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
+       原来只弯折 18px 的窄边、强度 22px，观感是"边缘一圈"，不像透镜。
+       现在：强度 22 → 40px；边缘带不再写死 —— 按卡片短边动态取（短边 × BEZEL_RATIO，
+       夹在 [20, 160]），于是小卡片整块都在弯折范围里、大卡片也覆盖大半个面；
+       衰减曲线从 1−√(1−t²)（1/3 处只剩 0.13）换成 1−t^1.6（1/3 处还有 0.55），
+       让位移在更大范围内保持可见。PAD 必须 ≥ 强度，否则会采样到图外而"拉丝"。 */
+    var REFRACT_AMOUNT = 40;
+    var REFRACT_BEZEL_RATIO = 0.42;
+    var REFRACT_BEZEL_MIN = 20;
+    var REFRACT_BEZEL_MAX = 160;
+    var REFRACT_PAD = 44;
     var refractDone = false;
     var refractSeq = 0;
     var refractMaps = {};      // key = w|h|r → dataURL
@@ -942,7 +950,12 @@
                 gx /= len; gy /= len;
                 var t = 1 + dist / bezel;                     // 边界 0 → 内侧 1
                 if (t < 0) t = 0; if (t > 1) t = 1;
-                var falloff = 1 - Math.sqrt(1 - t * t);        // 边缘最大、内侧趋 0
+                /* ★ 越靠边缘越狠。依据是用户给的 iOS 27.2 截图：
+                   资源库文件夹的边缘图标被极度拉伸、中心几乎不变形；搜索胶囊与音乐胶囊
+                   也是两端狠、中间平。所以曲线要「边缘满值 1、往内快速衰减」：
+                   (1-t)^2.2 ⇒ t=0 是 1、t=0.33 约 0.40、t=1 是 0。
+                   （早先的 1−√(1−t²) 边缘也对但衰减略缓；1−t^1.6 太均匀，像整体平移。） */
+                var falloff = Math.pow(1 - t, 2.2);
                 var k = falloff;                               // 相对强度 0..1
                 var vx = 128 - gx * k * 127;
                 var vy = 128 - gy * k * 127;
@@ -959,7 +972,10 @@
         var key = w + '|' + h + '|' + radius;
         var url = refractMaps[key];
         if (!url) {
-            url = buildDisplacementMap(w, h, radius, REFRACT_BEZEL, REFRACT_AMOUNT);
+            // 边缘带按卡片短边动态取：小卡片整块都在弯折范围内、大卡片也覆盖大半个面
+            // （用户：「尝试覆盖整个卡片的大部分区域」）。
+            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(Math.min(w, h) * REFRACT_BEZEL_RATIO, REFRACT_BEZEL_MAX));
+            url = buildDisplacementMap(w, h, radius, bez, REFRACT_AMOUNT);
             if (!url) return null;
             refractMaps[key] = url;
         }
