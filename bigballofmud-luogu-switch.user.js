@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261025.24
+// @version      20261025.25
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -855,11 +855,18 @@
     // ★ 位移绝不能超过「采样点到元素边界的距离」，否则 backdrop-filter 采不到内容，
     //   表现为一条横向裂缝（用户截图：「这怎么裂开了」）。所以强度按短边动态取，
     //   并且强制 ≤ 短边 × 0.12；边缘带也跟着收，内部才不会被误弯折。
-    var REFRACT_AMOUNT_RATIO = 0.12;
-    var REFRACT_AMOUNT_MAX = 26;
-    var REFRACT_BEZEL_RATIO = 0.26;
-    var REFRACT_BEZEL_MIN = 8;    // 小元件短边只有 32px 时，16px 的下限会让整块都在弯折带里
-    var REFRACT_BEZEL_MAX = 90;
+    /* ★ 所有玻璃统一用同一套比例（用户：「取一个中间值统一吧」）。
+       上一版按面积分档（大卡 0.055 / 0.10、小元件 0.12 / 0.26），小元件的强度是大卡的
+       2.2 倍，就成了「有的折射很大有的很小」。这里取两档的中间值：
+         强度比例   (0.055 + 0.12) / 2  ≈ 0.09
+         边缘带比例 (0.10  + 0.26) / 2  = 0.18
+       只保留绝对上下限 —— 它们的作用是防撕裂（位移必须小于采样点到元素边的距离），
+       不是用来压小某类元素。 */
+    var REFRACT_AMOUNT_RATIO = 0.09;
+    var REFRACT_AMOUNT_MAX = 20;
+    var REFRACT_BEZEL_RATIO = 0.18;
+    var REFRACT_BEZEL_MIN = 8;    // 小元件短边只有 32px 时，太高的下限会让整块都在弯折带里
+    var REFRACT_BEZEL_MAX = 70;
     var REFRACT_PAD = 30;
     var refractDone = false;
     var refractIdle = 0;        // 连续「没有任何新成功」的轮数，用来决定何时收工
@@ -1000,18 +1007,13 @@
         var url = refractMaps[key];
         if (!url) {
             // 强度与边缘带都按短边动态取：
-            /* ★ 按面积分档 —— 依据用户给的 iOS 27.2 截图：
-               苹果的**大卡**（通知 / 播放器 / 资源库面板）边缘弯折其实很轻，
-               它的"面"是靠亮描边 + 极透的底色撑起来的；只有**小元件**（胶囊 / 搜索框）
-               边缘的弯折才明显。所以大卡也覆盖（用户要求），但用更窄的边缘带和更小强度。
-               这同时也更省：位移图要处理的行列数按 bez 缩，大卡不会因为面积大就变贵。 */
+            /* ★ 不再按面积分档（用户：「为啥有的折射很大有的很小」）。
+               上一版给大卡 0.055 / 0.10、小元件 0.12 / 0.26，小元件的强度是大卡的 2.2 倍，
+               视觉上就是有的很大有的很小。现在所有玻璃用同一套比例；只保留两个绝对上限，
+               它们的作用是防撕裂（位移必须小于采样点到元素边的距离），不是压小某类元素。 */
             var shortSide = Math.min(w, h);
-            var bigCard = w * h > 320000;
-            var ratioAmount = bigCard ? 0.055 : REFRACT_AMOUNT_RATIO;
-            var capAmount = bigCard ? 14 : REFRACT_AMOUNT_MAX;
-            var ratioBezel = bigCard ? 0.10 : REFRACT_BEZEL_RATIO;
-            var amount = Math.max(4, Math.min(Math.round(shortSide * ratioAmount), capAmount));
-            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(shortSide * ratioBezel, REFRACT_BEZEL_MAX));
+            var amount = Math.max(4, Math.min(Math.round(shortSide * REFRACT_AMOUNT_RATIO), REFRACT_AMOUNT_MAX));
+            var bez = Math.max(REFRACT_BEZEL_MIN, Math.min(shortSide * REFRACT_BEZEL_RATIO, REFRACT_BEZEL_MAX));
             url = buildDisplacementMap(w, h, radius, bez, amount);
             if (!url) return null;
             refractMaps[key] = url;
