@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.08
+// @version      20261027.09
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1336,9 +1336,11 @@
         }
     }
 
-    function applyRefraction(depth) {
+    function applyRefraction(depth, force) {
         // 是否已经成功加过（成功一次就不再试；失败可以重试）
-        if (refractDone) return;
+        if (refractDone && !force) return;
+        /* force：滚动后可能有新卡片出现，允许再补一轮 */
+        if (force) { refractDone = false; refractIdle = 0; }
         depth = depth || 0;
         // 诊断用：结论**同时**写到 window.__slRefractWhy 与 <html data-sl-refract>。
         // 为什么要写 DOM：脚本装了 GM_* 之后运行在篡改猴沙箱里，页面控制台读 window 拿不到
@@ -1499,13 +1501,13 @@
                        （实测 1.8s 时只有 3 个）。所以继续补齐，每轮只处理
                        「还没有 url() 的新元素」，已处理过的会被 cands 过滤掉。 */
                     refractIdle = 0;
-                    // ★ 补齐要有终点，但也不能拖太久：每轮都要扫全页 + 逐元素 getComputedStyle，
-                    //   这是 100ms 级的长任务。原来「首发 + 5 轮 × 700ms」= 额外 3.5 秒，
-                    //   而加载阶段的这些轮次大多扫不出新东西，用户体感就是「折射要等 5~6 秒」。
-                    //   现在收成「首发 + 2 轮 × 400ms」≈ 0.8 秒；滚动加载出来的新卡片
-                    //   由滚动/尺寸变化触发的那条路径补上。
-                    if (depth < 2) {
-                        setTimeout(function () { applyRefraction(depth + 1); }, 400);
+                    /* ★ 补齐要有硬上限：以前是「有新成功就继续」，而 SPA 会持续渲染出
+                       新卡片，于是每 400ms 就全页扫一遍，一直扫到 11.8 秒
+                       （日志里「全部补完 11789ms」就是这么来的，每轮只成功 1 个面）。
+                       现在最多 4 轮、每轮间隔 350ms，约 1.4 秒收工；
+                       剩下零星的新面由滚动 / 尺寸变化那条路径补。 */
+                    if (depth < 3) {
+                        setTimeout(function () { applyRefraction(depth + 1); }, 350);
                     } else {
                         refractDone = true;
                     }
@@ -1531,8 +1533,9 @@
                        否则会一路空转到上限（曾经空转 20 秒）。 */
                     refractIdle++;
                     why('第 ' + depth + ' 轮无新成功（连续 ' + refractIdle + ' 轮）：' + skipped.join(' / '));
-                    if (refractIdle >= 3) { refractDone = true; return; }
-                    setTimeout(function () { applyRefraction(depth + 1); }, 900);
+                    /* 连续两轮没有新面就收工，别空转 */
+                    if (refractIdle >= 2 || depth >= 3) { refractDone = true; return; }
+                    setTimeout(function () { applyRefraction(depth + 1); }, 350);
                 }
             }).catch(function () { refractDone = true; });
         } catch (e) { refractDone = true; }
@@ -1604,6 +1607,20 @@
         } else {
             setTimeout(mountPlayer, 300);
         }
+
+        /* 滚动停止后补一轮折射：补齐轮次有硬上限（约 1.4 秒收工），
+           之后加载出来的新卡片靠这里补，不会漏。600ms 节流，
+           只在滚动停下来才扫一次，滚动过程中不干扰帧率。 */
+        try {
+            var refractScrollTimer = 0;
+            window.addEventListener('scroll', function () {
+                if (refractScrollTimer) return;
+                refractScrollTimer = setTimeout(function () {
+                    refractScrollTimer = 0;
+                    applyRefraction(0, true);
+                }, 600);
+            }, { passive: true });
+        } catch (e) { /* 忽略 */ }
 
         // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
         // 所以在这里另挂一个**含 childList** 的观察器，并做 80ms 节流；只在 /theme/ 路径下才挂。
