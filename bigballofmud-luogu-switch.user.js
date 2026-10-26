@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.10
+// @version      20261027.11
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1580,11 +1580,9 @@
         setInterval(syncThemeBackground, 1000);
 
         // 边缘折射（Apple Liquid Glass 的核心观感）。
-        // ★ 不再等 DOMContentLoaded：玻璃的 blur 是 CSS 一渲染就有的，折射能早多少算多少。
-        //   applyRefraction 自己会「没找到玻璃面就 220ms 后再试」，所以在 document-start
-        //   开始轮询是安全的 —— 页面上出现第一个玻璃面时就挂上，不用等整个 DOM 建完。
-        //   日志实测：DCL 只有 610ms，但 DCL 之后主线程被页面脚本占满约 1.6 秒，
-        //   原来折射排在这段之后，于是「玻璃先出现、折射再等两秒」。
+        // ★ 回到「DOMContentLoaded 之后再跑」。上一版试过在 document-start 就开始轮询，
+        //   实测反而更慢（首屏折射 14966ms，而 DCL 之后起跑是 2227ms）——
+        //   早期页面几乎是空的，每 220ms 一轮、每轮都扫全页，纯属和页面自己的渲染抢主线程。
         var nextFrame = function (fn) {
             try {
                 if (typeof requestAnimationFrame === 'function') { requestAnimationFrame(fn); return; }
@@ -1592,11 +1590,8 @@
             setTimeout(fn, 16);   // 没有 rAF 的环境（沙箱 / 老内核）退化成定时器
         };
         if (document.readyState === 'loading') {
-            /* 立刻开始试；没玻璃面就自己重试 */
-            nextFrame(function () { applyRefraction(0); });
-            /* DCL 之后再强制补一轮，兜住首屏那批「主线程忙完才渲染出来」的面 */
             document.addEventListener('DOMContentLoaded', function () {
-                nextFrame(function () { applyRefraction(0, true); });
+                nextFrame(function () { applyRefraction(0); });
             }, { once: true });
         } else {
             nextFrame(function () { applyRefraction(0); });
