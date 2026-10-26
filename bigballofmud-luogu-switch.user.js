@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.07
+// @version      20261027.08
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1300,6 +1300,7 @@
 
 
 
+
     
 
     function mountPlayer() {
@@ -1387,22 +1388,6 @@
             // ★ 间隔从 900ms 收到 220ms：卡片通常在几百毫秒内就出来，等 900ms
             //   等于把「折射出现」整体往后拖将近一秒。轮次上限够用，不担心跑太久。
             if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 220); return; }
-            /* ★ 首轮只处理视口内的面：用户看到的就是首屏，
-               先把那块折射挂起来体感最快；视口外的交给后面几轮补齐。
-               以前首轮要处理全页 40 个面（含大量首屏外的），首轮本身就要好几秒。 */
-            if (depth === 0 && cands.length > 8) {
-                var vh0 = window.innerHeight || 800;
-                var near = [];
-                for (var ci = 0; ci < cands.length; ci++) {
-                    var cr = null;
-                    try { cr = cands[ci].getBoundingClientRect(); } catch (e) { continue; }
-                    if (cr && cr.top < vh0 + 120 && cr.bottom > -120) near.push(cands[ci]);
-                }
-                if (near.length) {
-                    why('首轮只处理视口内 ' + near.length + ' / ' + cands.length + ' 个');
-                    cands = near;
-                }
-            }
             probeDataImage().then(function (ok) {
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
