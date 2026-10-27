@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.30
+// @version      20261027.31
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -2267,6 +2267,80 @@
         } catch (e) { refractDone = true; }
     }
 
+
+    /* ── 静默补丁：只补「新增节点」上的折射 ────────────────────────────────
+       虚拟滚动 / 懒加载会不断创建新行，它们没有折射标记。这里用 MutationObserver
+       接住新增节点，逐个按与 applyRefraction 相同的条件判断，符合就挂上。
+       ★ 不弹窗、不更新进度、不重扫全页 —— 和「一次性挂载」互不干扰。 */
+    function applyRefractOne(el) {
+        try {
+            if (!el || el.nodeType !== 1) return false;
+            if (el.__slRefractKey) return false;
+            if (el.hasAttribute && el.hasAttribute('data-sl-refract-pending')) return false;
+            var rr = el.getBoundingClientRect();
+            var w = Math.round(rr.width), h = Math.round(rr.height);
+            if (w < 8 || h < 8) return false;
+            if (hasBackdropBlocker(el)) return false;
+            var cs = getComputedStyle(el);
+            var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
+            if (!base || base === 'none') return false;
+            if (base.indexOf('url(') >= 0) return false;
+            var radius = parseFloat(cs.borderTopLeftRadius) || 0;
+            if (radius <= 0) return false;
+            var id = ensureRefractFilter(w, h, radius);
+            if (!id) return false;
+            var nb = base.replace(/url\([^)]*\)/g, '').replace(/blur\([^)]*\)/g, '').trim();
+            var val = (nb ? nb + ' ' : '') + 'url(#' + id + ')';
+            el.style.setProperty('backdrop-filter', val, 'important');
+            el.style.setProperty('-webkit-backdrop-filter', val, 'important');
+            el.__slRefractKey = w + 'x' + h;
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function startSilentPatch() {
+        if (!window.MutationObserver) return;
+        if (!refractEnabledNow()) return;
+        var queue = [];
+        var timer = 0;
+        var total = 0;
+        function flush() {
+            var list = queue;
+            queue = [];
+            var n = 0;
+            for (var i = 0; i < list.length; i++) {
+                var root = list[i];
+                if (!root || !root.parentNode) continue;      // 已经被移除的节点不用管
+                if (applyRefractOne(root)) n++;
+                var kids = root.querySelectorAll ? root.querySelectorAll('*') : null;
+                if (kids) {
+                    for (var k = 0; k < kids.length; k++) if (applyRefractOne(kids[k])) n++;
+                }
+            }
+            if (n) {
+                total += n;
+                if (window.__slDebug) {
+                    try { console.log('[bom] 静默补加 ' + n + ' 个面（累计 ' + total + '）'); } catch (e) { /* 忽略 */ }
+                }
+            }
+        }
+        var mo = new MutationObserver(function (muts) {
+            for (var i = 0; i < muts.length; i++) {
+                var added = muts[i].addedNodes;
+                for (var j = 0; j < added.length; j++) {
+                    if (added[j] && added[j].nodeType === 1) queue.push(added[j]);
+                }
+            }
+            if (!queue.length) return;
+            /* 300ms 防抖：一次 DOM 更新往往连着几十个节点，合并成一次处理 */
+            clearTimeout(timer);
+            timer = setTimeout(flush, 300);
+        });
+        try {
+            mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+        } catch (e) { return; }
+    }
+
     function whenRoot(fn) {
         if (document.documentElement) { root = document.documentElement; fn(); return; }
         var mo = new MutationObserver(function () {
@@ -2386,6 +2460,9 @@
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }
+
+        /* 静默补丁：虚拟滚动 / 懒加载新增的节点，只在它们身上补折射（不弹窗） */
+        if (isMain) startSilentPatch();
 
         // 切换按钮：主站与网校都要（网校挂在侧边栏"学习"下面）
         if (CONFIG.showToggle && (isMain || isSchool)) {
