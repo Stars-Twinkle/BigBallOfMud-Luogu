@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.16
+// @version      20261027.17
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -420,8 +420,11 @@
         var segs = settingsPanel.querySelectorAll('[data-sl-set-mode]');
         for (var i = 0; i < segs.length; i++) {
             var on = segs[i].getAttribute('data-sl-set-mode') === mode;
-            segs[i].style.background = on ? 'var(--lg-highlight)' : 'transparent';
-            segs[i].style.color = on ? 'var(--lg-text)' : 'var(--lg-text-weak)';
+            segs[i].style.background = on
+                ? 'linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.72))'
+                : 'transparent';
+            segs[i].style.color = on ? '#1f2329' : 'var(--lg-text-weak)';
+            segs[i].style.boxShadow = on ? '0 1px 3px rgba(0,0,0,.16),inset 0 1px 0 #fff' : 'none';
         }
     }
 
@@ -433,13 +436,191 @@
         paintSettingsPanel();
     }
 
+    /* ── 设置面板控件（对照 Kyant0/AndroidLiquidGlass）──────────────────────
+       LiquidToggle：轨道 64×28dp，滑块 40×24dp **胶囊**，静止时纯白不透明，
+       按下才变成透明玻璃 + 折射 + 色散（pressProgress 驱动），拖动还按速度形变。
+       LiquidSlider：同样的滑块，只是轨道换成长条。
+       这里按 0.8 缩放到面板尺寸，用 CSS 的 :active / backdrop-filter 近似那条
+       "白 → 玻璃"的过渡（CSS 拿不到 pressProgress，只能整段切换）。 */
+    function makeLiquidKnob(w, h) {
+        var k = document.createElement('span');
+        k.style.cssText = [
+            'position:absolute', 'left:0', 'top:2px', 'width:' + w + 'px', 'height:' + h + 'px',
+            'border-radius:' + Math.round(h / 2) + 'px',
+            'background:linear-gradient(180deg,#fff,#f0f1f3)',
+            'box-shadow:0 2px 5px rgba(0,0,0,.26),inset 0 1px 0 #fff,inset 0 -1px 1px rgba(0,0,0,.05)',
+            'transition:transform .22s cubic-bezier(.4,0,.2,1),background .16s ease,box-shadow .16s ease',
+            'pointer-events:none', 'will-change:transform'
+        ].join(';');
+        return k;
+    }
+
+    function makeLiquidToggle(on, onChange) {
+        var wrap = document.createElement('button');
+        wrap.type = 'button';
+        wrap.setAttribute('role', 'switch');
+        /* 轨道 64×28 → 52×24 */
+        wrap.style.cssText = [
+            'position:relative', 'flex:0 0 auto', 'width:52px', 'height:24px',
+            'padding:0', 'border:0', 'border-radius:12px', 'cursor:pointer',
+            'transition:background .24s cubic-bezier(.4,0,.2,1)',
+            'box-shadow:inset 0 1px 3px rgba(0,0,0,.16)'
+        ].join(';');
+        var gloss = document.createElement('span');
+        gloss.style.cssText = 'position:absolute;inset:0;border-radius:inherit;pointer-events:none;' +
+            'background:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,0) 58%);z-index:2';
+        var knob = makeLiquidKnob(32, 20);
+        wrap.appendChild(gloss);
+        wrap.appendChild(knob);
+
+        function paint(v) {
+            wrap.setAttribute('aria-checked', v ? 'true' : 'false');
+            wrap.style.background = v
+                ? 'linear-gradient(180deg,#4cd964,#34c759)'
+                : 'light-dark(rgba(120,120,120,.20),rgba(120,120,136,.36))';
+            knob.style.transform = v ? 'translateX(18px)' : 'translateX(2px)';
+        }
+        paint(!!on);
+
+        /* 按下：白色 → 半透明玻璃（对应 onDrawSurface 的 alpha = 1 - progress） */
+        function press(v) {
+            if (v) {
+                knob.style.background = 'rgba(255,255,255,.28)';
+                knob.style.webkitBackdropFilter = 'blur(6px) saturate(160%)';
+                knob.style.backdropFilter = 'blur(6px) saturate(160%)';
+                knob.style.boxShadow = '0 2px 10px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.55)';
+            } else {
+                knob.style.background = 'linear-gradient(180deg,#fff,#f0f1f3)';
+                knob.style.webkitBackdropFilter = '';
+                knob.style.backdropFilter = '';
+                knob.style.boxShadow = '0 2px 5px rgba(0,0,0,.26),inset 0 1px 0 #fff,inset 0 -1px 1px rgba(0,0,0,.05)';
+            }
+        }
+        wrap.addEventListener('pointerdown', function () { press(true); });
+        wrap.addEventListener('pointerup', function () { press(false); });
+        wrap.addEventListener('pointerleave', function () { press(false); });
+        wrap.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            on = !on;
+            paint(on);
+            if (onChange) onChange(on);
+        });
+        return wrap;
+    }
+
+    /* 滑块：value 0..1。轨道 + 进度 + 同款胶囊滑块（拖动时玻璃化 + 速度形变）。 */
+    function makeLiquidSlider(value, onChange) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;flex:1;height:24px;display:flex;align-items:center;' +
+            'cursor:pointer;touch-action:none;min-width:96px';
+        var track = document.createElement('div');
+        track.style.cssText = 'position:absolute;left:0;right:0;height:6px;border-radius:3px;' +
+            'background:light-dark(rgba(120,120,128,.26),rgba(255,255,255,.16));overflow:hidden';
+        var fill = document.createElement('div');
+        fill.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:3px;' +
+            'background:linear-gradient(180deg,#4cd964,#34c759)';
+        track.appendChild(fill);
+        var knob = makeLiquidKnob(32, 20);
+        knob.style.top = '2px';
+        wrap.appendChild(track);
+        wrap.appendChild(knob);
+
+        var v = Math.max(0, Math.min(1, value));
+        var W = 0;
+        function layout() {
+            W = wrap.clientWidth || 120;
+            var x = v * (W - 32);
+            knob.style.transform = 'translateX(' + x + 'px)';
+            fill.style.width = (v * 100) + '%';
+        }
+        function setFromEvent(e) {
+            var r = wrap.getBoundingClientRect();
+            var nv = (e.clientX - r.left - 16) / Math.max(1, r.width - 32);
+            v = Math.max(0, Math.min(1, nv));
+            layout();
+        }
+        var dragging = false, lastX = 0, lastT = 0;
+        wrap.addEventListener('pointerdown', function (e) {
+            dragging = true;
+            lastX = e.clientX; lastT = Date.now();
+            try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+            knob.style.background = 'rgba(255,255,255,.28)';
+            knob.style.webkitBackdropFilter = 'blur(6px) saturate(160%)';
+            knob.style.backdropFilter = 'blur(6px) saturate(160%)';
+            knob.style.boxShadow = '0 2px 10px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.55)';
+            setFromEvent(e);
+        });
+        wrap.addEventListener('pointermove', function (e) {
+            if (!dragging) return;
+            setFromEvent(e);
+            /* 速度 → 形变（Android 那边按 velocity 调 scaleX/scaleY） */
+            var now = Date.now();
+            var dt = Math.max(1, now - lastT);
+            var vel = (e.clientX - lastX) / dt;
+            var k = Math.max(-0.2, Math.min(0.2, vel * 0.6));
+            knob.style.transform = 'translateX(' + (v * (W - 32)) + 'px) scale(' + (1 + k) + ',' + (1 - k * 0.5) + ')';
+            lastX = e.clientX; lastT = now;
+        });
+        function up() {
+            if (!dragging) return;
+            dragging = false;
+            knob.style.background = 'linear-gradient(180deg,#fff,#f0f1f3)';
+            knob.style.webkitBackdropFilter = '';
+            knob.style.backdropFilter = '';
+            knob.style.boxShadow = '0 2px 5px rgba(0,0,0,.26),inset 0 1px 0 #fff,inset 0 -1px 1px rgba(0,0,0,.05)';
+            layout();
+            if (onChange) onChange(v);
+        }
+        wrap.addEventListener('pointerup', up);
+        wrap.addEventListener('pointercancel', up);
+        setTimeout(layout, 0);
+        return { el: wrap, set: function (nv) { v = Math.max(0, Math.min(1, nv)); layout(); } };
+    }
+
+    /* 折射总开关 */
+    function setRefractionEnabled(on) {
+        try { localStorage.setItem('sl-refract-off', on ? '0' : '1'); } catch (e) { /* 忽略 */ }
+        if (!on) { clearRefraction(); refractDone = true; }
+        else { refractDone = false; refractIdle = 0; applyRefraction(); }
+    }
+    function refractEnabledNow() {
+        try { return localStorage.getItem('sl-refract-off') !== '1'; } catch (e) { return true; }
+    }
+    function clearRefraction() {
+        var all = document.querySelectorAll('*');
+        for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            if (!el.__slRefractKey) continue;
+            try {
+                el.style.removeProperty('backdrop-filter');
+                el.style.removeProperty('-webkit-backdrop-filter');
+            } catch (e) { /* 忽略 */ }
+            el.__slRefractKey = '';
+        }
+    }
+    /* 折射强度：改 REFRACT_AMOUNT_RATIO 并整批重建（位移图按旧参数生成，必须重做） */
+    function setRefractAmount(ratio) {
+        try { localStorage.setItem('sl-refract-amount', String(ratio)); } catch (e) { /* 忽略 */ }
+        REFRACT_AMOUNT_RATIO = ratio;
+        clearRefraction();
+        var fs = document.querySelectorAll('filter[id^="bom-refract-"]');
+        for (var i = 0; i < fs.length; i++) {
+            if (fs[i].parentNode) fs[i].parentNode.removeChild(fs[i]);
+        }
+        refractMaps = {};
+        refractDone = false;
+        refractIdle = 0;
+        applyRefraction();
+    }
+
     function buildSettingsPanel() {
         if (settingsPanel) return settingsPanel;
         var p = document.createElement('div');
         p.setAttribute('data-sl-settings-panel', '1');
         p.style.cssText = [
             'position:fixed', 'z-index:2147483000', 'display:none',
-            'width:236px', 'padding:12px 14px', 'border-radius:16px',
+            'width:248px', 'padding:12px 14px', 'border-radius:16px',
             'background:light-dark(rgba(248,250,253,.86),rgba(20,24,30,.86))',
             '-webkit-backdrop-filter:blur(18px) saturate(140%)',
             'backdrop-filter:blur(18px) saturate(140%)',
@@ -449,14 +630,20 @@
             'user-select:none'
         ].join(';');
 
-        /* 配色三态 */
-        var row1 = document.createElement('div');
-        row1.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px';
-        var lab1 = document.createElement('span');
-        lab1.textContent = '配色';
-        lab1.style.cssText = 'color:var(--lg-text-weak);flex:0 0 auto';
+        function row(label) {
+            var r = document.createElement('div');
+            r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px';
+            var l = document.createElement('span');
+            l.textContent = label;
+            l.style.cssText = 'color:var(--lg-text-weak);flex:0 0 auto';
+            r.appendChild(l);
+            return r;
+        }
+
+        /* ① 配色（切换类：选中项是玻璃胶囊） */
         var seg = document.createElement('div');
-        seg.style.cssText = 'display:flex;gap:2px;padding:2px;border-radius:9px;background:light-dark(rgba(15,23,42,.06),rgba(255,255,255,.06))';
+        seg.style.cssText = 'display:flex;gap:2px;padding:2px;border-radius:9px;' +
+            'background:light-dark(rgba(15,23,42,.06),rgba(255,255,255,.06))';
         var modes = [['auto', '自动'], ['dark', '深色'], ['light', '浅色']];
         for (var i = 0; i < modes.length; i++) {
             (function (key, text) {
@@ -465,38 +652,47 @@
                 b.textContent = text;
                 b.setAttribute('data-sl-set-mode', key);
                 b.style.cssText = 'border:0;background:transparent;color:var(--lg-text-weak);font:inherit;' +
-                    'padding:4px 10px;border-radius:7px;cursor:pointer;transition:background .18s,color .18s';
+                    'padding:4px 10px;border-radius:7px;cursor:pointer;' +
+                    'transition:background .18s,color .18s,box-shadow .18s';
                 b.addEventListener('click', function () { setModeFromPanel(key); });
                 seg.appendChild(b);
             })(modes[i][0], modes[i][1]);
         }
-        row1.appendChild(lab1);
+        var row1 = row('配色');
+        row1.style.marginTop = '0';
         row1.appendChild(seg);
 
-        /* 音乐库 */
-        var row2 = document.createElement('div');
-        row2.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px';
-        var lab2 = document.createElement('span');
-        lab2.textContent = '音乐库';
-        lab2.style.cssText = 'color:var(--lg-text-weak)';
+        /* ② 边缘折射（开关） */
+        var row2 = row('边缘折射');
+        row2.appendChild(makeLiquidToggle(refractEnabledNow(), function (on) { setRefractionEnabled(on); }));
+
+        /* ③ 折射强度（滑块）—— 0.05 ~ 0.22，对应 REFRACT_AMOUNT_RATIO */
+        var row3 = row('折射强度');
+        var amountNow = 0.18;
+        try {
+            var stored = parseFloat(localStorage.getItem('sl-refract-amount'));
+            if (!isNaN(stored)) amountNow = stored;
+        } catch (e) { /* 忽略 */ }
+        var slider = makeLiquidSlider((amountNow - 0.05) / 0.17, function (v) {
+            setRefractAmount(0.05 + v * 0.17);
+        });
+        row3.appendChild(slider.el);
+
+        /* ④ 音乐库 */
+        var row4 = row('音乐库');
         var libBtn = document.createElement('button');
         libBtn.type = 'button';
         libBtn.textContent = '打开';
         libBtn.style.cssText = 'border:1px solid var(--lg-border);background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.08));' +
             'color:var(--lg-text);font:inherit;padding:4px 12px;border-radius:8px;cursor:pointer';
         libBtn.addEventListener('click', function () {
-            /* ★ 播放器是用 new Function(PLAYER_JS) 在**页面上下文**跑的，它把 __bomPlayer
-               挂在页面 window 上；而本脚本有 @grant，这里的 window 是篡改猴沙箱副本，
-               直接读 window.__bomPlayer 永远是 undefined（和当初 __bomGM 同一个坑，
-               只不过方向反过来：这次是页面写、沙箱读）。
-               所以优先读 unsafeWindow，再退回沙箱 window 兜底。 */
+            /* 播放器用 new Function 在页面上下文跑，__bomPlayer 挂在页面 window 上；
+               本脚本有 @grant，window 是沙箱副本 ⇒ 必须读 unsafeWindow。 */
             var player = null;
             try {
                 if (typeof unsafeWindow !== 'undefined' && unsafeWindow) player = unsafeWindow.__bomPlayer || null;
             } catch (e) { /* 忽略 */ }
-            if (!player) {
-                try { player = window.__bomPlayer || null; } catch (e) { /* 忽略 */ }
-            }
+            if (!player) { try { player = window.__bomPlayer || null; } catch (e) { /* 忽略 */ } }
             if (player && typeof player.openLib === 'function') {
                 closeSettingsPanel();
                 player.openLib();
@@ -505,13 +701,54 @@
                 setTimeout(function () { libBtn.textContent = '打开'; }, 1500);
             }
         });
-        row2.appendChild(lab2);
-        row2.appendChild(libBtn);
+        row4.appendChild(libBtn);
+
+        /* ⑤ 关于 */
+        var row5 = row('关于');
+        var aboutBtn = document.createElement('button');
+        aboutBtn.type = 'button';
+        aboutBtn.textContent = '查看';
+        aboutBtn.style.cssText = libBtn.style.cssText;
+        row5.appendChild(aboutBtn);
+
+        var aboutBox = document.createElement('div');
+        aboutBox.style.cssText = 'display:none;margin-top:8px;padding:8px 10px;border-radius:10px;' +
+            'background:light-dark(rgba(15,23,42,.05),rgba(255,255,255,.06));' +
+            'font-size:12px;line-height:1.7;color:var(--lg-text-weak)';
+        var scriptVer = '';
+        try {
+            if (typeof GM_info !== 'undefined' && GM_info && GM_info.script) scriptVer = GM_info.script.version || '';
+        } catch (e) { /* 忽略 */ }
+        /* 兜底：启动时已把版本写进 __bomGM.ver（GM_info 读不到的极端情况） */
+        if (!scriptVer) {
+            try { if (window.__bomGM && window.__bomGM.ver) scriptVer = window.__bomGM.ver; } catch (e) { /* 忽略 */ }
+        }
+        aboutBox.innerHTML = '<b style="color:var(--lg-text)">BigBallOfMud Luogu</b><br>' +
+            '作者：StarsTwinkle<br>版本：' + (scriptVer || '未知');
+
+        aboutBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var show = aboutBox.style.display === 'none';
+            aboutBox.style.display = show ? 'block' : 'none';
+            aboutBtn.textContent = show ? '收起' : '查看';
+            if (settingsBtn) {
+                var r = settingsBtn.getBoundingClientRect();
+                var top = Math.round(r.bottom + 8);
+                if (top + p.offsetHeight > window.innerHeight - 8) {
+                    top = Math.max(8, window.innerHeight - p.offsetHeight - 8);
+                }
+                p.style.top = top + 'px';
+            }
+        });
 
         p.appendChild(row1);
         p.appendChild(row2);
+        p.appendChild(row3);
+        p.appendChild(row4);
+        p.appendChild(row5);
+        p.appendChild(aboutBox);
 
-        /* 点击面板外关闭；Esc 关闭 */
         document.addEventListener('pointerdown', function (e) {
             if (!settingsPanel || settingsPanel.style.display === 'none') return;
             if (settingsPanel.contains(e.target)) return;
@@ -1617,6 +1854,8 @@
     }
 
     function applyRefraction(depth, force) {
+        /* 设置面板里关掉折射后，刷新页面不该再自己加回来 */
+        if (!force && !refractEnabledNow()) { refractDone = true; return; }
         // 是否已经成功加过（成功一次就不再试；失败可以重试）
         if (refractDone && !force) return;
         /* force：滚动后可能有新卡片出现，允许再补一轮 */
