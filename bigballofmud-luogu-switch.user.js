@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.22
+// @version      20261027.23
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -528,6 +528,12 @@
                 el.style.removeProperty('-webkit-backdrop-filter');
             } catch (e) { /* 忽略 */ }
             el.__slRefractKey = '';
+        }
+        /* 顺手删掉没人引用的 filter 节点：关掉折射后它们还挂在 <svg> 里，
+           170 多个孤立节点会让样式计算白扫一遍。 */
+        var orphan = document.querySelectorAll('filter[id^="bom-refract-"]');
+        for (var k = 0; k < orphan.length; k++) {
+            if (orphan[k].parentNode) orphan[k].parentNode.removeChild(orphan[k]);
         }
     }
     /* 折射强度：改 REFRACT_AMOUNT_RATIO 并整批重建（位移图按旧参数生成，必须重做） */
@@ -1777,8 +1783,11 @@
     }
 
     function applyRefraction(depth, force) {
-        /* 设置面板里关掉折射后，刷新页面不该再自己加回来 */
-        if (!force && !refractEnabledNow()) { refractDone = true; return; }
+        /* 设置面板里关掉折射后，不要再加回来。
+           ★ 这条**不受 force 影响** —— force 只是用来跳过「已收工」的判断
+           （滚动停止后补一轮、跨页后补一轮），不能用来跳过用户开关，
+           否则关了折射、换页滚一下又回来了。 */
+        if (!refractEnabledNow()) { refractDone = true; return; }
         // 是否已经成功加过（成功一次就不再试；失败可以重试）
         if (refractDone && !force) return;
         /* force：滚动后可能有新卡片出现，允许再补一轮 */
