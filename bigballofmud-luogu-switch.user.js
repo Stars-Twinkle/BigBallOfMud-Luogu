@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.20
+// @version      20261027.21
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1500,7 +1500,7 @@
          ② 只在元素的边框内那一圈扫，内部整片跳过。 */
     /* 位移图的分辨率系数。0.4 是为了省首屏计算，但位移场被平滑后边缘过渡会"虚"，
        2026-10-27 提到 0.65（生成成本 ×2.6，实测仍在 1ms 级）。 */
-    var MAP_SCALE = 0.65;
+    var MAP_SCALE = 0.85;
 
     function buildDisplacementMap(w, h, radius, bezel, amount, pad) {
         var W = Math.max(2, Math.round((w + pad * 2) * MAP_SCALE));
@@ -1552,15 +1552,16 @@
                      t=0（内侧）  → 0
                    上一版误写成 (1-t)^2.2，等于把方向翻了过来：边缘不弯、内部满位移；
                    内部满位移会把采样点推出元素矩形，于是出现斜裂缝（用户：「还是裂的」）。 */
-                /* ★ 曲线换成 Android 的 circleMap：1 - sqrt(1 - t²)。
-                   它在边界处导数无穷大（边缘极陡），往里衰减比 t^2.2 更"贴边"。 */
-                var falloff = 1 - Math.sqrt(Math.max(0, 1 - t * t));
+                /* ★ 曲线用 t^1.6（不再用 circleMap）：circleMap 在边界 t=1 处导数无穷大，
+                   位移会在最后 1~2px 内从满值直接跳到 0，配合低分辨率位移图就是锯齿。
+                   t^1.6 的导数在边界处是有限的 1.6，边缘仍然陡、但不会"断崖"。 */
+                var falloff = Math.pow(t, 1.6);
                 /* ★ 最外 3px 羽化（用户圈出来的那道斜线：「我是说这个痕迹」）。
                    原因：位移在元素边界处原来是满值，一过边界就直接变中性 128 ——
                    直边上看不出来，但**位移场在 45° 方向梯度最大**，采样点被斜着推出
                    元素矩形，于是沿边界留下一道浅色接缝。乘一个 3px 斜坡让位移在边界
                    平滑归零，往里仍然"越靠边越狠"。 */
-                var edgeFade = Math.min(1, (-dist) / 6);
+                var edgeFade = Math.min(1, (-dist) / 10);
                 if (edgeFade < 1) falloff *= edgeFade;
                 var k = falloff;                               // 相对强度 0..1
                 var vx = 128 - gx * k * 127;
