@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.21
+// @version      20261027.22
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -509,75 +509,6 @@
         return wrap;
     }
 
-    /* 滑块：value 0..1。轨道 + 进度 + 同款胶囊滑块（拖动时玻璃化 + 速度形变）。 */
-    function makeLiquidSlider(value, onChange) {
-        var wrap = document.createElement('div');
-        wrap.style.cssText = 'position:relative;flex:1;height:24px;display:flex;align-items:center;' +
-            'cursor:pointer;touch-action:none;min-width:96px';
-        var track = document.createElement('div');
-        track.style.cssText = 'position:absolute;left:0;right:0;height:6px;border-radius:3px;' +
-            'background:light-dark(rgba(120,120,128,.26),rgba(255,255,255,.16));overflow:hidden';
-        var fill = document.createElement('div');
-        fill.style.cssText = 'position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:3px;' +
-            'background:linear-gradient(180deg,#4cd964,#34c759)';
-        track.appendChild(fill);
-        var knob = makeLiquidKnob(32, 20);
-        knob.style.top = '2px';
-        wrap.appendChild(track);
-        wrap.appendChild(knob);
-
-        var v = Math.max(0, Math.min(1, value));
-        var W = 0;
-        function layout() {
-            W = wrap.clientWidth || 120;
-            var x = v * (W - 32);
-            knob.style.transform = 'translateX(' + x + 'px)';
-            fill.style.width = (v * 100) + '%';
-        }
-        function setFromEvent(e) {
-            var r = wrap.getBoundingClientRect();
-            var nv = (e.clientX - r.left - 16) / Math.max(1, r.width - 32);
-            v = Math.max(0, Math.min(1, nv));
-            layout();
-        }
-        var dragging = false, lastX = 0, lastT = 0;
-        wrap.addEventListener('pointerdown', function (e) {
-            dragging = true;
-            lastX = e.clientX; lastT = Date.now();
-            try { wrap.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
-            knob.style.background = 'rgba(255,255,255,.28)';
-            knob.style.webkitBackdropFilter = 'blur(6px) saturate(160%)';
-            knob.style.backdropFilter = 'blur(6px) saturate(160%)';
-            knob.style.boxShadow = '0 2px 10px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.55)';
-            setFromEvent(e);
-        });
-        wrap.addEventListener('pointermove', function (e) {
-            if (!dragging) return;
-            setFromEvent(e);
-            /* 速度 → 形变（Android 那边按 velocity 调 scaleX/scaleY） */
-            var now = Date.now();
-            var dt = Math.max(1, now - lastT);
-            var vel = (e.clientX - lastX) / dt;
-            var k = Math.max(-0.2, Math.min(0.2, vel * 0.6));
-            knob.style.transform = 'translateX(' + (v * (W - 32)) + 'px) scale(' + (1 + k) + ',' + (1 - k * 0.5) + ')';
-            lastX = e.clientX; lastT = now;
-        });
-        function up() {
-            if (!dragging) return;
-            dragging = false;
-            knob.style.background = 'linear-gradient(180deg,#fff,#f0f1f3)';
-            knob.style.webkitBackdropFilter = '';
-            knob.style.backdropFilter = '';
-            knob.style.boxShadow = '0 2px 5px rgba(0,0,0,.26),inset 0 1px 0 #fff,inset 0 -1px 1px rgba(0,0,0,.05)';
-            layout();
-            if (onChange) onChange(v);
-        }
-        wrap.addEventListener('pointerup', up);
-        wrap.addEventListener('pointercancel', up);
-        setTimeout(layout, 0);
-        return { el: wrap, set: function (nv) { v = Math.max(0, Math.min(1, nv)); layout(); } };
-    }
-
     /* 折射总开关 */
     function setRefractionEnabled(on) {
         try { localStorage.setItem('sl-refract-off', on ? '0' : '1'); } catch (e) { /* 忽略 */ }
@@ -600,20 +531,6 @@
         }
     }
     /* 折射强度：改 REFRACT_AMOUNT_RATIO 并整批重建（位移图按旧参数生成，必须重做） */
-    function setRefractAmount(ratio) {
-        try { localStorage.setItem('sl-refract-amount', String(ratio)); } catch (e) { /* 忽略 */ }
-        REFRACT_AMOUNT_RATIO = ratio;
-        clearRefraction();
-        var fs = document.querySelectorAll('filter[id^="bom-refract-"]');
-        for (var i = 0; i < fs.length; i++) {
-            if (fs[i].parentNode) fs[i].parentNode.removeChild(fs[i]);
-        }
-        refractMaps = {};
-        refractDone = false;
-        refractIdle = 0;
-        applyRefraction();
-    }
-
     function buildSettingsPanel() {
         if (settingsPanel) return settingsPanel;
         var p = document.createElement('div');
@@ -665,18 +582,6 @@
         /* ② 边缘折射（开关） */
         var row2 = row('边缘折射');
         row2.appendChild(makeLiquidToggle(refractEnabledNow(), function (on) { setRefractionEnabled(on); }));
-
-        /* ③ 折射强度（滑块）—— 0.05 ~ 0.22，对应 REFRACT_AMOUNT_RATIO */
-        var row3 = row('折射强度');
-        var amountNow = 0.18;
-        try {
-            var stored = parseFloat(localStorage.getItem('sl-refract-amount'));
-            if (!isNaN(stored)) amountNow = stored;
-        } catch (e) { /* 忽略 */ }
-        var slider = makeLiquidSlider((amountNow - 0.05) / 0.17, function (v) {
-            setRefractAmount(0.05 + v * 0.17);
-        });
-        row3.appendChild(slider.el);
 
         /* ④ 自动续播（浏览器拒绝无手势播放时，等页面上的第一次点击） */
         var autoOn = true;
@@ -752,7 +657,6 @@
 
         p.appendChild(row1);
         p.appendChild(row2);
-        p.appendChild(row3);
         p.appendChild(rowAuto);
         p.appendChild(row4);
         p.appendChild(row5);
