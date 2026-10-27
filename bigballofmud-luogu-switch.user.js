@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.29
+// @version      20261027.30
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -525,7 +525,7 @@
             refractToastWanted = true;
             refractToastApplied = 0;
             setRefractToast(0, '等待页面渲染…');
-            waitDomStable(function () { applyRefraction(); }, 300, 1200);
+            waitDomStable(function () { applyRefraction(); }, 250, 1200);
         }
     }
     function refractEnabledNow() {
@@ -1904,7 +1904,9 @@
                 clearTimeout(quietTimer);
                 quietTimer = setTimeout(finish, quietMs || 500);
             });
-            mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+            /* 文本也算「还在渲染」：Vue 往容器里填内容时未必增删节点 */
+            mo.observe(document.body || document.documentElement,
+                { childList: true, subtree: true, characterData: true });
         } catch (e) { /* 忽略 */ }
         quietTimer = setTimeout(finish, quietMs || 500);
         maxTimer = setTimeout(finish, maxWaitMs || 2500);
@@ -2320,7 +2322,7 @@
             setRefractToast(0, '等待页面渲染…');
             waitDomStable(function () {
                 applyRefraction(0);
-            }, 500, 2500);
+            }, 350, 2500);
         };
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function () { nextFrame(startRefract); }, { once: true });
@@ -2357,7 +2359,7 @@
                 refractToastWanted = true;
                 refractToastApplied = 0;
                 setRefractToast(0, '等待页面渲染…');
-                waitDomStable(function () { applyRefraction(0); }, 500, 2500);
+                waitDomStable(function () { applyRefraction(0); }, 350, 2500);
             }, 800);
         } catch (e) { /* 忽略 */ }
 
