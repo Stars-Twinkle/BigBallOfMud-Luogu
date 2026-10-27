@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.17
+// @version      20261027.18
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1376,15 +1376,20 @@
        而我们原来是 amount=0.09×短边、bezel=0.18×短边（位移只有带宽的一半），
        所以边缘只是"轻轻弯一下"，没有玻璃被压缩/放大的感觉。
        现在反过来：带宽收窄（边缘更锐）、位移加大到带宽的 ~1.8 倍。 */
-    var REFRACT_AMOUNT_RATIO = 0.18;   // 位移 = 短边 × 0.18（原来 0.09）
-    var REFRACT_AMOUNT_MAX = 44;
-    var REFRACT_BEZEL_RATIO = 0.10;    // 弯折带 = 短边 × 0.10（原来 0.18）
-    var REFRACT_BEZEL_MIN = 6;
-    var REFRACT_BEZEL_MAX = 48;
+    /* ★ 2026-10-27 第二轮（用户：「折射别糊成一片啊」）：
+       上一版照 Android 的 lens(24, 48) 把位移提到带宽的 1.8 倍 —— 那在手机屏
+       （元素几百 px）上没问题，但在 1166px 的大卡上，边界处的采样点会被推出弯折带、
+       采到带外的远处内容，整片糊掉。现在让**带宽略大于位移**，采样点始终留在带内：
+         位移 = 短边 × 0.10（上限 24）；弯折带 = 短边 × 0.12（上限 32）。 */
+    var REFRACT_AMOUNT_RATIO = 0.10;
+    var REFRACT_AMOUNT_MAX = 24;
+    var REFRACT_BEZEL_RATIO = 0.12;
+    var REFRACT_BEZEL_MIN = 8;
+    var REFRACT_BEZEL_MAX = 32;
     /* ★ 深度效应（Android 的 depthEffect）：位移方向不纯垂直边缘，
        而是叠加一个指向中心的法线分量 —— 模拟"玻璃有厚度、中心像被微微放大"。
        0 = 纯垂直（旧行为），0.3~0.5 接近 iOS/Android 的观感。 */
-    var REFRACT_DEPTH = 0.35;
+    var REFRACT_DEPTH = 0.30;
     /* 外扩的**上限**；实际按 amount + 8 动态取。
        位移最大 44 时会采到元素外 44px，所以 fPad 必须跟得上（原来上限 30 会拉丝）。 */
     var REFRACT_PAD = 56;
