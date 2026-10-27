@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.23
+// @version      20261027.24
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -43,7 +43,8 @@
  *   2) 对比度守卫：CSS 只能"猜到哪条规则就改哪条"；JS 可以直接量**最终算出来的**颜色，
  *      凡是"字和底都亮 / 都暗"的就地修掉。
  *
- * 与样式表的分工：本脚本**不注入任何 CSS**，只做三件事：
+ * 与样式表的分工：样式本身**打包在本脚本里**（内嵌的 CSS_MAIN / CSS_SCHOOL 字符串），
+ * 由脚本在 document-start 注入 <style>，所以不需要 Stylus。除此之外脚本还做三件事：
  *   · 往 <html> 写 data-sl-theme（样式里三条 color-scheme 规则接管外观）
  *   · 覆盖主站与**网校**（class.luogu.com.cn）：网校是独立域名、独立前端，
  *     同样靠 color-scheme 驱动样式里的 light-dark()，所以模式要写进去。
@@ -69,7 +70,7 @@
 
        同时把「实际拿到了什么」记下来，供播放器显示诊断：
          window.__bomGM = { xmlhttpRequest, grants, hasGM }
-       用户报「歌单解析需要 GM」时，看 grⅠants 就知道篡改猴到底授没授权。 */
+       用户报「歌单解析需要 GM」时，看 grants 就知道篡改猴到底授没授权。 */
     try {
         var __gmReq = null;
         if (typeof GM_xmlhttpRequest === 'function') {
@@ -147,6 +148,9 @@
         guardMaxNodes: 4000,       // 单次扫描上限（防御性：页面异常大时别卡）
         mutationDelay: 600,        // 页面变化后重跑守卫的防抖（私信这类页面变化频繁）
         switchFallbackMs: 150,     // 读不到 CSS 变量时，切换过渡的兜底时长
+        // 顶栏的「齿轮」入口（插件设置面板）。★ 与 showToggle 独立：
+        // 关掉配色按钮不该连带把设置面板也锁死（否则用户再也打不开设置）。
+        showSettings: true,
         debug: false
     };
 
@@ -389,7 +393,7 @@
        洛谷登录后在顶栏有一排图标，其中「画笔 / pen-swirl」那个点开是
        「强制收缩左侧导航栏」「启用毛玻璃效果」—— 这两项在这里都没意义了
        （导航宽度与毛玻璃都由本样式接管），所以把它隐藏，原位换成齿轮：
-       点开是插件自己的设置面板：配色三态 + 音乐库入口。
+       点开是插件自己的设置面板：配色三态、边缘折射、自动续播、音乐库、关于。
        面板用 position:fixed 贴着按钮算位置，避免顶栏里没有定位祖先的问题。
        ====================================================================== */
     var GEAR_ICON =
@@ -436,12 +440,12 @@
         paintSettingsPanel();
     }
 
-    /* ── 设置面板控件（对照 Kyant0/AndroidLiquidGlass）──────────────────────
-       LiquidToggle：轨道 64×28dp，滑块 40×24dp **胶囊**，静止时纯白不透明，
-       按下才变成透明玻璃 + 折射 + 色散（pressProgress 驱动），拖动还按速度形变。
-       LiquidSlider：同样的滑块，只是轨道换成长条。
-       这里按 0.8 缩放到面板尺寸，用 CSS 的 :active / backdrop-filter 近似那条
-       "白 → 玻璃"的过渡（CSS 拿不到 pressProgress，只能整段切换）。 */
+    /* ── 设置面板控件（对照 Kyant0/AndroidLiquidGlass 的 LiquidToggle）──────
+       轨道 64×28dp、滑块 40×24dp **胶囊**（不是圆形），静止时纯白不透明，
+       按下才变成透明玻璃（blur + saturate），对应 onDrawSurface 里 alpha = 1 - pressProgress。
+       这里按 0.8 缩放到面板尺寸（轨道 52×24、滑块 32×20、行程 18px），
+       用 CSS 的 :active / backdrop-filter 近似那条"白 → 玻璃"的过渡
+       （CSS 拿不到 pressProgress，只能整段切换）。 */
     function makeLiquidKnob(w, h) {
         var k = document.createElement('span');
         k.style.cssText = [
@@ -536,7 +540,6 @@
             if (orphan[k].parentNode) orphan[k].parentNode.removeChild(orphan[k]);
         }
     }
-    /* 折射强度：改 REFRACT_AMOUNT_RATIO 并整批重建（位移图按旧参数生成，必须重做） */
     function buildSettingsPanel() {
         if (settingsPanel) return settingsPanel;
         var p = document.createElement('div');
@@ -589,7 +592,7 @@
         var row2 = row('边缘折射');
         row2.appendChild(makeLiquidToggle(refractEnabledNow(), function (on) { setRefractionEnabled(on); }));
 
-        /* ④ 自动续播（浏览器拒绝无手势播放时，等页面上的第一次点击） */
+        /* ③ 自动续播（浏览器拒绝无手势播放时，等页面上的第一次点击） */
         var autoOn = true;
         try { autoOn = localStorage.getItem('sl-autoresume') !== '0'; } catch (e) { /* 忽略 */ }
         var rowAuto = row('自动续播');
@@ -597,7 +600,7 @@
             try { localStorage.setItem('sl-autoresume', on ? '1' : '0'); } catch (e) { /* 忽略 */ }
         }));
 
-        /* ⑤ 音乐库 */
+        /* ④ 音乐库 */
         var row4 = row('音乐库');
         var libBtn = document.createElement('button');
         libBtn.type = 'button';
@@ -700,7 +703,7 @@
     }
 
     function ensureSettingsButton() {
-        if (!isMain || !CONFIG.showToggle) return;
+        if (!isMain || !CONFIG.showSettings) return;
         hideLegacyAppearance();
         var bar = document.querySelector('.top-bar');
         if (!bar) return;
@@ -1265,15 +1268,13 @@
     //   每一条带折射的玻璃 = 一条每帧重光栅化的滤镜链，所以没法既要全覆盖又要流畅。
     //   默认 300 万（约 3 个视口）：覆盖主要玻璃面，也不会把滚动拖垮。
     /* ★ 2026-10-27（用户：「把名额放开，全加折射」）：
-       名额 / 预算 / 单面上限**全部放开**，只要能画出玻璃面的元素都加。
-       代价是首屏会一次性挂上几十上百条滤镜链，所以配套做了两件事：
-         ① fPad 改成按位移量动态取（见 ensureRefractFilter）——
-            原来固定外扩 32px，一个 24×24 的小标签滤镜区域会被放大到 88×88（13 倍）；
-         ② 所有 <filter> 收进同一个 <svg>（见 refractSvgHost），节点数从 2N 降到 N+1。 */
-    var REFRACT_BUDGET = 1e12;       // 全加：预算不再设限
-    var REFRACT_MAX = 99999;         // 全加：名额不再设限
-    var REFRACT_MIN_AREA = 0;        // 全加：小元件也加
-    var REFRACT_MAX_AREA = 1e12;     // 全加：大卡也加
+       名额 / 预算 / 单面上限全部取消，只要能画出玻璃面的元素都加。
+       原来那四个旋钮（BUDGET 3e6 / MAX 40 / MIN_AREA 600 / MAX_AREA 3e6）已经删掉，
+       因为放开之后它们的判断永远不成立；哪天要限流再加回来即可。
+       配套的两件事保留：
+         ① fPad 按位移量动态取（ensureRefractFilter）——
+            固定外扩 32px 时，24×24 的小标签滤镜区域会被放大到 88×88（13 倍）；
+         ② 所有 <filter> 收进同一个 <svg>（refractSvgHost），节点数从 2N 降到 N+1。 */
     /* ★ 2026-10-25（用户：「把折射拉大，模糊可以次要」「尝试覆盖整个卡片的大部分区域」）：
        原来只弯折 18px 的窄边、强度 22px，观感是"边缘一圈"，不像透镜。
        现在：强度 22 → 40px；边缘带不再写死 —— 按卡片短边动态取（短边 × BEZEL_RATIO，
@@ -1295,7 +1296,10 @@
        而我们原来是 amount=0.09×短边、bezel=0.18×短边（位移只有带宽的一半），
        所以边缘只是"轻轻弯一下"，没有玻璃被压缩/放大的感觉。
        现在反过来：带宽收窄（边缘更锐）、位移加大到带宽的 ~1.8 倍。 */
-    /* ★ 2026-10-27 第二轮（用户：「折射别糊成一片啊」）：
+    /* ★ 2026-10-27 第三轮（用户：「折射锯齿太大了」）：
+       曲线换成 t^1.6（circleMap 在边界处导数无穷 → 位移断崖 → 锯齿）、
+       MAP_SCALE 提到 0.85、边界羽化 6px→10px。
+       第二轮（用户：「折射别糊成一片啊」）如下：
        上一版照 Android 的 lens(24, 48) 把位移提到带宽的 1.8 倍 —— 那在手机屏
        （元素几百 px）上没问题，但在 1166px 的大卡上，边界处的采样点会被推出弯折带、
        采到带外的远处内容，整片糊掉。现在让**带宽略大于位移**，采样点始终留在带内：
@@ -1314,11 +1318,9 @@
     /* 外扩的**上限**；实际按 amount + 8 动态取。
        位移最大 44 时会采到元素外 44px，所以 fPad 必须跟得上（原来上限 30 会拉丝）。 */
     var REFRACT_PAD = 56;
-    /* ★ 边缘色散（对照 AndroidLiquidGlass 的 chromaticAberration）：
-       0 = 关闭（默认，全加 172 面时色散会让每个面多 5 次采样）；
-       0.06~0.12 = 红通道向外、蓝通道向内的位移差比例（8%~12% 在 1~2px 量级，正好可见）。
-       开启方式：把下面这个 0 改成正数即可。 */
-    var REFRACT_DISPERSION = 0;
+    /* 边缘色散没有启用：每面要多 4 次位移采样（全加 170 多个面时顶不住）。
+       实现留在 git 历史里（REFRACT_DISPERSION 开关 + feColorMatrix/feBlend 分支），
+       以后要试可以捡回来。 */
     var refractDone = false;
     var refractIdle = 0;        // 连续「没有任何新成功」的轮数，用来决定何时收工
     var refractSeq = 0;
@@ -1408,8 +1410,9 @@
          ① 位移图降到 1/MAP_SCALE 分辨率 —— 位移场本身平滑，feImage 拉伸后看不出差别，
             运算量直接降到 1/4；
          ② 只在元素的边框内那一圈扫，内部整片跳过。 */
-    /* 位移图的分辨率系数。0.4 是为了省首屏计算，但位移场被平滑后边缘过渡会"虚"，
-       2026-10-27 提到 0.65（生成成本 ×2.6，实测仍在 1ms 级）。 */
+    /* 位移图的分辨率系数。历史：0.4（省首屏计算）→ 0.65（缓解"虚"）→ 0.85（缓解锯齿）。
+       位移场是平滑的，但分辨率太低时相邻采样点的位移差会被放大成阶梯；
+       0.85 下单张生成仍在 1~2ms 级。 */
     var MAP_SCALE = 0.85;
 
     function buildDisplacementMap(w, h, radius, bezel, amount, pad) {
@@ -1561,47 +1564,7 @@
         feDisp.setAttribute('yChannelSelector', 'G');
         filter.appendChild(feImg);
 
-        if (REFRACT_DISPERSION > 0) {
-            /* 色散版：基础位移先出一份，再把 R / G / B 拆开、各按不同 scale 再位移一次，
-               最后用 screen 叠回去 —— 边缘于是有一圈极淡的彩边（红往外、蓝往内）。 */
-            feDisp.setAttribute('result', 'base');
-            filter.appendChild(feDisp);
-            var sBase = amount * 2;
-            var disp = [
-                ['cr', '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0', sBase * (1 + REFRACT_DISPERSION)],
-                ['cg', '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0', sBase],
-                ['cb', '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0', sBase * (1 - REFRACT_DISPERSION)]
-            ];
-            for (var di = 0; di < disp.length; di++) {
-                var mat = document.createElementNS(ns, 'feColorMatrix');
-                mat.setAttribute('in', 'base');
-                mat.setAttribute('type', 'matrix');
-                mat.setAttribute('values', disp[di][1]);
-                mat.setAttribute('result', disp[di][0]);
-                filter.appendChild(mat);
-                var dd = document.createElementNS(ns, 'feDisplacementMap');
-                dd.setAttribute('in', disp[di][0]);
-                dd.setAttribute('in2', 'map');
-                dd.setAttribute('scale', String(disp[di][2]));
-                dd.setAttribute('xChannelSelector', 'R');
-                dd.setAttribute('yChannelSelector', 'G');
-                dd.setAttribute('result', disp[di][0] + '2');
-                filter.appendChild(dd);
-            }
-            var b1 = document.createElementNS(ns, 'feBlend');
-            b1.setAttribute('in', 'cr2');
-            b1.setAttribute('in2', 'cg2');
-            b1.setAttribute('mode', 'screen');
-            b1.setAttribute('result', 'rg');
-            filter.appendChild(b1);
-            var b2 = document.createElementNS(ns, 'feBlend');
-            b2.setAttribute('in', 'rg');
-            b2.setAttribute('in2', 'cb2');
-            b2.setAttribute('mode', 'screen');
-            filter.appendChild(b2);
-        } else {
-            filter.appendChild(feDisp);
-        }
+        filter.appendChild(feDisp);
 
         svg.appendChild(filter);
         return id;
@@ -1800,9 +1763,10 @@
             try { window.__slRefractWhy = msg; } catch (e) { /* 忽略 */ }
             try { document.documentElement.setAttribute('data-sl-refract', msg); } catch (e) { /* 忽略 */ }
         };
-        // ★ 重试窗口要给足：SPA 页面从加载到渲染出 .l-card 往往要好几秒（实测题目列表约 13 秒）
-        //   原来只给 5 轮 × 800ms = 4 秒，卡片还没出来就放弃了 —— 折射一次都没加上。
-        if (depth > 80) { why('重试 20 轮都没成功'); refractDone = true; return; }
+        /* ★ 重试窗口要给足：SPA 页面从加载到渲染出 .l-card 往往要好几秒。
+           下面「成功」分支是 depth < 3（4 轮）、「连续空轮」分支是 refractIdle >= 2，
+           所以这里给 6 轮是纯防御上限（历史上曾经写成 80，和实际轮次对不上）。 */
+        if (depth > 6) { why('重试 ' + depth + ' 轮都没成功'); refractDone = true; return; }
         try {
             if (!isChromium()) { why('UA 不是 Chromium：' + (navigator.userAgent || '').slice(0, 60)); refractDone = true; return; }
             if (!acceptsFilterUrl()) { why('backdrop-filter 不接受 url()'); refractDone = true; return; }
@@ -1856,9 +1820,8 @@
                     order.push({ el: cands[q], w: aw, h: ah, area: aw * ah });
                 }
                 order.sort(function (a, b) { return a.area - b.area; });
-                var budgetLeft = REFRACT_BUDGET;
                 var pending = [];   // 两阶段：先收集，循环结束后一次性写入 DOM
-                for (var i = 0; i < order.length && applied < REFRACT_MAX; i++) {
+                for (var i = 0; i < order.length; i++) {
                     var el = order[i].el;
                     /* ★★ 这里必须重新读一次真实尺寸，不能用扫描时缓存的 order[i].w/h。
                        扫描发生在页面还没布局完的时刻（实测某个元素当时 70px 宽、实际是 238px），
@@ -1869,9 +1832,7 @@
                     /* 全加：只排除 8px 以下的装饰元素；细长条/扁条也照加
                        （用户：「把名额放开，全加折射」）。 */
                     if (w < 8 || h < 8) { skipped.push(i + ':太小' + w + 'x' + h); continue; }
-                    if (w * h > REFRACT_MAX_AREA) { skipped.push(i + ':面积' + (w * h)); continue; }
-                    if (w * h < REFRACT_MIN_AREA) { skipped.push(i + ':过小'); continue; }
-                    if (w * h > budgetLeft) { skipped.push(i + ':预算用尽'); continue; }
+                    /* 面积上下限与预算已取消（全加），只保留「能不能画出玻璃面」的判断 */
                     if (hasBackdropBlocker(el)) { skipped.push(i + ':祖先有filter/opacity/mask'); continue; }
                     var cs = getComputedStyle(el);
                     var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
@@ -1908,7 +1869,6 @@
                     try { el.setAttribute('data-sl-refract-pending', id); } catch (e) { skipped.push(i + ':标记失败'); continue; }
                     pending.push({ el: el, id: id, base: base, w: w, h: h });
                     applied++;
-                    budgetLeft -= w * h;                              // 扣预算（成本 ≈ 面积 × 半径）
                 }
 
                 /* 统一写入：一帧之内把已经算好的全部挂上去，观感是一次性出现。 */
@@ -2021,8 +1981,7 @@
         if (isMain) setInterval(fixDarkArticleText, 800);
 
         // 背景图：样式没写死时抓洛谷主题图（SPA 换页与换主题都会重设，低频纠偏）
-        syncThemeBackground();
-        // 低频轮询即可：换页时靠 href 变化作废缓存，换主题时下一次轮询（或用户刷新）就会读到新值。
+        // 首屏先跑一次，之后低频轮询：换页时靠 href 变化作废缓存，换主题时下一次轮询（或用户刷新）就会读到新值。
         // ★ 这里**不要**再挂「全站 style/class 变化」的 MutationObserver —— 那会让全站每个元素的
         //   样式变化都触发一次 getComputedStyle（强制样式重算），SPA 上几乎每帧触发，
         //   用户实测「刚换回来了，延迟巨大」。当时为了修「替换慢一步」加的，代价远大于收益。
@@ -2096,7 +2055,11 @@
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureButton, { once: true });
             else ensureButton();
             setInterval(ensureButton, 1000);       // SPA 会重建导航，低频纠偏
-            /* 插件设置按钮（替代洛谷自带的外观按钮）：插在配色按钮右边，同样低频纠偏 */
+        }
+
+        /* 插件设置按钮（替代洛谷自带的外观按钮）：插在配色按钮右边，同样低频纠偏。
+           只在主站；由 showSettings 单独控制，不受 showToggle 影响。 */
+        if (isMain && CONFIG.showSettings) {
             ensureSettingsButton();
             setInterval(ensureSettingsButton, 1000);
         }
