@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.31
+// @version      20261027.32
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1843,8 +1843,9 @@
                     icon: 'info',
                     width: 460,
                     showConfirmButton: false,
-                    allowOutsideClick: false,
-                    allowEscapeKey: false
+                    /* 同样不挡点击；点外部会把它关掉也没关系（计算很快） */
+                    allowOutsideClick: true,
+                    allowEscapeKey: true
                 });
             }
             var bar = document.getElementById('sl-swal-bar');
@@ -1881,6 +1882,16 @@
         if (!swalOpen || !swalLib) return;
         swalOpen = false;
         try { swalLib.close(); } catch (e) { /* 忽略 */ }
+        /* 兜底：Swal 关闭有动画，容器可能残留一拍；残留的 .swal2-container
+           会继续吃点击（allowOutsideClick 为 true 时不拦，但保险起见清掉）。 */
+        setTimeout(function () {
+            try {
+                var cs = document.querySelectorAll('.swal2-container');
+                for (var i = 0; i < cs.length; i++) {
+                    if (cs[i].parentNode) cs[i].parentNode.removeChild(cs[i]);
+                }
+            } catch (e) { /* 忽略 */ }
+        }, 500);
     }
 
     /* 等 DOM 稳定：连续 quietMs 没有 childList 变化（或到 maxWait）就回调。
@@ -1923,6 +1934,10 @@
             'display:flex', 'align-items:center', 'justify-content:center',
             'z-index:2147483002',
             'background:rgba(0,0,0,.45)',
+            /* ★ 不挡点击：它只是个进度提示，没有需要交互的内容。
+               以前是 auto，弹窗隐藏稍有闪失（opacity:0 但 display 还是 flex）
+               整页就点不动了。 */
+            'pointer-events:none',
             'opacity:0', 'transition:opacity .2s ease'
         ].join(';');
 
