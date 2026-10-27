@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.18
+// @version      20261027.19
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1383,9 +1383,11 @@
          位移 = 短边 × 0.10（上限 24）；弯折带 = 短边 × 0.12（上限 32）。 */
     var REFRACT_AMOUNT_RATIO = 0.10;
     var REFRACT_AMOUNT_MAX = 24;
-    var REFRACT_BEZEL_RATIO = 0.12;
-    var REFRACT_BEZEL_MIN = 8;
-    var REFRACT_BEZEL_MAX = 32;
+    /* 弯折带收窄到与位移同宽：带内每个像素都在重采样，带宽越宽"虚"的范围越大；
+       带宽 ≈ 位移时，采样点刚好不出带（再宽就只是变虚，不变强）。 */
+    var REFRACT_BEZEL_RATIO = 0.10;
+    var REFRACT_BEZEL_MIN = 6;
+    var REFRACT_BEZEL_MAX = 24;
     /* ★ 深度效应（Android 的 depthEffect）：位移方向不纯垂直边缘，
        而是叠加一个指向中心的法线分量 —— 模拟"玻璃有厚度、中心像被微微放大"。
        0 = 纯垂直（旧行为），0.3~0.5 接近 iOS/Android 的观感。 */
@@ -1487,7 +1489,9 @@
          ① 位移图降到 1/MAP_SCALE 分辨率 —— 位移场本身平滑，feImage 拉伸后看不出差别，
             运算量直接降到 1/4；
          ② 只在元素的边框内那一圈扫，内部整片跳过。 */
-    var MAP_SCALE = 0.4;   // 位移场平滑，0.4 倍分辨率肉眼无差，运算量再降 36%
+    /* 位移图的分辨率系数。0.4 是为了省首屏计算，但位移场被平滑后边缘过渡会"虚"，
+       2026-10-27 提到 0.65（生成成本 ×2.6，实测仍在 1ms 级）。 */
+    var MAP_SCALE = 0.65;
 
     function buildDisplacementMap(w, h, radius, bezel, amount, pad) {
         var W = Math.max(2, Math.round((w + pad * 2) * MAP_SCALE));
