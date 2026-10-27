@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.15
+// @version      20261027.16
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -485,7 +485,18 @@
         libBtn.style.cssText = 'border:1px solid var(--lg-border);background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.08));' +
             'color:var(--lg-text);font:inherit;padding:4px 12px;border-radius:8px;cursor:pointer';
         libBtn.addEventListener('click', function () {
-            var player = window.__bomPlayer;
+            /* ★ 播放器是用 new Function(PLAYER_JS) 在**页面上下文**跑的，它把 __bomPlayer
+               挂在页面 window 上；而本脚本有 @grant，这里的 window 是篡改猴沙箱副本，
+               直接读 window.__bomPlayer 永远是 undefined（和当初 __bomGM 同一个坑，
+               只不过方向反过来：这次是页面写、沙箱读）。
+               所以优先读 unsafeWindow，再退回沙箱 window 兜底。 */
+            var player = null;
+            try {
+                if (typeof unsafeWindow !== 'undefined' && unsafeWindow) player = unsafeWindow.__bomPlayer || null;
+            } catch (e) { /* 忽略 */ }
+            if (!player) {
+                try { player = window.__bomPlayer || null; } catch (e) { /* 忽略 */ }
+            }
             if (player && typeof player.openLib === 'function') {
                 closeSettingsPanel();
                 player.openLib();
