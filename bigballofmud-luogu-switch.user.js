@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.32
+// @version      20261027.33
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -2106,7 +2106,7 @@
             // ★ 间隔从 900ms 收到 220ms：卡片通常在几百毫秒内就出来，等 900ms
             //   等于把「折射出现」整体往后拖将近一秒。轮次上限够用，不担心跑太久。
             if (!cands.length) { why('第 ' + depth + ' 轮：还没有玻璃面'); setTimeout(function () { applyRefraction(depth + 1); }, 220); return; }
-            probeDataImage().then(function (ok) {
+            probeDataImage().then(async function (ok) {
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
                 var skipped = [];   // 诊断：记录每个候选被哪条规则筛掉
@@ -2133,7 +2133,17 @@
                 }
                 order.sort(function (a, b) { return a.area - b.area; });
                 var pending = [];   // 两阶段：先收集，循环结束后一次性写入 DOM
+                var BUILD_BATCH = 20;   // 每批 20 个：批间让出主线程，进度条才走得动
                 for (var i = 0; i < order.length; i++) {
+                    /* 让出主线程，并把进度画出来。不放这里的话整段是同步跑完的，
+                       setRefractToast 只在最后被调用一次 → 弹窗「计算完才闪一下」。 */
+                    if (i % BUILD_BATCH === 0 && i > 0) {
+                        if (refractToastShown) {
+                            setRefractToast(Math.min(96, Math.round(i / order.length * 100)),
+                                '正在生成位移图 ' + i + ' / ' + order.length + ' 个面');
+                        }
+                        await new Promise(function (r) { setTimeout(r, 0); });
+                    }
                     var el = order[i].el;
                     /* ★★ 这里必须重新读一次真实尺寸，不能用扫描时缓存的 order[i].w/h。
                        扫描发生在页面还没布局完的时刻（实测某个元素当时 70px 宽、实际是 238px），
@@ -2233,6 +2243,8 @@
                        补轮兜底（那个不弹窗）。 */
                     refractDone = true;
                     if (refractToastShown) {
+                        /* 先累加再显示 —— 反过来的话文案里永远是「共 0 个面」 */
+                        refractToastApplied += applied;
                         setRefractToast(100, '完成，共 ' + refractToastApplied + ' 个面');
                         refractFinished = true;
                         hideRefractToast(700);
@@ -2248,13 +2260,6 @@
                             document.documentElement.setAttribute('data-sl-refract-first-ms', nowMs);
                         }
                     } catch (e) { /* 忽略 */ }
-                    if (refractToastShown) {
-                        refractToastApplied += applied;
-                        var shownPct = refractToastTotal
-                            ? Math.min(96, Math.round(refractToastApplied / refractToastTotal * 100))
-                            : 50;
-                        setRefractToast(shownPct, '已挂上 ' + refractToastApplied + ' 个面' + (depth < 3 ? '…' : ''));
-                    }
                     why('成功 ' + applied + ' 个；跳过：' + skipped.join(' / '));
                     if (window.__slDebug) {
                         try { console.log('[bom] 边缘折射已加到 ' + applied + ' 个面'); } catch (e) { /* 忽略 */ }
