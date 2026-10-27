@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.28
+// @version      20261027.29
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -517,7 +517,16 @@
     function setRefractionEnabled(on) {
         try { localStorage.setItem('sl-refract-off', on ? '0' : '1'); } catch (e) { /* 忽略 */ }
         if (!on) { clearRefraction(); refractDone = true; hideRefractToast(0); }
-        else { refractDone = false; refractIdle = 0; refractToastShown = false; applyRefraction(); }
+        else {
+            /* 重新打开：整批重挂一遍并弹进度（用户：「切换折射开关的时候切换成开也要弹」） */
+            refractDone = false;
+            refractIdle = 0;
+            refractToastShown = false;
+            refractToastWanted = true;
+            refractToastApplied = 0;
+            setRefractToast(0, '等待页面渲染…');
+            waitDomStable(function () { applyRefraction(); }, 300, 1200);
+        }
     }
     function refractEnabledNow() {
         try { return localStorage.getItem('sl-refract-off') !== '1'; } catch (e) { return true; }
@@ -1750,11 +1759,18 @@
        只在首屏那次显示（refractToastShown），滚动补一轮、尺寸重建都不再弹。
        pointer-events:none —— 计算期间页面照常可点，不拿模态挡人。 */
     var refractToastEl = null;
-    var refractToastTimer = 0;
+    var refractToastTimer = 0;      // 显示/刷新用
+    var refractHideTimer = 0;       // 隐藏用（和上面分开，否则互相 clearTimeout）
+    /* 本轮挂载是否已经收工：收工后任何 setRefractToast 一律忽略，
+       避免别处的迟到调用把弹窗重新点亮（排查时表现为「弹窗一直不消失」）。 */
+    var refractFinished = true;
     var refractToastShown = false;
     var refractToastTotal = 0;
     var refractToastApplied = 0;
     var refractToastStartAt = 0;
+    /* 这次调用要不要弹窗：首屏与切换配色时 true；滚动补轮、尺寸重建时 false
+       （用户：「所有折射一次性挂上，不要后续再加（现在一滚动就弹窗）」）。 */
+    var refractToastWanted = false;
 
     /* SweetAlert2：运行时加载（不走 @require，CDN 不通时不会连累整个脚本）。
        UMD 包挂在页面 window 上，沙箱里要读 unsafeWindow.Swal。 */
@@ -1844,10 +1860,54 @@
         }
     }
 
+    /* 换代后重挂一次折射：清掉旧的 url()、重置状态，再整批挂一遍。
+       withToast=true 时会重新弹进度（切换配色走这条）。 */
+    function refreshRefraction(withToast) {
+        if (!refractEnabledNow()) return;
+        clearRefraction();
+        refractDone = false;
+        refractIdle = 0;
+        if (withToast) {
+            refractToastShown = false;
+            refractToastWanted = true;
+            refractToastApplied = 0;
+        } else {
+            refractToastWanted = false;
+        }
+        applyRefraction(0, true);
+    }
+
     function swalClose() {
         if (!swalOpen || !swalLib) return;
         swalOpen = false;
         try { swalLib.close(); } catch (e) { /* 忽略 */ }
+    }
+
+    /* 等 DOM 稳定：连续 quietMs 没有 childList 变化（或到 maxWait）就回调。
+       为什么需要：DCL 刚结束时 Vue 还没把卡片渲染出来，立刻扫只能得到 3 个面；
+       而用户要求「一次性挂完」，所以必须先等到页面稳定。 */
+    function waitDomStable(cb, quietMs, maxWaitMs) {
+        var done = false;
+        var quietTimer = 0;
+        var maxTimer = 0;
+        var mo = null;
+        function finish() {
+            if (done) return;
+            done = true;
+            try { if (mo) mo.disconnect(); } catch (e) { /* 忽略 */ }
+            clearTimeout(quietTimer);
+            clearTimeout(maxTimer);
+            cb();
+        }
+        try {
+            mo = new MutationObserver(function () {
+                clearTimeout(quietTimer);
+                quietTimer = setTimeout(finish, quietMs || 500);
+            });
+            mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+        } catch (e) { /* 忽略 */ }
+        quietTimer = setTimeout(finish, quietMs || 500);
+        maxTimer = setTimeout(finish, maxWaitMs || 2500);
     }
 
     function ensureRefractToast() {
@@ -1922,6 +1982,7 @@
     }
 
     function setRefractToast(pct, sub) {
+        if (refractFinished) return;
         var p0 = Math.max(0, Math.min(100, Math.round(pct)));
         /* 优先走 SweetAlert2（已加载时）；否则用自绘那版 */
         if (swalRefract(p0, sub)) return;
@@ -1934,7 +1995,9 @@
         if (pctEl) pctEl.textContent = p + '%';
         if (subEl && sub) subEl.textContent = sub;
         clearTimeout(refractToastTimer);
+        clearTimeout(refractHideTimer);          // 显示时取消待执行的隐藏
         if (!refractToastStartAt) refractToastStartAt = Date.now();
+        wrap.style.display = 'flex';
         wrap.style.opacity = '1';
         var card = wrap.firstChild;
         if (card) card.style.transform = 'scale(1)';
@@ -1949,13 +2012,19 @@
             if (elapsed < MIN_VISIBLE) wait = Math.max(wait, MIN_VISIBLE - elapsed);
         }
         delay = wait;
-        clearTimeout(refractToastTimer);
-        refractToastTimer = setTimeout(function () {
+        clearTimeout(refractHideTimer);
+        refractHideTimer = setTimeout(function () {
             if (swalOpen) { swalClose(); return; }
             if (!refractToastEl) return;
             refractToastEl.style.opacity = '0';
             var card = refractToastEl.firstChild;
             if (card) card.style.transform = 'scale(.96)';
+            /* 淡出结束后补一刀 display:none —— 只靠 opacity 会被后续的
+               setRefractToast 拉回 1，排查时也难看出到底隐藏没有。 */
+            setTimeout(function () {
+                if (!refractToastEl) return;
+                if (refractToastEl.style.opacity === '0') refractToastEl.style.display = 'none';
+            }, 260);
         }, delay || 0);
     }
 
@@ -1967,6 +2036,7 @@
         if (!refractEnabledNow()) { refractDone = true; return; }
         // 是否已经成功加过（成功一次就不再试；失败可以重试）
         if (refractDone && !force) return;
+        refractFinished = false;
         /* force：滚动后可能有新卡片出现，允许再补一轮 */
         if (force) { refractDone = false; refractIdle = 0; }
         depth = depth || 0;
@@ -2024,7 +2094,7 @@
                 var applied = 0;
                 var skipped = [];   // 诊断：记录每个候选被哪条规则筛掉
                 /* 首屏那次才弹（force 来自滚动补轮，不打扰） */
-                if (!force && !refractToastShown) {
+                if (refractToastWanted && !refractToastShown) {
                     refractToastShown = true;
                     refractToastTotal = Math.max(1, cands.length);
                     refractToastApplied = 0;
@@ -2141,14 +2211,14 @@
                        （日志里「全部补完 11789ms」就是这么来的，每轮只成功 1 个面）。
                        现在最多 4 轮、每轮间隔 350ms，约 1.4 秒收工；
                        剩下零星的新面由滚动 / 尺寸变化那条路径补。 */
-                    if (depth < 3) {
-                        setTimeout(function () { applyRefraction(depth + 1); }, 350);
-                    } else {
-                        refractDone = true;
-                        if (refractToastShown) {
-                            setRefractToast(100, '完成，共 ' + refractToastApplied + ' 个面');
-                            hideRefractToast(700);
-                        }
+                    /* ★ 一次性挂完（用户：「所有折射一次性挂上，不要后续再加」）：
+                       不再分轮补齐。SPA 之后新渲染出来的元素由「滚动停止 / 换页」那条
+                       补轮兜底（那个不弹窗）。 */
+                    refractDone = true;
+                    if (refractToastShown) {
+                        setRefractToast(100, '完成，共 ' + refractToastApplied + ' 个面');
+                        refractFinished = true;
+                        hideRefractToast(700);
                     }
                     /* 记下完成时刻（相对 navigationStart），播放器日志会带上它，
                        以后判断「折射到底拖了多久」不用再猜。
@@ -2184,6 +2254,7 @@
                         refractDone = true;
                         if (refractToastShown) {
                             setRefractToast(100, '完成，共 ' + refractToastApplied + ' 个面');
+                            refractFinished = true;
                             hideRefractToast(700);
                         }
                         return;
@@ -2241,12 +2312,20 @@
             } catch (e) { /* 忽略 */ }
             setTimeout(fn, 16);   // 没有 rAF 的环境（沙箱 / 老内核）退化成定时器
         };
+        var startRefract = function () {
+            /* 首屏要弹窗；但先等页面渲染稳定，否则只能扫到几个面 */
+            refractToastWanted = true;
+            refractToastShown = false;
+            refractToastApplied = 0;
+            setRefractToast(0, '等待页面渲染…');
+            waitDomStable(function () {
+                applyRefraction(0);
+            }, 500, 2500);
+        };
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function () {
-                nextFrame(function () { applyRefraction(0); });
-            }, { once: true });
+            document.addEventListener('DOMContentLoaded', function () { nextFrame(startRefract); }, { once: true });
         } else {
-            nextFrame(function () { applyRefraction(0); });
+            nextFrame(startRefract);
         }
 
         /* 音乐播放器：再往后一点挂（DOMContentLoaded + 300ms），
@@ -2259,18 +2338,27 @@
             setTimeout(mountPlayer, 300);
         }
 
-        /* 滚动停止后补一轮折射：补齐轮次有硬上限（约 1.4 秒收工），
-           之后加载出来的新卡片靠这里补，不会漏。600ms 节流，
-           只在滚动停下来才扫一次，滚动过程中不干扰帧率。 */
+        /* ★ 不再挂「滚动停止补一轮」：用户明确要求
+           「只在需要的时候一次性补齐，不后续补」。
+           滚动时反复重挂会带来两个问题：弹窗跟着反复出现、以及每轮全页扫描抢主线程。
+           现在折射只在两个时机挂：首屏一次、打开折射开关一次。 */
+
+        /* 保留一个例外：SPA 换页（URL 变化）相当于换了一个页面，
+           那一页的玻璃面需要重新挂 —— 这不是"后续补"，是"新页面的一次性挂载"。 */
         try {
-            var refractScrollTimer = 0;
-            window.addEventListener('scroll', function () {
-                if (refractScrollTimer) return;
-                refractScrollTimer = setTimeout(function () {
-                    refractScrollTimer = 0;
-                    applyRefraction(0, true);
-                }, 600);
-            }, { passive: true });
+            var lastHref = location.href;
+            setInterval(function () {
+                if (location.href === lastHref) return;
+                lastHref = location.href;
+                if (!refractEnabledNow()) return;
+                refractDone = false;
+                refractIdle = 0;
+                refractToastShown = false;
+                refractToastWanted = true;
+                refractToastApplied = 0;
+                setRefractToast(0, '等待页面渲染…');
+                waitDomStable(function () { applyRefraction(0); }, 500, 2500);
+            }, 800);
         } catch (e) { /* 忽略 */ }
 
         // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
