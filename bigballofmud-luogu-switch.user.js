@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.26
+// @version      20261027.27
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -516,8 +516,8 @@
     /* 折射总开关 */
     function setRefractionEnabled(on) {
         try { localStorage.setItem('sl-refract-off', on ? '0' : '1'); } catch (e) { /* 忽略 */ }
-        if (!on) { clearRefraction(); refractDone = true; }
-        else { refractDone = false; refractIdle = 0; applyRefraction(); }
+        if (!on) { clearRefraction(); refractDone = true; hideRefractToast(0); }
+        else { refractDone = false; refractIdle = 0; refractToastShown = false; applyRefraction(); }
     }
     function refractEnabledNow() {
         try { return localStorage.getItem('sl-refract-off') !== '1'; } catch (e) { return true; }
@@ -1745,6 +1745,122 @@
         }
     }
 
+    /* ── 计算折射时的居中进度弹窗 ─────────────────────────────────────────
+       样式照洛谷原生的提示弹窗：白卡 + 左侧/圆形蓝色感叹号 + 一条进度条。
+       只在首屏那次显示（refractToastShown），滚动补一轮、尺寸重建都不再弹。
+       pointer-events:none —— 计算期间页面照常可点，不拿模态挡人。 */
+    var refractToastEl = null;
+    var refractToastTimer = 0;
+    var refractToastShown = false;
+    var refractToastTotal = 0;
+    var refractToastApplied = 0;
+    var refractToastStartAt = 0;
+
+    function ensureRefractToast() {
+        if (refractToastEl) return refractToastEl;
+        /* 样式照洛谷用的 SweetAlert2：全屏暗遮罩 + 圆角卡片 + 细边框 +
+           描边圆图标 + 大标题。它的 Swal 没挂全局，调不到，只能照样子画。 */
+        var wrap = document.createElement('div');
+        wrap.setAttribute('data-sl-refract-toast', '1');
+        wrap.style.cssText = [
+            'position:fixed', 'left:0', 'top:0', 'right:0', 'bottom:0',
+            'display:flex', 'align-items:center', 'justify-content:center',
+            'z-index:2147483002',
+            'background:rgba(0,0,0,.45)',
+            'opacity:0', 'transition:opacity .2s ease'
+        ].join(';');
+
+        var card = document.createElement('div');
+        card.style.cssText = [
+            'width:460px', 'max-width:calc(100vw - 40px)',
+            'padding:28px 30px 24px', 'border-radius:8px', 'box-sizing:border-box',
+            'background:light-dark(#fff,rgba(32,36,42,.98))',
+            'color:light-dark(#545454,#e8eaed)',
+            'border:1px solid light-dark(rgba(0,0,0,.08),rgba(255,255,255,.10))',
+            'box-shadow:0 24px 64px rgba(0,0,0,.35)',
+            'font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+            'text-align:center', 'transform:scale(.96)',
+            'transition:transform .2s cubic-bezier(.4,0,.2,1)'
+        ].join(';');
+
+        var icon = document.createElement('div');
+        icon.style.cssText = [
+            'width:76px', 'height:76px', 'margin:0 auto 16px', 'border-radius:50%',
+            'border:3px solid #3d8bfd', 'color:#3d8bfd', 'box-sizing:border-box',
+            'font:700 38px/70px Georgia,serif', 'text-align:center'
+        ].join(';');
+        icon.textContent = '!';
+
+        var title = document.createElement('div');
+        title.textContent = '正在计算边缘折射';
+        title.style.cssText = 'font-size:19px;font-weight:600;line-height:1.6;' +
+            'color:light-dark(#303133,#f2f4f7)';
+
+        var subEl = document.createElement('div');
+        subEl.setAttribute('data-sl-refract-sub', '1');
+        subEl.textContent = '准备中…';
+        subEl.style.cssText = 'margin-top:8px;font-size:13px;opacity:.6';
+
+        var track = document.createElement('div');
+        track.style.cssText = 'margin-top:20px;height:8px;border-radius:4px;' +
+            'background:rgba(61,139,253,.18);overflow:hidden';
+        var bar = document.createElement('div');
+        bar.setAttribute('data-sl-refract-bar', '1');
+        bar.style.cssText = 'height:100%;width:0%;border-radius:4px;' +
+            'background:linear-gradient(90deg,#3d8bfd,#1976d2);transition:width .25s ease';
+        track.appendChild(bar);
+
+        var pctEl = document.createElement('div');
+        pctEl.setAttribute('data-sl-refract-pct', '1');
+        pctEl.textContent = '0%';
+        pctEl.style.cssText = 'margin-top:8px;font-size:12px;opacity:.5;' +
+            'font-variant-numeric:tabular-nums';
+
+        card.appendChild(icon);
+        card.appendChild(title);
+        card.appendChild(subEl);
+        card.appendChild(track);
+        card.appendChild(pctEl);
+        wrap.appendChild(card);
+        (document.body || document.documentElement).appendChild(wrap);
+        refractToastEl = wrap;
+        return wrap;
+    }
+
+    function setRefractToast(pct, sub) {
+        var wrap = ensureRefractToast();
+        var p = Math.max(0, Math.min(100, Math.round(pct)));
+        var bar = wrap.querySelector('[data-sl-refract-bar]');
+        var subEl = wrap.querySelector('[data-sl-refract-sub]');
+        var pctEl = wrap.querySelector('[data-sl-refract-pct]');
+        if (bar) bar.style.width = p + '%';
+        if (pctEl) pctEl.textContent = p + '%';
+        if (subEl && sub) subEl.textContent = sub;
+        clearTimeout(refractToastTimer);
+        if (!refractToastStartAt) refractToastStartAt = Date.now();
+        wrap.style.opacity = '1';
+        var card = wrap.firstChild;
+        if (card) card.style.transform = 'scale(1)';
+    }
+
+    function hideRefractToast(delay) {
+        /* 最小显示 800ms：折射在快机器上 150ms 就完事，不加下限会一闪而过 */
+        var wait = delay || 0;
+        if (refractToastStartAt) {
+            var elapsed = Date.now() - refractToastStartAt;
+            var MIN_VISIBLE = 800;
+            if (elapsed < MIN_VISIBLE) wait = Math.max(wait, MIN_VISIBLE - elapsed);
+        }
+        delay = wait;
+        clearTimeout(refractToastTimer);
+        refractToastTimer = setTimeout(function () {
+            if (!refractToastEl) return;
+            refractToastEl.style.opacity = '0';
+            var card = refractToastEl.firstChild;
+            if (card) card.style.transform = 'scale(.96)';
+        }, delay || 0);
+    }
+
     function applyRefraction(depth, force) {
         /* 设置面板里关掉折射后，不要再加回来。
            ★ 这条**不受 force 影响** —— force 只是用来跳过「已收工」的判断
@@ -1809,6 +1925,17 @@
                 if (!ok) { refractDone = true; return; }          // CSP 拦了 data: ⇒ 安静放弃
                 var applied = 0;
                 var skipped = [];   // 诊断：记录每个候选被哪条规则筛掉
+                /* 首屏那次才弹（force 来自滚动补轮，不打扰） */
+                if (!force && !refractToastShown) {
+                    refractToastShown = true;
+                    refractToastTotal = Math.max(1, cands.length);
+                    refractToastApplied = 0;
+                }
+                if (refractToastShown) {
+                    setRefractToast(refractToastTotal
+                        ? Math.min(96, Math.round(refractToastApplied / refractToastTotal * 100))
+                        : 5, '找到 ' + cands.length + ' 个玻璃面，正在生成位移图…');
+                }
                 /* ★ 按面积**从小到大**排序：小元件（按钮 / 标签 / 输入框）便宜，
                    优先全部给上；预算留给它们之后，剩下的大块才按预算挑。
                    这样「所有玻璃覆盖」在观感上成立，同时总成本可控。 */
@@ -1920,6 +2047,10 @@
                         setTimeout(function () { applyRefraction(depth + 1); }, 350);
                     } else {
                         refractDone = true;
+                        if (refractToastShown) {
+                            setRefractToast(100, '完成，共 ' + refractToastApplied + ' 个面');
+                            hideRefractToast(700);
+                        }
                     }
                     /* 记下完成时刻（相对 navigationStart），播放器日志会带上它，
                        以后判断「折射到底拖了多久」不用再猜。
@@ -1932,6 +2063,13 @@
                             document.documentElement.setAttribute('data-sl-refract-first-ms', nowMs);
                         }
                     } catch (e) { /* 忽略 */ }
+                    if (refractToastShown) {
+                        refractToastApplied += applied;
+                        var shownPct = refractToastTotal
+                            ? Math.min(96, Math.round(refractToastApplied / refractToastTotal * 100))
+                            : 50;
+                        setRefractToast(shownPct, '已挂上 ' + refractToastApplied + ' 个面' + (depth < 3 ? '…' : ''));
+                    }
                     why('成功 ' + applied + ' 个；跳过：' + skipped.join(' / '));
                     if (window.__slDebug) {
                         try { console.log('[bom] 边缘折射已加到 ' + applied + ' 个面'); } catch (e) { /* 忽略 */ }
@@ -1944,7 +2082,14 @@
                     refractIdle++;
                     why('第 ' + depth + ' 轮无新成功（连续 ' + refractIdle + ' 轮）：' + skipped.join(' / '));
                     /* 连续两轮没有新面就收工，别空转 */
-                    if (refractIdle >= 2 || depth >= 3) { refractDone = true; return; }
+                    if (refractIdle >= 2 || depth >= 3) {
+                        refractDone = true;
+                        if (refractToastShown) {
+                            setRefractToast(100, '完成，共 ' + refractToastApplied + ' 个面');
+                            hideRefractToast(700);
+                        }
+                        return;
+                    }
                     setTimeout(function () { applyRefraction(depth + 1); }, 350);
                 }
             }).catch(function () { refractDone = true; });
