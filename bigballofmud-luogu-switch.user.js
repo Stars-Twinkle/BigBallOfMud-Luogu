@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.27
+// @version      20261027.28
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1756,6 +1756,100 @@
     var refractToastApplied = 0;
     var refractToastStartAt = 0;
 
+    /* SweetAlert2：运行时加载（不走 @require，CDN 不通时不会连累整个脚本）。
+       UMD 包挂在页面 window 上，沙箱里要读 unsafeWindow.Swal。 */
+    var swalLib = null;
+    var swalLoading = null;
+    var swalOpen = false;
+    function pageSwal() {
+        try {
+            if (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.Swal) return unsafeWindow.Swal;
+        } catch (e) { /* 忽略 */ }
+        try { if (window.Swal) return window.Swal; } catch (e) { /* 忽略 */ }
+        return null;
+    }
+    /* 多源回退：jsDelivr 在国内经常不通，再挂两个镜像试。 */
+    var SWAL_SRCS = [
+        'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js',
+        'https://registry.npmmirror.com/sweetalert2/11.26.25/files/dist/sweetalert2.all.min.js',
+        'https://cdn.bootcdn.net/ajax/libs/sweetalert2/11.26.25/sweetalert2.all.min.js'
+    ];
+
+    function loadSwal() {
+        if (swalLib) return Promise.resolve(swalLib);
+        if (swalLoading) return swalLoading;
+        swalLoading = new Promise(function (resolve) {
+            var done = false;
+            function finish(v) {
+                if (done) return;
+                done = true;
+                swalLib = v && v.fire ? v : null;
+                resolve(swalLib);
+            }
+            var i = 0;
+            function next() {
+                if (done) return;
+                if (i >= SWAL_SRCS.length) { finish(null); return; }
+                var url = SWAL_SRCS[i++];
+                try {
+                    var sc = document.createElement('script');
+                    sc.src = url;
+                    sc.onload = function () {
+                        var got = pageSwal();
+                        if (got && got.fire) finish(got);
+                        else next();
+                    };
+                    sc.onerror = function () { next(); };
+                    (document.head || document.documentElement).appendChild(sc);
+                } catch (e) { next(); }
+            }
+            next();
+            /* 总上限：三个源都慢/挂着时别让 Promise 永远不返回 */
+            setTimeout(function () { finish(pageSwal()); }, 8000);
+        });
+        return swalLoading;
+    }
+
+    function swalRefract(pct, sub) {
+        var Swal = swalLib;
+        if (!Swal || !Swal.fire) return false;
+        try {
+            if (!swalOpen) {
+                swalOpen = true;
+                Swal.fire({
+                    title: '正在计算边缘折射',
+                    html: '<div style="margin-top:10px;height:8px;border-radius:4px;' +
+                          'background:rgba(61,139,253,.18);overflow:hidden">' +
+                          '<div id="sl-swal-bar" style="height:100%;width:0%;border-radius:4px;' +
+                          'background:linear-gradient(90deg,#3d8bfd,#1976d2);transition:width .25s ease"></div></div>' +
+                          '<div id="sl-swal-pct" style="margin-top:8px;font-size:12px;opacity:.6">0%</div>' +
+                          '<div id="sl-swal-sub" style="margin-top:2px;font-size:12px;opacity:.5"></div>',
+                    icon: 'info',
+                    width: 460,
+                    showConfirmButton: false,
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                });
+            }
+            var bar = document.getElementById('sl-swal-bar');
+            var pctEl = document.getElementById('sl-swal-pct');
+            var subEl = document.getElementById('sl-swal-sub');
+            if (bar) bar.style.width = pct + '%';
+            if (pctEl) pctEl.textContent = pct + '%';
+            if (subEl && sub) subEl.textContent = sub;
+            return true;
+        } catch (e) {
+            swalOpen = false;
+            return false;
+        }
+    }
+
+    function swalClose() {
+        if (!swalOpen || !swalLib) return;
+        swalOpen = false;
+        try { swalLib.close(); } catch (e) { /* 忽略 */ }
+    }
+
     function ensureRefractToast() {
         if (refractToastEl) return refractToastEl;
         /* 样式照洛谷用的 SweetAlert2：全屏暗遮罩 + 圆角卡片 + 细边框 +
@@ -1828,6 +1922,9 @@
     }
 
     function setRefractToast(pct, sub) {
+        var p0 = Math.max(0, Math.min(100, Math.round(pct)));
+        /* 优先走 SweetAlert2（已加载时）；否则用自绘那版 */
+        if (swalRefract(p0, sub)) return;
         var wrap = ensureRefractToast();
         var p = Math.max(0, Math.min(100, Math.round(pct)));
         var bar = wrap.querySelector('[data-sl-refract-bar]');
@@ -1854,6 +1951,7 @@
         delay = wait;
         clearTimeout(refractToastTimer);
         refractToastTimer = setTimeout(function () {
+            if (swalOpen) { swalClose(); return; }
             if (!refractToastEl) return;
             refractToastEl.style.opacity = '0';
             var card = refractToastEl.firstChild;
@@ -2191,6 +2289,10 @@
 
         // 主站个人主页：图表浮窗改成指针驱动定位（详见 六·二）
         if (isMain) fixEloTooltip();
+
+        /* 折射进度弹窗优先用 SweetAlert2：后台预加载，失败就算了（回退自绘）。
+           不放在 DCL 立刻等，避免和首屏抢带宽。 */
+        if (isMain) setTimeout(function () { loadSwal(); }, 1200);
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }
