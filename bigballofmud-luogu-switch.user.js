@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.33
+// @version      20261027.34
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1772,94 +1772,6 @@
        （用户：「所有折射一次性挂上，不要后续再加（现在一滚动就弹窗）」）。 */
     var refractToastWanted = false;
 
-    /* SweetAlert2：运行时加载（不走 @require，CDN 不通时不会连累整个脚本）。
-       UMD 包挂在页面 window 上，沙箱里要读 unsafeWindow.Swal。 */
-    var swalLib = null;
-    var swalLoading = null;
-    var swalOpen = false;
-    function pageSwal() {
-        try {
-            if (typeof unsafeWindow !== 'undefined' && unsafeWindow && unsafeWindow.Swal) return unsafeWindow.Swal;
-        } catch (e) { /* 忽略 */ }
-        try { if (window.Swal) return window.Swal; } catch (e) { /* 忽略 */ }
-        return null;
-    }
-    /* 多源回退：jsDelivr 在国内经常不通，再挂两个镜像试。 */
-    var SWAL_SRCS = [
-        'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js',
-        'https://registry.npmmirror.com/sweetalert2/11.26.25/files/dist/sweetalert2.all.min.js',
-        'https://cdn.bootcdn.net/ajax/libs/sweetalert2/11.26.25/sweetalert2.all.min.js'
-    ];
-
-    function loadSwal() {
-        if (swalLib) return Promise.resolve(swalLib);
-        if (swalLoading) return swalLoading;
-        swalLoading = new Promise(function (resolve) {
-            var done = false;
-            function finish(v) {
-                if (done) return;
-                done = true;
-                swalLib = v && v.fire ? v : null;
-                resolve(swalLib);
-            }
-            var i = 0;
-            function next() {
-                if (done) return;
-                if (i >= SWAL_SRCS.length) { finish(null); return; }
-                var url = SWAL_SRCS[i++];
-                try {
-                    var sc = document.createElement('script');
-                    sc.src = url;
-                    sc.onload = function () {
-                        var got = pageSwal();
-                        if (got && got.fire) finish(got);
-                        else next();
-                    };
-                    sc.onerror = function () { next(); };
-                    (document.head || document.documentElement).appendChild(sc);
-                } catch (e) { next(); }
-            }
-            next();
-            /* 总上限：三个源都慢/挂着时别让 Promise 永远不返回 */
-            setTimeout(function () { finish(pageSwal()); }, 8000);
-        });
-        return swalLoading;
-    }
-
-    function swalRefract(pct, sub) {
-        var Swal = swalLib;
-        if (!Swal || !Swal.fire) return false;
-        try {
-            if (!swalOpen) {
-                swalOpen = true;
-                Swal.fire({
-                    title: '正在计算边缘折射',
-                    html: '<div style="margin-top:10px;height:8px;border-radius:4px;' +
-                          'background:rgba(61,139,253,.18);overflow:hidden">' +
-                          '<div id="sl-swal-bar" style="height:100%;width:0%;border-radius:4px;' +
-                          'background:linear-gradient(90deg,#3d8bfd,#1976d2);transition:width .25s ease"></div></div>' +
-                          '<div id="sl-swal-pct" style="margin-top:8px;font-size:12px;opacity:.6">0%</div>' +
-                          '<div id="sl-swal-sub" style="margin-top:2px;font-size:12px;opacity:.5"></div>',
-                    icon: 'info',
-                    width: 460,
-                    showConfirmButton: false,
-                    /* 同样不挡点击；点外部会把它关掉也没关系（计算很快） */
-                    allowOutsideClick: true,
-                    allowEscapeKey: true
-                });
-            }
-            var bar = document.getElementById('sl-swal-bar');
-            var pctEl = document.getElementById('sl-swal-pct');
-            var subEl = document.getElementById('sl-swal-sub');
-            if (bar) bar.style.width = pct + '%';
-            if (pctEl) pctEl.textContent = pct + '%';
-            if (subEl && sub) subEl.textContent = sub;
-            return true;
-        } catch (e) {
-            swalOpen = false;
-            return false;
-        }
-    }
 
     /* 换代后重挂一次折射：清掉旧的 url()、重置状态，再整批挂一遍。
        withToast=true 时会重新弹进度（切换配色走这条）。 */
@@ -1876,22 +1788,6 @@
             refractToastWanted = false;
         }
         applyRefraction(0, true);
-    }
-
-    function swalClose() {
-        if (!swalOpen || !swalLib) return;
-        swalOpen = false;
-        try { swalLib.close(); } catch (e) { /* 忽略 */ }
-        /* 兜底：Swal 关闭有动画，容器可能残留一拍；残留的 .swal2-container
-           会继续吃点击（allowOutsideClick 为 true 时不拦，但保险起见清掉）。 */
-        setTimeout(function () {
-            try {
-                var cs = document.querySelectorAll('.swal2-container');
-                for (var i = 0; i < cs.length; i++) {
-                    if (cs[i].parentNode) cs[i].parentNode.removeChild(cs[i]);
-                }
-            } catch (e) { /* 忽略 */ }
-        }, 500);
     }
 
     /* 等 DOM 稳定：连续 quietMs 没有 childList 变化（或到 maxWait）就回调。
@@ -1923,126 +1819,75 @@
         maxTimer = setTimeout(finish, maxWaitMs || 2500);
     }
 
+    /* ── 右上角进度提示（toast）────────────────────────────────────────────
+       用户要的是「还是右上角，进度条也不要了，显示进度即可」：
+       没有遮罩、没有进度条，只有一行文字进度；pointer-events:none，不挡操作。 */
     function ensureRefractToast() {
         if (refractToastEl) return refractToastEl;
-        /* 样式照洛谷用的 SweetAlert2：全屏暗遮罩 + 圆角卡片 + 细边框 +
-           描边圆图标 + 大标题。它的 Swal 没挂全局，调不到，只能照样子画。 */
-        var wrap = document.createElement('div');
-        wrap.setAttribute('data-sl-refract-toast', '1');
-        wrap.style.cssText = [
-            'position:fixed', 'left:0', 'top:0', 'right:0', 'bottom:0',
-            'display:flex', 'align-items:center', 'justify-content:center',
-            'z-index:2147483002',
-            'background:rgba(0,0,0,.45)',
-            /* ★ 不挡点击：它只是个进度提示，没有需要交互的内容。
-               以前是 auto，弹窗隐藏稍有闪失（opacity:0 但 display 还是 flex）
-               整页就点不动了。 */
+        var box = document.createElement('div');
+        box.setAttribute('data-sl-refract-toast', '1');
+        box.style.cssText = [
+            'position:fixed', 'top:20px', 'right:20px', 'z-index:2147483002',
+            'display:none', 'align-items:center', 'gap:10px',
+            'max-width:300px', 'padding:10px 14px', 'border-radius:10px', 'box-sizing:border-box',
+            'border-left:3px solid #1976d2',
+            'background:light-dark(#fff,rgba(30,34,40,.97))',
+            'color:light-dark(#303133,#e8eaed)',
+            'box-shadow:0 10px 28px rgba(0,0,0,.18)',
+            'font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
             'pointer-events:none',
-            'opacity:0', 'transition:opacity .2s ease'
+            'opacity:0', 'transform:translateY(-6px)',
+            'transition:opacity .18s ease,transform .18s ease'
         ].join(';');
 
-        var card = document.createElement('div');
-        card.style.cssText = [
-            'width:460px', 'max-width:calc(100vw - 40px)',
-            'padding:28px 30px 24px', 'border-radius:8px', 'box-sizing:border-box',
-            'background:light-dark(#fff,rgba(32,36,42,.98))',
-            'color:light-dark(#545454,#e8eaed)',
-            'border:1px solid light-dark(rgba(0,0,0,.08),rgba(255,255,255,.10))',
-            'box-shadow:0 24px 64px rgba(0,0,0,.35)',
-            'font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-            'text-align:center', 'transform:scale(.96)',
-            'transition:transform .2s cubic-bezier(.4,0,.2,1)'
-        ].join(';');
-
-        var icon = document.createElement('div');
-        icon.style.cssText = [
-            'width:76px', 'height:76px', 'margin:0 auto 16px', 'border-radius:50%',
-            'border:3px solid #3d8bfd', 'color:#3d8bfd', 'box-sizing:border-box',
-            'font:700 38px/70px Georgia,serif', 'text-align:center'
-        ].join(';');
+        var icon = document.createElement('span');
         icon.textContent = '!';
+        icon.style.cssText = 'flex:0 0 auto;width:18px;height:18px;border-radius:50%;' +
+            'background:#1976d2;color:#fff;font:700 12px/18px Arial,sans-serif;text-align:center';
 
-        var title = document.createElement('div');
-        title.textContent = '正在计算边缘折射';
-        title.style.cssText = 'font-size:19px;font-weight:600;line-height:1.6;' +
-            'color:light-dark(#303133,#f2f4f7)';
+        var text = document.createElement('span');
+        text.setAttribute('data-sl-refract-text', '1');
+        text.textContent = '准备中…';
+        text.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
 
-        var subEl = document.createElement('div');
-        subEl.setAttribute('data-sl-refract-sub', '1');
-        subEl.textContent = '准备中…';
-        subEl.style.cssText = 'margin-top:8px;font-size:13px;opacity:.6';
-
-        var track = document.createElement('div');
-        track.style.cssText = 'margin-top:20px;height:8px;border-radius:4px;' +
-            'background:rgba(61,139,253,.18);overflow:hidden';
-        var bar = document.createElement('div');
-        bar.setAttribute('data-sl-refract-bar', '1');
-        bar.style.cssText = 'height:100%;width:0%;border-radius:4px;' +
-            'background:linear-gradient(90deg,#3d8bfd,#1976d2);transition:width .25s ease';
-        track.appendChild(bar);
-
-        var pctEl = document.createElement('div');
-        pctEl.setAttribute('data-sl-refract-pct', '1');
-        pctEl.textContent = '0%';
-        pctEl.style.cssText = 'margin-top:8px;font-size:12px;opacity:.5;' +
-            'font-variant-numeric:tabular-nums';
-
-        card.appendChild(icon);
-        card.appendChild(title);
-        card.appendChild(subEl);
-        card.appendChild(track);
-        card.appendChild(pctEl);
-        wrap.appendChild(card);
-        (document.body || document.documentElement).appendChild(wrap);
-        refractToastEl = wrap;
-        return wrap;
+        box.appendChild(icon);
+        box.appendChild(text);
+        (document.body || document.documentElement).appendChild(box);
+        refractToastEl = box;
+        return box;
     }
 
     function setRefractToast(pct, sub) {
         if (refractFinished) return;
-        var p0 = Math.max(0, Math.min(100, Math.round(pct)));
-        /* 优先走 SweetAlert2（已加载时）；否则用自绘那版 */
-        if (swalRefract(p0, sub)) return;
-        var wrap = ensureRefractToast();
-        var p = Math.max(0, Math.min(100, Math.round(pct)));
-        var bar = wrap.querySelector('[data-sl-refract-bar]');
-        var subEl = wrap.querySelector('[data-sl-refract-sub]');
-        var pctEl = wrap.querySelector('[data-sl-refract-pct]');
-        if (bar) bar.style.width = p + '%';
-        if (pctEl) pctEl.textContent = p + '%';
-        if (subEl && sub) subEl.textContent = sub;
-        clearTimeout(refractToastTimer);
-        clearTimeout(refractHideTimer);          // 显示时取消待执行的隐藏
+        var box = ensureRefractToast();
+        var t = box.querySelector('[data-sl-refract-text]');
+        if (t) {
+            t.textContent = sub
+                ? sub + (pct >= 0 ? '（' + Math.max(0, Math.min(100, Math.round(pct))) + '%）' : '')
+                : '正在计算边缘折射…';
+        }
+        clearTimeout(refractHideTimer);
         if (!refractToastStartAt) refractToastStartAt = Date.now();
-        wrap.style.display = 'flex';
-        wrap.style.opacity = '1';
-        var card = wrap.firstChild;
-        if (card) card.style.transform = 'scale(1)';
+        box.style.display = 'flex';
+        box.style.opacity = '1';
+        box.style.transform = 'translateY(0)';
     }
 
     function hideRefractToast(delay) {
-        /* 最小显示 800ms：折射在快机器上 150ms 就完事，不加下限会一闪而过 */
         var wait = delay || 0;
         if (refractToastStartAt) {
             var elapsed = Date.now() - refractToastStartAt;
-            var MIN_VISIBLE = 800;
-            if (elapsed < MIN_VISIBLE) wait = Math.max(wait, MIN_VISIBLE - elapsed);
+            if (elapsed < 500) wait = Math.max(wait, 500 - elapsed);   // 至少让人看清
         }
-        delay = wait;
         clearTimeout(refractHideTimer);
         refractHideTimer = setTimeout(function () {
-            if (swalOpen) { swalClose(); return; }
             if (!refractToastEl) return;
             refractToastEl.style.opacity = '0';
-            var card = refractToastEl.firstChild;
-            if (card) card.style.transform = 'scale(.96)';
-            /* 淡出结束后补一刀 display:none —— 只靠 opacity 会被后续的
-               setRefractToast 拉回 1，排查时也难看出到底隐藏没有。 */
+            refractToastEl.style.transform = 'translateY(-6px)';
             setTimeout(function () {
-                if (!refractToastEl) return;
-                if (refractToastEl.style.opacity === '0') refractToastEl.style.display = 'none';
-            }, 260);
-        }, delay || 0);
+                if (refractToastEl && refractToastEl.style.opacity === '0') refractToastEl.style.display = 'none';
+            }, 220);
+        }, wait);
     }
 
     function applyRefraction(depth, force) {
@@ -2474,9 +2319,6 @@
         // 主站个人主页：图表浮窗改成指针驱动定位（详见 六·二）
         if (isMain) fixEloTooltip();
 
-        /* 折射进度弹窗优先用 SweetAlert2：后台预加载，失败就算了（回退自绘）。
-           不放在 DCL 立刻等，避免和首屏抢带宽。 */
-        if (isMain) setTimeout(function () { loadSwal(); }, 1200);
 
         // 网校：剥内联主题色（SPA 重建节点，低频纠偏）
         if (isSchool) { stripInlineTheme(); setInterval(stripInlineTheme, 1000); }
