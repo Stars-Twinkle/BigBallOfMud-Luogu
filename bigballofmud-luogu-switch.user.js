@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.56
+// @version      20261027.57
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1283,11 +1283,12 @@
        ====================================================================== */
     var RF_PAD = 64;
     var RF_MAX_AREA = 490000;
-    var RF_AMOUNT_RATIO = 0.06;   // 位移 = 短边 × 0.06（上限 16）
-    var RF_AMOUNT_MAX = 16;
-    var RF_BEZEL_RATIO = 0.08;    // 弯折带 = 短边 × 0.08（min 5 / max 28）
-    var RF_BEZEL_MIN = 5;
-    var RF_BEZEL_MAX = 28;
+    var RF_AMOUNT_FIXED = 22;     // 位移固定 22px（WebLiquidGlass 默认值）
+    var RF_AMOUNT_RATIO = 0.40;   // 但不超过短边的 40%（按比例算，小的自然更小）
+    var RF_AMOUNT_MIN = 4;
+    var RF_BEZEL_FIXED = 18;      // 弯折带固定 18px（WebLiquidGlass 默认值）
+    var RF_BEZEL_RATIO = 0.45;    // 但不超过短边的 45%
+    var RF_BEZEL_MIN = 4;
 
     var RF_NEUTRAL = (function () {
         /* 中性灰 = 不位移。RGBA 字节序：小端下 R 在低字节 → 0xFF808080 */
@@ -1506,8 +1507,12 @@
             if (radius <= 0) return null;
 
             var shortSide = Math.min(w, h);
-            var amount = Math.min(RF_AMOUNT_MAX, Math.max(3, Math.round(shortSide * RF_AMOUNT_RATIO)));
-            var bezel = Math.min(RF_BEZEL_MAX, Math.max(RF_BEZEL_MIN, Math.round(shortSide * RF_BEZEL_RATIO)));
+            /* 固定值优先，再用短边比例封顶：小元件因此有足够宽的弯折带（看得出透镜），
+               大卡片不会被 18px 以外的区域拖糊。 */
+            var amount = Math.min(RF_AMOUNT_FIXED, shortSide * RF_AMOUNT_RATIO);
+            amount = Math.max(RF_AMOUNT_MIN, Math.round(amount));
+            var bezel = Math.min(RF_BEZEL_FIXED, shortSide * RF_BEZEL_RATIO);
+            bezel = Math.max(RF_BEZEL_MIN, Math.round(bezel));
 
             var made = rfFilterFor(w, h, radius, bezel, amount);
             if (!made) return null;
