@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.50
+// @version      20261027.51
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -567,7 +567,17 @@
         return row;
     }
 
-    /* ② 自动续播：浏览器拦了自动播放时，等页面上的第一次点击。 */
+    /* ② 边缘折射：开 / 关（关掉会撤掉所有 url()）。 */
+    function buildRefractRow() {
+        var on = rfEnabled();
+        var row = settingsRow('边缘折射');
+        row.appendChild(makeLiquidToggle(on, function (v) {
+            rfSetEnabled(v);
+        }));
+        return row;
+    }
+
+    /* ③ 自动续播：浏览器拦了自动播放时，等页面上的第一次点击。 */
     function buildAutoResumeRow() {
         var on = lsGet('sl-autoresume', '1') !== '0';
         var row = settingsRow('自动续播');
@@ -672,6 +682,7 @@
         ].join(';');
 
         p.appendChild(buildModeRow());
+        p.appendChild(buildRefractRow());
         p.appendChild(buildAutoResumeRow());
         p.appendChild(buildLibraryRow());
         var about = buildAboutRow(p);
@@ -1258,6 +1269,395 @@
 /* ==SELF-CONTAINED-STYLE-END== */
 
     /* ======================================================================
+       边缘折射（按 WebLiquidGlass 的 glass-filter.ts 重写）
+       ----------------------------------------------------------------------
+       链路：圆角矩形 SDF → 位移图（R=dx / G=dy / 中性 128）→ feImage +
+             feDisplacementMap → backdrop-filter: <原有滤镜> url(#id)
+
+       性能要点（README §11 实测：20 条整宽玻璃行 8.5fps，去掉 url() 就 63fps）：
+         · 位移图按 (w,h,r) 缓存 —— 同尺寸的面共用一张；
+         · 面积上限 490000，超过直接跳过（大面最贵）；
+         · 只扫 rim 带：每行只遍历可能落在带内的 x 区间；
+         · 复用一张 canvas 编码，避免每次新建 + 重新分配；
+         · 一次性挂载，滚动不重算。
+       ====================================================================== */
+    var RF_PAD = 64;
+    var RF_MAX_AREA = 490000;
+    var RF_AMOUNT_RATIO = 0.10;   // 位移 = 短边 × 0.10
+    var RF_AMOUNT_MAX = 24;
+    var RF_BEZEL_RATIO = 0.10;    // 弯折带 = 短边 × 0.10
+    var RF_BEZEL_MIN = 6;
+    var RF_BEZEL_MAX = 48;
+
+    var RF_NEUTRAL = (function () {
+        /* 中性灰 = 不位移。RGBA 字节序：小端下 R 在低字节 → 0xFF808080 */
+        var probe = new Uint8Array(4);
+        new Uint32Array(probe.buffer)[0] = 0x01020304;
+        return probe[0] === 0x04 ? 0xff808080 : 0x808080ff;
+    })();
+
+    var rfMaps = {};      // key w|h|r → { url, vmax }
+    var rfFilters = {};   // key w|h|r → filter id
+    var rfSeq = 0;
+    var rfCanvas = null;
+
+    function rfEnabled() {
+        try { return localStorage.getItem('sl-refract-off') !== '1'; } catch (e) { return true; }
+    }
+
+    /* 圆角矩形 SDF：<0 内部，=0 边界，>0 外部。
+       gradR：算梯度时用的半径，上游是 min(r*1.5, min(half)) —— 与形状半径不同。 */
+    function rfSdf(x, y, w, h, r) {
+        var hw = w / 2, hh = h / 2;
+        var qx = Math.abs(x - hw) - (hw - r);
+        var qy = Math.abs(y - hh) - (hh - r);
+        var ax = Math.max(qx, 0), ay = Math.max(qy, 0);
+        return Math.sqrt(ax * ax + ay * ay) + Math.min(Math.max(qx, qy), 0) - r;
+    }
+
+    function rfCanvasFor(W, H) {
+        if (!rfCanvas) rfCanvas = document.createElement('canvas');
+        if (rfCanvas.width !== W || rfCanvas.height !== H) {
+            rfCanvas.width = W;
+            rfCanvas.height = H;
+        }
+        return rfCanvas;
+    }
+
+    /* 生成位移图。返回 { url, vmax } 或 null。 */
+    function rfBuildMap(w, h, radius, bezel) {
+        var W = Math.round(w + RF_PAD * 2);
+        var H = Math.round(h + RF_PAD * 2);
+        if (W < 8 || H < 8 || W * H > 4000000) return null;
+        var cv = rfCanvasFor(W, H);
+        var ctx = cv.getContext('2d');
+        if (!ctx) return null;
+
+        var img = ctx.createImageData(W, H);
+        new Uint32Array(img.data.buffer).fill(RF_NEUTRAL);
+        var d = img.data;
+
+        var rF = Math.max(0, Math.min(radius, Math.min(w, h) / 2));
+        var rG = Math.min(rF * 1.5, Math.min(w, h) / 2);
+        var hw = w / 2, hh = h / 2;
+
+        /* 两遍：先收集带内像素（要知道 vmax 才能编码） */
+        var rim = [];
+        var vmax = 0;
+
+        function scan(y, x0, x1) {
+            var py = y + RF_PAD;
+            if (py < 0 || py >= H) return;
+            if (x0 < -RF_PAD) x0 = -RF_PAD;
+            if (x1 > w + RF_PAD) x1 = w + RF_PAD;
+            for (var x = x0; x < x1; x++) {
+                var dist = rfSdf(x, y, w, h, rF);
+                if (dist > 0 || dist < -bezel) continue;
+                /* circleMap：边界 1 → 内侧 0，比 smoothstep 更贴边 */
+                var t = 1 + dist / bezel;
+                if (t < 0) t = 0; else if (t > 1) t = 1;
+                var falloff = 1 - Math.sqrt(Math.max(0, 1 - t * t));
+                /* 梯度用放大半径（上游 gradSdf 的做法），角落才会扇形展开 */
+                var e = 1;
+                var gx = rfSdf(x + e, y, w, h, rG) - rfSdf(x - e, y, w, h, rG);
+                var gy = rfSdf(x, y + e, w, h, rG) - rfSdf(x, y - e, w, h, rG);
+                var len = Math.sqrt(gx * gx + gy * gy) || 1;
+                gx /= len; gy /= len;
+                /* depthEffect：把向心方向混进来再归一化 */
+                var cx = x - hw, cy = y - hh;
+                var cl = Math.sqrt(cx * cx + cy * cy);
+                if (cl > 0) {
+                    gx += cx / cl; gy += cy / cl;
+                    var l2 = Math.sqrt(gx * gx + gy * gy);
+                    if (l2 > 0) { gx /= l2; gy /= l2; }
+                }
+                var m = falloff;
+                if (m > vmax) vmax = m;
+                rim.push({ px: x + RF_PAD, py: py, gx: gx, gy: gy, m: m });
+            }
+        }
+
+        /* 上下两条带：整行扫；左右两条带：只扫圆角区域附近 */
+        var topBand = Math.ceil(bezel) + 1;
+        for (var yTop = -topBand; yTop <= h + topBand; yTop++) {
+            if (yTop < 0 || yTop > h) {
+                scan(yTop, -topBand, w + topBand);          /* 上下带：整行 */
+            } else if (yTop < rF + topBand || yTop > h - rF - topBand) {
+                scan(yTop, -topBand, rF + topBand);          /* 圆角区：两侧都扫 */
+                scan(yTop, w - rF - topBand, w + topBand);
+            } else {
+                scan(yTop, -topBand, topBand);               /* 中间行：只有左右带 */
+                scan(yTop, w - topBand, w + topBand);
+            }
+        }
+
+        if (!rim.length || vmax <= 0) return null;
+        var k = 127 / vmax;
+        for (var i = 0; i < rim.length; i++) {
+            var p = rim[i];
+            var s = p.m * k;
+            var o = (p.py * W + p.px) * 4;
+            /* 向内采样：128 - gx*s（外面拖进来会出亮楔形） */
+            d[o] = Math.max(0, Math.min(255, Math.round(128 - p.gx * s)));
+            d[o + 1] = Math.max(0, Math.min(255, Math.round(128 - p.gy * s)));
+        }
+        ctx.putImageData(img, 0, 0);
+        var url;
+        try { url = cv.toDataURL('image/png'); } catch (e) { return null; }
+        return { url: url, vmax: vmax };
+    }
+
+    function rfMapFor(w, h, radius, bezel) {
+        var key = Math.round(w) + 'x' + Math.round(h) + '|' + Math.round(radius) + '|' + Math.round(bezel);
+        if (rfMaps[key]) return rfMaps[key];
+        var entry = rfBuildMap(w, h, radius, bezel);
+        if (entry) rfMaps[key] = entry;
+        return entry;
+    }
+
+    var RF_NS = 'http://www.w3.org/2000/svg';
+
+    /* 建一条滤镜（feImage + feDisplacementMap）。同尺寸共用。 */
+    function rfFilterFor(w, h, radius, bezel, amount) {
+        var key = Math.round(w) + 'x' + Math.round(h) + '|' + Math.round(radius) + '|' + Math.round(bezel);
+        var amountKey = Math.round(amount * 100);
+        var fkey = key + '|' + amountKey;
+        if (rfFilters[fkey]) return rfFilters[fkey];
+
+        var entry = rfMapFor(w, h, radius, bezel);
+        if (!entry) return null;
+
+        var id = 'bom-rf-' + (++rfSeq);
+        var fPad = RF_PAD;
+        var svg = document.createElementNS(RF_NS, 'svg');
+        svg.setAttribute('width', '0');
+        svg.setAttribute('height', '0');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.style.cssText = 'position:absolute;pointer-events:none;width:0;height:0;overflow:hidden';
+
+        var filter = document.createElementNS(RF_NS, 'filter');
+        filter.setAttribute('id', id);
+        filter.setAttribute('filterUnits', 'userSpaceOnUse');
+        filter.setAttribute('x', String(-fPad));
+        filter.setAttribute('y', String(-fPad));
+        filter.setAttribute('width', String(Math.round(w + fPad * 2)));
+        filter.setAttribute('height', String(Math.round(h + fPad * 2)));
+        filter.setAttribute('color-interpolation-filters', 'sRGB');
+
+        var feImg = document.createElementNS(RF_NS, 'feImage');
+        feImg.setAttribute('href', entry.url);
+        feImg.setAttribute('preserveAspectRatio', 'none');
+        feImg.setAttribute('x', String(-fPad));
+        feImg.setAttribute('y', String(-fPad));
+        feImg.setAttribute('width', String(Math.round(w + fPad * 2)));
+        feImg.setAttribute('height', String(Math.round(h + fPad * 2)));
+        feImg.setAttribute('result', 'map');
+
+        var feDisp = document.createElementNS(RF_NS, 'feDisplacementMap');
+        feDisp.setAttribute('in', 'SourceGraphic');
+        feDisp.setAttribute('in2', 'map');
+        feDisp.setAttribute('scale', String(2 * amount * entry.vmax));
+        feDisp.setAttribute('xChannelSelector', 'R');
+        feDisp.setAttribute('yChannelSelector', 'G');
+
+        filter.appendChild(feImg);
+        filter.appendChild(feDisp);
+        svg.appendChild(filter);
+        (document.body || document.documentElement).appendChild(svg);
+
+        rfFilters[fkey] = { id: id, svg: svg };
+        return rfFilters[fkey];
+    }
+
+    /* 祖先会不会切断 backdrop（filter / opacity<1 / mask）。 */
+    function rfBlocked(el) {
+        var n = el.parentElement;
+        var depth = 0;
+        while (n && depth < 12) {
+            try {
+                var cs = getComputedStyle(n);
+                if (cs.filter && cs.filter !== 'none') return true;
+                if (cs.webkitFilter && cs.webkitFilter !== 'none') return true;
+                var op = parseFloat(cs.opacity);
+                if (isFinite(op) && op < 1) return true;
+                if (cs.maskImage && cs.maskImage !== 'none') return true;
+                if (cs.webkitMaskImage && cs.webkitMaskImage !== 'none') return true;
+            } catch (e) { /* 忽略 */ }
+            n = n.parentElement;
+            depth++;
+        }
+        return false;
+    }
+
+    /* 给一个元素挂折射。返回清理函数或 null。 */
+    function rfApplyOne(el) {
+        try {
+            if (!el || el.__slRf) return null;
+            var rect = el.getBoundingClientRect();
+            var w = Math.round(rect.width), h = Math.round(rect.height);
+            if (w < 12 || h < 12) return null;
+            if (w * h > RF_MAX_AREA) return null;
+            if (rfBlocked(el)) return null;
+            var cs = getComputedStyle(el);
+            var base = cs.backdropFilter || cs.webkitBackdropFilter || '';
+            if (!base || base === 'none') return null;
+            if (base.indexOf('url(') >= 0) return null;
+            var radius = parseFloat(cs.borderTopLeftRadius) || 0;
+            if (radius <= 0) return null;
+
+            var shortSide = Math.min(w, h);
+            var amount = Math.min(RF_AMOUNT_MAX, Math.max(3, Math.round(shortSide * RF_AMOUNT_RATIO)));
+            var bezel = Math.min(RF_BEZEL_MAX, Math.max(RF_BEZEL_MIN, Math.round(shortSide * RF_BEZEL_RATIO)));
+
+            var made = rfFilterFor(w, h, radius, bezel, amount);
+            if (!made) return null;
+
+            var val = base.replace(/url\([^)]*\)/g, '').trim() + ' url(#' + made.id + ')';
+            el.style.setProperty('backdrop-filter', val, 'important');
+            el.style.setProperty('-webkit-backdrop-filter', val, 'important');
+            var after = '';
+            try { after = getComputedStyle(el).backdropFilter || ''; } catch (e) { /* 忽略 */ }
+            if (after.indexOf('url(') < 0) {
+                el.style.removeProperty('backdrop-filter');
+                el.style.removeProperty('-webkit-backdrop-filter');
+                return null;
+            }
+            el.__slRf = made.id;
+            return function cleanup() {
+                try {
+                    el.style.removeProperty('backdrop-filter');
+                    el.style.removeProperty('-webkit-backdrop-filter');
+                } catch (e) { /* 忽略 */ }
+                el.__slRf = '';
+            };
+        } catch (e) { return null; }
+    }
+
+    /* 撤销全部折射（不动共用的 filter 定义，留着下次复用）。 */
+    function rfClear() {
+        var all = document.querySelectorAll('*');
+        for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            if (!el.__slRf) continue;
+            try {
+                el.style.removeProperty('backdrop-filter');
+                el.style.removeProperty('-webkit-backdrop-filter');
+            } catch (e) { /* 忽略 */ }
+            el.__slRf = '';
+        }
+    }
+
+    /* ---------------------------------------------------------------------
+       一次全量挂载：扫一遍页面，按面积从小到大挂（小元件先吃饱）。
+       返回挂上的数量。不弹窗（调用方决定要不要提示）。
+       --------------------------------------------------------------------- */
+    function rfApplyAll(progress) {
+        if (!rfEnabled()) return 0;
+        var cands = [];
+        var all = document.querySelectorAll('div, span, button, a, section, header, nav, main, article, aside, input, textarea, select, label, li, p, h1, h2, h3, h4, td, th, form, ul, ol, table, figure, img, summary, details, dialog, fieldset, legend, blockquote, pre, code, aside, footer');
+        for (var i = 0; i < all.length; i++) {
+            var el = all[i];
+            if (el.__slRf) continue;
+            var r = el.getBoundingClientRect();
+            var w = r.width, h = r.height;
+            if (w < 12 || h < 12) continue;
+            var area = w * h;
+            if (area > RF_MAX_AREA) continue;
+            cands.push({ el: el, area: area });
+        }
+        cands.sort(function (a, b) { return a.area - b.area; });
+        var done = 0;
+        for (var j = 0; j < cands.length; j++) {
+            if (rfApplyOne(cands[j].el)) done++;
+            if (progress && (j % 40 === 39)) progress(j + 1, cands.length, done);
+        }
+        if (progress) progress(cands.length, cands.length, done);
+        return done;
+    }
+
+    /* 右上角进度提示（无遮罩、无进度条，只有文字；不挡点击）。 */
+    var rfToast = null;
+    var rfToastTimer = 0;
+    function rfToastShow(text) {
+        if (!rfToast) {
+            rfToast = document.createElement('div');
+            rfToast.setAttribute('data-sl-rf-toast', '1');
+            rfToast.style.cssText = [
+                'position:fixed', 'top:20px', 'right:20px', 'z-index:2147483002',
+                'max-width:320px', 'padding:10px 14px', 'border-radius:10px', 'box-sizing:border-box',
+                'border-left:3px solid #1976d2',
+                'background:light-dark(#fff,rgba(30,34,40,.97))',
+                'color:light-dark(#303133,#e8eaed)',
+                'box-shadow:0 10px 28px rgba(0,0,0,.18)',
+                'font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+                'pointer-events:none', 'transition:opacity .18s ease',
+                'opacity:0'
+            ].join(';');
+            (document.body || document.documentElement).appendChild(rfToast);
+        }
+        rfToast.textContent = text;
+        rfToast.style.opacity = '1';
+        clearTimeout(rfToastTimer);
+    }
+    function rfToastHide(delay) {
+        clearTimeout(rfToastTimer);
+        rfToastTimer = setTimeout(function () {
+            if (rfToast) rfToast.style.opacity = '0';
+        }, delay || 0);
+    }
+
+    /* 开关：关掉就把所有 url() 撤掉，打开就重挂一次。 */
+    function rfSetEnabled(on) {
+        try { localStorage.setItem('sl-refract-off', on ? '0' : '1'); } catch (e) { /* 忽略 */ }
+        if (!on) { rfClear(); rfToastHide(0); return; }
+        rfToastShow('正在计算边缘折射…');
+        setTimeout(function () {
+            var n = rfApplyAll(function (i, total, done) {
+                if (i < total) rfToastShow('正在计算边缘折射… ' + done + ' / ' + total);
+            });
+            rfToastShow('完成，共 ' + n + ' 个面');
+            rfToastHide(800);
+        }, 30);
+    }
+
+    /* 静默补丁：SPA 新插入的玻璃面自动补（不弹窗）。 */
+    function rfWatch() {
+        if (!window.MutationObserver) return;
+        var queue = [];
+        var timer = 0;
+        function flush() {
+            var list = queue;
+            queue = [];
+            for (var i = 0; i < list.length; i++) {
+                var root = list[i];
+                if (!root || !root.parentNode) continue;
+                rfApplyOne(root);
+                var kids = root.querySelectorAll ? root.querySelectorAll('*') : null;
+                if (kids) {
+                    for (var k = 0; k < kids.length; k++) rfApplyOne(kids[k]);
+                }
+            }
+        }
+        var mo = new MutationObserver(function (muts) {
+            if (!rfEnabled()) return;
+            for (var i = 0; i < muts.length; i++) {
+                var added = muts[i].addedNodes;
+                for (var j = 0; j < added.length; j++) {
+                    if (added[j] && added[j].nodeType === 1) queue.push(added[j]);
+                }
+            }
+            if (!queue.length) return;
+            clearTimeout(timer);
+            timer = setTimeout(flush, 300);
+        });
+        try {
+            mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+        } catch (e) { /* 忽略 */ }
+    }
+
+
+
+    /* ======================================================================
        音乐播放器
        ----------------------------------------------------------------------
        PLAYER_HTML / PLAYER_CSS / PLAYER_JS 由 evidence/脚本与语料/build_player_bundle.mjs
@@ -1447,6 +1847,16 @@
         syncThemeBackground();
         watchThemePage();
         setInterval(syncThemeBackground, 1000);
+
+        /* 边缘折射：首屏挂一次（不弹进度，避免打扰首屏），之后新增节点静默补。 */
+        if (isMain) {
+            setTimeout(function () {
+                try {
+                    rfApplyAll(null);
+                    rfWatch();
+                } catch (e) { /* 忽略 */ }
+            }, 600);
+        }
 
         /* 音乐播放器：DOMContentLoaded 之后 300ms 挂，错开首屏；
            窄屏由 mountPlayer 自己跳过。 */
