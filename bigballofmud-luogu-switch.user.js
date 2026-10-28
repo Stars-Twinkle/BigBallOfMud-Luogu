@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.55
+// @version      20261027.56
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1283,11 +1283,11 @@
        ====================================================================== */
     var RF_PAD = 64;
     var RF_MAX_AREA = 490000;
-    var RF_AMOUNT_RATIO = 0.10;   // 位移 = 短边 × 0.10
-    var RF_AMOUNT_MAX = 24;
-    var RF_BEZEL_RATIO = 0.10;    // 弯折带 = 短边 × 0.10
-    var RF_BEZEL_MIN = 6;
-    var RF_BEZEL_MAX = 48;
+    var RF_AMOUNT_RATIO = 0.06;   // 位移 = 短边 × 0.06（上限 16）
+    var RF_AMOUNT_MAX = 16;
+    var RF_BEZEL_RATIO = 0.08;    // 弯折带 = 短边 × 0.08（min 5 / max 28）
+    var RF_BEZEL_MIN = 5;
+    var RF_BEZEL_MAX = 28;
 
     var RF_NEUTRAL = (function () {
         /* 中性灰 = 不位移。RGBA 字节序：小端下 R 在低字节 → 0xFF808080 */
@@ -1296,8 +1296,8 @@
         return probe[0] === 0x04 ? 0xff808080 : 0x808080ff;
     })();
 
-    var rfMaps = {};      // key w|h|r → { url, vmax }
-    var rfFilters = {};   // key w|h|r → filter id
+    var rfMaps = {};      // key w|h|r|bezel → { url, vmax }
+    var rfFilters = {};   // key w|h|r|bezel|amount → filter
     var rfSeq = 0;
     var rfCanvas = null;
 
