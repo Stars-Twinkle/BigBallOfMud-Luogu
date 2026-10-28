@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.41
+// @version      20261027.42
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -393,7 +393,7 @@
        洛谷登录后在顶栏有一排图标，其中「画笔 / pen-swirl」那个点开是
        「强制收缩左侧导航栏」「启用毛玻璃效果」—— 这两项在这里都没意义了
        （导航宽度与毛玻璃都由本样式接管），所以把它隐藏，原位换成齿轮：
-       点开是插件自己的设置面板：配色三态、边缘折射、自动续播、音乐库、关于。
+       点开是插件自己的设置面板：配色三态、自动续播、音乐库、关于。
        面板用 position:fixed 贴着按钮算位置，避免顶栏里没有定位祖先的问题。
        ====================================================================== */
     var GEAR_ICON =
@@ -513,7 +513,141 @@
         return wrap;
     }
 
-    /* 折射总开关 */
+    /* 设置面板里的一行：左侧标签 + 右侧控件。 */
+    function settingsRow(label, first) {
+        var r = document.createElement('div');
+        r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;' +
+            'gap:12px;margin-top:10px';
+        if (first) r.style.marginTop = '0';
+        var l = document.createElement('span');
+        l.textContent = label;
+        l.style.cssText = 'color:var(--lg-text-weak);flex:0 0 auto';
+        r.appendChild(l);
+        return r;
+    }
+
+    /* 设置面板里的按钮（音乐库 / 关于共用一个外观）。 */
+    function settingsButton(text) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = text;
+        b.style.cssText = 'border:1px solid var(--lg-border);' +
+            'background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.08));' +
+            'color:var(--lg-text);font:inherit;padding:4px 12px;border-radius:8px;cursor:pointer';
+        return b;
+    }
+
+    /* ① 配色：三态分段控件。 */
+    function buildModeRow() {
+        var seg = document.createElement('div');
+        seg.style.cssText = 'display:flex;gap:2px;padding:2px;border-radius:9px;' +
+            'background:light-dark(rgba(15,23,42,.06),rgba(255,255,255,.06))';
+        var modes = [['auto', '自动'], ['dark', '深色'], ['light', '浅色']];
+        modes.forEach(function (m) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = m[1];
+            b.setAttribute('data-sl-set-mode', m[0]);
+            b.style.cssText = 'border:0;background:transparent;color:var(--lg-text-weak);font:inherit;' +
+                'padding:4px 10px;border-radius:7px;cursor:pointer;' +
+                'transition:background .18s,color .18s,box-shadow .18s';
+            b.addEventListener('click', function () { setModeFromPanel(m[0]); });
+            seg.appendChild(b);
+        });
+        var row = settingsRow('配色', true);
+        row.appendChild(seg);
+        return row;
+    }
+
+    /* ② 自动续播：浏览器拦了自动播放时，等页面上的第一次点击。 */
+    function buildAutoResumeRow() {
+        var on = true;
+        try { on = localStorage.getItem('sl-autoresume') !== '0'; } catch (e) { /* 忽略 */ }
+        var row = settingsRow('自动续播');
+        row.appendChild(makeLiquidToggle(on, function (v) {
+            try { localStorage.setItem('sl-autoresume', v ? '1' : '0'); } catch (e) { /* 忽略 */ }
+        }));
+        return row;
+    }
+
+    /* ③ 音乐库：打开播放器的库面板（跨上下文读 unsafeWindow）。 */
+    function buildLibraryRow() {
+        var row = settingsRow('音乐库');
+        var btn = settingsButton('打开');
+        btn.addEventListener('click', function () {
+            /* 播放器用 new Function 在页面上下文跑，__bomPlayer 挂在页面 window 上；
+               本脚本有 @grant，window 是沙箱副本 ⇒ 必须读 unsafeWindow。 */
+            var player = null;
+            try {
+                if (typeof unsafeWindow !== 'undefined' && unsafeWindow) player = unsafeWindow.__bomPlayer || null;
+            } catch (e) { /* 忽略 */ }
+            if (!player) { try { player = window.__bomPlayer || null; } catch (e) { /* 忽略 */ } }
+            if (player && typeof player.openLib === 'function') {
+                closeSettingsPanel();
+                player.openLib();
+                return;
+            }
+            btn.textContent = '播放器未加载';
+            setTimeout(function () { btn.textContent = '打开'; }, 1500);
+        });
+        row.appendChild(btn);
+        return row;
+    }
+
+    /* ④ 关于：作者与版本，展开后把面板重新贴回按钮下方。 */
+    function buildAboutRow(panel) {
+        var row = settingsRow('关于');
+        var btn = settingsButton('查看');
+        row.appendChild(btn);
+
+        var box = document.createElement('div');
+        box.style.cssText = 'display:none;margin-top:8px;padding:8px 10px;border-radius:10px;' +
+            'background:light-dark(rgba(15,23,42,.05),rgba(255,255,255,.06));' +
+            'font-size:12px;line-height:1.7;color:var(--lg-text-weak)';
+        var ver = '';
+        try {
+            if (typeof GM_info !== 'undefined' && GM_info && GM_info.script) {
+                ver = GM_info.script.version || '';
+            }
+        } catch (e) { /* 忽略 */ }
+        /* 兜底：启动时已把版本写进 __bomGM.ver（GM_info 读不到的极端情况） */
+        if (!ver) {
+            try { if (window.__bomGM && window.__bomGM.ver) ver = window.__bomGM.ver; } catch (e) { /* 忽略 */ }
+        }
+        box.innerHTML = '<b style="color:var(--lg-text)">BigBallOfMud Luogu</b><br>' +
+            '作者：StarsTwinkle<br>版本：' + (ver || '未知');
+
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var show = box.style.display === 'none';
+            box.style.display = show ? 'block' : 'none';
+            btn.textContent = show ? '收起' : '查看';
+            if (!settingsBtn) return;
+            var r = settingsBtn.getBoundingClientRect();
+            var top = Math.round(r.bottom + 8);
+            if (top + panel.offsetHeight > window.innerHeight - 8) {
+                top = Math.max(8, window.innerHeight - panel.offsetHeight - 8);
+            }
+            panel.style.top = top + 'px';
+        });
+
+        return { row: row, box: box };
+    }
+
+    /* 点面板外面 / 按 Esc 收起。 */
+    function bindPanelDismiss() {
+        document.addEventListener('pointerdown', function (e) {
+            if (!settingsPanel || settingsPanel.style.display === 'none') return;
+            if (settingsPanel.contains(e.target)) return;
+            if (settingsBtn && settingsBtn.contains(e.target)) return;
+            closeSettingsPanel();
+        }, true);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeSettingsPanel();
+        });
+    }
+
     function buildSettingsPanel() {
         if (settingsPanel) return settingsPanel;
         var p = document.createElement('div');
@@ -530,126 +664,13 @@
             'user-select:none'
         ].join(';');
 
-        function row(label) {
-            var r = document.createElement('div');
-            r.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px';
-            var l = document.createElement('span');
-            l.textContent = label;
-            l.style.cssText = 'color:var(--lg-text-weak);flex:0 0 auto';
-            r.appendChild(l);
-            return r;
-        }
-
-        /* ① 配色（切换类：选中项是玻璃胶囊） */
-        var seg = document.createElement('div');
-        seg.style.cssText = 'display:flex;gap:2px;padding:2px;border-radius:9px;' +
-            'background:light-dark(rgba(15,23,42,.06),rgba(255,255,255,.06))';
-        var modes = [['auto', '自动'], ['dark', '深色'], ['light', '浅色']];
-        for (var i = 0; i < modes.length; i++) {
-            (function (key, text) {
-                var b = document.createElement('button');
-                b.type = 'button';
-                b.textContent = text;
-                b.setAttribute('data-sl-set-mode', key);
-                b.style.cssText = 'border:0;background:transparent;color:var(--lg-text-weak);font:inherit;' +
-                    'padding:4px 10px;border-radius:7px;cursor:pointer;' +
-                    'transition:background .18s,color .18s,box-shadow .18s';
-                b.addEventListener('click', function () { setModeFromPanel(key); });
-                seg.appendChild(b);
-            })(modes[i][0], modes[i][1]);
-        }
-        var row1 = row('配色');
-        row1.style.marginTop = '0';
-        row1.appendChild(seg);
-
-        /* ③ 自动续播（浏览器拒绝无手势播放时，等页面上的第一次点击） */
-        var autoOn = true;
-        try { autoOn = localStorage.getItem('sl-autoresume') !== '0'; } catch (e) { /* 忽略 */ }
-        var rowAuto = row('自动续播');
-        rowAuto.appendChild(makeLiquidToggle(autoOn, function (on) {
-            try { localStorage.setItem('sl-autoresume', on ? '1' : '0'); } catch (e) { /* 忽略 */ }
-        }));
-
-        /* ④ 音乐库 */
-        var row4 = row('音乐库');
-        var libBtn = document.createElement('button');
-        libBtn.type = 'button';
-        libBtn.textContent = '打开';
-        libBtn.style.cssText = 'border:1px solid var(--lg-border);background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.08));' +
-            'color:var(--lg-text);font:inherit;padding:4px 12px;border-radius:8px;cursor:pointer';
-        libBtn.addEventListener('click', function () {
-            /* 播放器用 new Function 在页面上下文跑，__bomPlayer 挂在页面 window 上；
-               本脚本有 @grant，window 是沙箱副本 ⇒ 必须读 unsafeWindow。 */
-            var player = null;
-            try {
-                if (typeof unsafeWindow !== 'undefined' && unsafeWindow) player = unsafeWindow.__bomPlayer || null;
-            } catch (e) { /* 忽略 */ }
-            if (!player) { try { player = window.__bomPlayer || null; } catch (e) { /* 忽略 */ } }
-            if (player && typeof player.openLib === 'function') {
-                closeSettingsPanel();
-                player.openLib();
-            } else {
-                libBtn.textContent = '播放器未加载';
-                setTimeout(function () { libBtn.textContent = '打开'; }, 1500);
-            }
-        });
-        row4.appendChild(libBtn);
-
-        /* ⑤ 关于 */
-        var row5 = row('关于');
-        var aboutBtn = document.createElement('button');
-        aboutBtn.type = 'button';
-        aboutBtn.textContent = '查看';
-        aboutBtn.style.cssText = libBtn.style.cssText;
-        row5.appendChild(aboutBtn);
-
-        var aboutBox = document.createElement('div');
-        aboutBox.style.cssText = 'display:none;margin-top:8px;padding:8px 10px;border-radius:10px;' +
-            'background:light-dark(rgba(15,23,42,.05),rgba(255,255,255,.06));' +
-            'font-size:12px;line-height:1.7;color:var(--lg-text-weak)';
-        var scriptVer = '';
-        try {
-            if (typeof GM_info !== 'undefined' && GM_info && GM_info.script) scriptVer = GM_info.script.version || '';
-        } catch (e) { /* 忽略 */ }
-        /* 兜底：启动时已把版本写进 __bomGM.ver（GM_info 读不到的极端情况） */
-        if (!scriptVer) {
-            try { if (window.__bomGM && window.__bomGM.ver) scriptVer = window.__bomGM.ver; } catch (e) { /* 忽略 */ }
-        }
-        aboutBox.innerHTML = '<b style="color:var(--lg-text)">BigBallOfMud Luogu</b><br>' +
-            '作者：StarsTwinkle<br>版本：' + (scriptVer || '未知');
-
-        aboutBtn.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var show = aboutBox.style.display === 'none';
-            aboutBox.style.display = show ? 'block' : 'none';
-            aboutBtn.textContent = show ? '收起' : '查看';
-            if (settingsBtn) {
-                var r = settingsBtn.getBoundingClientRect();
-                var top = Math.round(r.bottom + 8);
-                if (top + p.offsetHeight > window.innerHeight - 8) {
-                    top = Math.max(8, window.innerHeight - p.offsetHeight - 8);
-                }
-                p.style.top = top + 'px';
-            }
-        });
-
-        p.appendChild(row1);
-        p.appendChild(rowAuto);
-        p.appendChild(row4);
-        p.appendChild(row5);
-        p.appendChild(aboutBox);
-
-        document.addEventListener('pointerdown', function (e) {
-            if (!settingsPanel || settingsPanel.style.display === 'none') return;
-            if (settingsPanel.contains(e.target)) return;
-            if (settingsBtn && settingsBtn.contains(e.target)) return;
-            closeSettingsPanel();
-        }, true);
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeSettingsPanel();
-        });
-
+        p.appendChild(buildModeRow());
+        p.appendChild(buildAutoResumeRow());
+        p.appendChild(buildLibraryRow());
+        var about = buildAboutRow(p);
+        p.appendChild(about.row);
+        p.appendChild(about.box);
+        bindPanelDismiss();
         (document.body || document.documentElement).appendChild(p);
         settingsPanel = p;
         return p;
@@ -1205,48 +1226,6 @@
 /* ==SELF-CONTAINED-STYLE-END== */
 
     /* ======================================================================
-       边缘折射（Apple Liquid Glass 的核心观感）
-       ----------------------------------------------------------------------
-       为什么只能脚本做：折射要在元素的**背景采样**上做非均匀位移，CSS 没有这个能力。
-       做法（Chromium 的 Blink 扩展）：
-         ① canvas 光栅化「圆角矩形 SDF」，把边缘带的弯折编码成位移图
-            （R = x 方向位移、G = y 方向位移，中性值 128）；
-         ② 建一个 <filter>（userSpaceOnUse），<feImage> 载入位移图、
-            <feDisplacementMap> 按 R/G 通道位移；
-         ③ 给元素写 backdrop-filter: <原来的值> url(#id) —— 裸 url() 会被 Chromium
-            静默忽略，前面必须先有一个滤镜函数。
-
-       三条硬约束：
-         · 只有 Chromium 支持 backdrop-filter 里的 url()；Safari / Firefox 会解析但不画，
-           而 @supports 会误报，所以按 UA 判引擎。
-         · CSP 若不允许 img-src data:，位移图被静默拒掉（控制台不报错），所以先探一次。
-         · 祖先里只要有 position: fixed 就创建 backdrop root，url() 静默失效 ——
-           所以顶栏胶囊与左右侧栏**不能**加折射（它们正是 fixed）。
-
-       预算（最关键）：位移图每帧都要重新光栅化，代价 ≈ 面数 × 面积。
-       参考实测量级：20 条整宽玻璃行会把滚动从 63fps 拖到 8.5fps。
-       本项目一屏 230+ 个模糊元素，所以这里严格限量：最多 5 个面、单面 ≤ 490000 px²、
-       同尺寸同圆角共用一张位移图。
-       ====================================================================== */
-    /* ★ 「给所有玻璃覆盖」+「渲染要快」：不按个数限，改成**总面积预算**。
-       成本 ≈ Σ(元素面积 × 半径)；小元件（按钮 / 标签 / 输入框）面积很小，
-       加起来也不贵，真正贵的是少数大容器。所以按面积**从小到大**排序：
-       小元件优先全给，预算用完后跳过剩下的大块。 */
-    // ★ 覆盖面与帧率是直接兑换关系（实测同页滚动 30 帧，headless 无 GPU）：
-    //     预算 130 万 → 1496ms；300 万 → 约 1800ms；不设限 → 2890ms。
-    //   每一条带折射的玻璃 = 一条每帧重光栅化的滤镜链，所以没法既要全覆盖又要流畅。
-    //   默认 300 万（约 3 个视口）：覆盖主要玻璃面，也不会把滚动拖垮。
-    /* 引擎判断：backdrop-filter 里的 url() 是 Blink（Chrome/Edge/Opera）扩展。
-       ★ 不能写 \b(Chrome)\/ —— HeadlessChrome/… 里 Chrome 前面是 s，词边界不成立，
-         会把无头浏览器误判成"不支持"（实测踩到）。这里直接找子串。 */
-    function isChromium() {
-        try {
-            var ua = navigator.userAgent || '';
-            return /Chrome\/|Chromium\/|Edg\/|OPR\//.test(ua);
-        } catch (e) { return false; }
-    }
-
-    /* ======================================================================
        音乐播放器
        ----------------------------------------------------------------------
        PLAYER_HTML / PLAYER_CSS / PLAYER_JS 由 evidence/脚本与语料/build_player_bundle.mjs
@@ -1436,12 +1415,8 @@
         syncThemeBackground();
         setInterval(syncThemeBackground, 1000);
 
-        // 边缘折射（Apple Liquid Glass 的核心观感）。
-        // ★ 回到「DOMContentLoaded 之后再跑」。上一版试过在 document-start 就开始轮询，
-        //   实测反而更慢（首屏折射 14966ms，而 DCL 之后起跑是 2227ms）——
-        //   早期页面几乎是空的，每 220ms 一轮、每轮都扫全页，纯属和页面自己的渲染抢主线程。
-        /* 音乐播放器：再往后一点挂（DOMContentLoaded + 300ms），
-           不和折射抢同一个时间窗；窄屏由 mountPlayer 自己跳过。 */
+        /* 音乐播放器：DOMContentLoaded 之后 300ms 挂，错开首屏；
+           窄屏由 mountPlayer 自己跳过。 */
         /* 路由变化通知播放器（换页时取消「等点击续播」的待命状态）。
            ★ 播放器跑在页面上下文（new Function），必须用 unsafeWindow 派发，
              否则它收不到（沙箱里的 window 是副本）。 */
@@ -1480,11 +1455,6 @@
         } else {
             setTimeout(mountPlayer, 300);
         }
-
-        /* ★ 不再挂「滚动停止补一轮」：用户明确要求
-           「只在需要的时候一次性补齐，不后续补」。
-           滚动时反复重挂会带来两个问题：弹窗跟着反复出现、以及每轮全页扫描抢主线程。
-           现在折射只在两个时机挂：首屏一次、打开折射开关一次。 */
 
         // 主题编辑器：那一页是 Vue 现插节点，只监听属性会慢一拍（用户：「还会显示一瞬间」），
         // 所以在这里另挂一个**含 childList** 的观察器，并做 80ms 节流；只在 /theme/ 路径下才挂。
