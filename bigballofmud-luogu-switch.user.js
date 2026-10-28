@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.57
+// @version      20261027.58
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1517,7 +1517,10 @@
             var made = rfFilterFor(w, h, radius, bezel, amount);
             if (!made) return null;
 
-            var val = base.replace(/url\([^)]*\)/g, '').trim() + ' url(#' + made.id + ')';
+            /* ★ 去掉 blur：位移图内部是中性（不位移），去掉模糊后内部原样采样，
+               边缘的弯折才显出来。只保留 saturate / contrast 这类色彩滤镜。 */
+            var nb = base.replace(/url\([^)]*\)/g, '').replace(/blur\([^)]*\)/g, '').trim();
+            var val = (nb ? nb + ' ' : '') + 'url(#' + made.id + ')';
             el.style.setProperty('backdrop-filter', val, 'important');
             el.style.setProperty('-webkit-backdrop-filter', val, 'important');
             var after = '';
