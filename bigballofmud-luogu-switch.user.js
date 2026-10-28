@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.49
+// @version      20261027.50
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1069,6 +1069,31 @@
             if (el.style.getPropertyValue('--sl-bg-active') !== want) el.style.setProperty('--sl-bg-active', want);
         } catch (e) { /* 忽略 */ }
     }
+    /* .theme-page 一出现就同步背景：它是背景图的载体，等它比等轮询快得多
+       （洛谷是 Vue 渲染，通常在 DCL 之后 100~300ms 内出现）。
+       不设默认背景，只负责尽快把真实地址换上。 */
+    function watchThemePage() {
+        if (!isMain || !window.MutationObserver) return;
+        var fired = false;
+        var pending = 0;
+        var mo = new MutationObserver(function () {
+            if (fired || pending) return;
+            pending = setTimeout(function () {
+                pending = 0;
+                if (fired) return;
+                if (!document.querySelector('.theme-page')) return;
+                fired = true;
+                try { mo.disconnect(); } catch (e) { /* 忽略 */ }
+                syncThemeBackground();
+            }, 30);
+        });
+        try {
+            mo.observe(document.documentElement, { childList: true, subtree: true });
+        } catch (e) { return; }
+        /* 20 秒后无论找没找到都停掉，别让观察器长期挂着 */
+        setTimeout(function () { try { mo.disconnect(); } catch (e) { /* 忽略 */ } }, 20000);
+    }
+
     /* ======================================================================
        主题编辑器（/theme/…）微调
        ----------------------------------------------------------------------
@@ -1420,6 +1445,7 @@
         //   样式变化都触发一次 getComputedStyle（强制样式重算），SPA 上几乎每帧触发，
         //   用户实测「刚换回来了，延迟巨大」。当时为了修「替换慢一步」加的，代价远大于收益。
         syncThemeBackground();
+        watchThemePage();
         setInterval(syncThemeBackground, 1000);
 
         /* 音乐播放器：DOMContentLoaded 之后 300ms 挂，错开首屏；
