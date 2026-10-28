@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.42
+// @version      20261027.43
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -155,6 +155,17 @@
     };
 
     var MODE_KEY = 'sl-theme-mode';
+
+    /* localStorage 的安全读写：隐私模式下可能抛异常，读失败给默认值、写失败静默。 */
+    function lsGet(key, dflt) {
+        try {
+            var v = localStorage.getItem(key);
+            return v === null ? dflt : v;
+        } catch (e) { return dflt; }
+    }
+    function lsSet(key, val) {
+        try { localStorage.setItem(key, val); } catch (e) { /* 忽略 */ }
+    }
     var MODES = ['auto', 'dark', 'light'];
     var LABELS = { auto: '配色：跟随系统', dark: '配色：深色', light: '配色：浅色' };
     var ICONS = {
@@ -181,11 +192,8 @@
        一、配色模式
        ====================================================================== */
     function getMode() {
-        try {
-            var v = localStorage.getItem(MODE_KEY);
-            if (MODES.indexOf(v) >= 0) return v;
-        } catch (e) { /* 隐私模式等，读不到就当 auto */ }
-        return 'auto';
+        var v = lsGet(MODE_KEY, '');
+        return MODES.indexOf(v) >= 0 ? v : 'auto';
     }
 
     function applyMode(mode) {
@@ -209,7 +217,7 @@
     }
 
     function saveMode(mode) {
-        try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* 忽略 */ }
+        lsSet(MODE_KEY, mode);
     }
 
     function isDarkNow() {
@@ -561,11 +569,10 @@
 
     /* ② 自动续播：浏览器拦了自动播放时，等页面上的第一次点击。 */
     function buildAutoResumeRow() {
-        var on = true;
-        try { on = localStorage.getItem('sl-autoresume') !== '0'; } catch (e) { /* 忽略 */ }
+        var on = lsGet('sl-autoresume', '1') !== '0';
         var row = settingsRow('自动续播');
         row.appendChild(makeLiquidToggle(on, function (v) {
-            try { localStorage.setItem('sl-autoresume', v ? '1' : '0'); } catch (e) { /* 忽略 */ }
+            lsSet('sl-autoresume', v ? '1' : '0');
         }));
         return row;
     }
@@ -994,11 +1001,11 @@
     // 没有 GM 时退回本域名的 localStorage。
     function bgCacheGet() {
         try { if (typeof GM_getValue === 'function') return GM_getValue(BG_CACHE_KEY, '') || ''; } catch (e) { /* 忽略 */ }
-        try { return localStorage.getItem(BG_CACHE_KEY) || ''; } catch (e) { return ''; }
+        return lsGet(BG_CACHE_KEY, '');
     }
     function bgCacheSet(v) {   // v 传空串 = 作废这条缓存
         try { if (typeof GM_setValue === 'function') { GM_setValue(BG_CACHE_KEY, v); return; } } catch (e) { /* 忽略 */ }
-        try { localStorage.setItem(BG_CACHE_KEY, v); } catch (e) { /* 忽略 */ }
+        lsSet(BG_CACHE_KEY, v);
     }   // 记下最近一次从主题读到的中景图 URL（首页没有 .theme-page，靠它兜）
 
     /* 当前页地址，用来判断 SPA 是否换了页面 */
