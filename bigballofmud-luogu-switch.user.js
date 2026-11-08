@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.66
+// @version      20261027.67
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -23,6 +23,7 @@
 // @connect      music.126.net
 // @connect      y.qq.com
 // @connect      api.bilibili.com
+// @connect      api.deepseek.com
 //                ↑ music.126.net 是网易云 CDN：outer/url 会 302 到
 //                  m801/m704/m804.music.126.net，篡改猴对**跳转后的域名**也要
 //                  在 @connect 里放行，否则 GM_xmlhttpRequest 直接失败（onerror）。
@@ -1856,7 +1857,9 @@
     /* 首次使用：让用户填 key */
     function aiAskKey() {
         var cur = lsGet(AI_KEY_STORE, '');
-        var v = window.prompt('输入 DeepSeek API Key（只存在本地 localStorage，不会写进脚本）', cur);
+        /* 已经有 key 就直接用，不再每次都弹框确认 */
+        if (cur) return true;
+        var v = window.prompt('输入 DeepSeek API Key（只存在本地 localStorage，不会写进脚本）', '');
         if (v === null) return false;
         v = v.trim();
         if (!v) return false;
@@ -1899,12 +1902,24 @@
     /* 在「发表」按钮左边注入「AI 生成」 */
     function aiEnsureButton() {
         try {
+            /* 找「发表」时挑**面积最小的那个**：它才是真正显示的按钮，
+               外层容器（宽矩形）会把 AI 按钮挤到离「发表」很远的地方。 */
             var nodes = document.querySelectorAll('button, a, div[role="button"]');
+            var best = null, bestArea = Infinity;
+            for (var k = 0; k < nodes.length; k++) {
+                var cand = nodes[k];
+                var t = (cand.textContent || '').trim();
+                if (t !== '发表' && t !== '发布' && t !== '提交') continue;
+                var rr = cand.getBoundingClientRect();
+                if (!rr.width || !rr.height) continue;      /* 隐藏的不算 */
+                var area = rr.width * rr.height;
+                if (area < bestArea) { bestArea = area; best = cand; }
+            }
+            if (!best) return;
             for (var i = 0; i < nodes.length; i++) {
                 var b = nodes[i];
+                if (b !== best) continue;
                 if (b.__slAiHost) continue;
-                var txt = (b.textContent || '').trim();
-                if (txt !== '发表' && txt !== '发布' && txt !== '提交') continue;
                 if (b.closest('[data-sl-ai-btn]')) continue;
                 b.__slAiHost = true;
                 var btn = document.createElement('button');
