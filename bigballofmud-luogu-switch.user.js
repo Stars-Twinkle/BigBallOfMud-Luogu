@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.87
+// @version      20261027.88
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1741,7 +1741,7 @@
 
     /* 徽标：洛谷的 Markdown 渲染器不接受 data: URI（预览里直接裂图），
        所以用一张可外链的 https 图片（用户上传到图床的 DeepSeek 官方 logo）。 */
-    var AI_LOGO_URL = 'https://free.picui.cn/free/1385/2026/11/08/6af04da7b883f.png';
+    var AI_LOGO_URL = 'https://free.picui.cn/free/1385/2026/11/08/6af051d069a03.png';
 
     function aiModel() { return lsGet(AI_MODEL_STORE, 'deepseek-flash'); }
 
@@ -2126,23 +2126,21 @@
                 return;
             }
             var md = aiCompose(r.text, r.model);
-            /* ★ 先无条件复制：CodeMirror 对外部写入很挑，写不进去时至少还有剪贴板可用 */
+            /* ★ 只复制，不注入。
+               洛谷的 CodeMirror 6 对外部写入一律拒绝（plaintext-only + 自己的 state），
+               试过 execCommand / beforeinput / insertFromPaste / paste 全部无效，
+               硬改它的 DOM 还会把编辑器弄崩。所以这里直接走剪贴板，用户按 Ctrl+V。 */
             var copied = aiCopy(md);
-            aiInsert(md).then(function (inserted) {
-                btn.disabled = false;
-                if (!inserted) {
-                    btn.textContent = copied ? '已复制，请粘贴' : '生成完成（未能写入）';
-                    btn.title = copied
-                        ? 'CodeMirror 拒绝写入，内容已在剪贴板，请在编辑器里 Ctrl+V'
-                        : '内容已生成但写不进编辑器，且复制失败；控制台执行 copy(__slAiLast) 可取出';
-                    try { window.__slAiLast = md; } catch (e) { /* 忽略 */ }
-                    setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 6000);
-                } else {
-                    btn.textContent = copied ? '已生成' : '已写入';
-                    btn.title = 'AI 生成';
-                    setTimeout(function () { btn.textContent = old; }, 2000);
-                }
-            });
+            btn.disabled = false;
+            btn.title = copied ? '已复制到剪贴板，在编辑器里 Ctrl+V 即可' : '生成完成，但复制失败';
+            if (copied) {
+                btn.textContent = '已复制，请粘贴';
+                setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 3000);
+            } else {
+                btn.textContent = '复制失败';
+                try { window.__slAiLast = md; } catch (e) { /* 忽略 */ }
+                setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 4000);
+            }
         });
     }
 
