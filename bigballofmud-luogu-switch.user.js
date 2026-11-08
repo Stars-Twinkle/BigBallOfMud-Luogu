@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.81
+// @version      20261027.82
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1894,7 +1894,19 @@
                         sel.addRange(range);
                     }
                 } catch (e) { /* 忽略 */ }
-                /* ① beforeinput（CodeMirror 当成用户输入） */
+                /* ① 先试 insertFromPaste（带 dataTransfer）：CodeMirror 的 paste 处理器读这个 */
+                try {
+                    var dt = new DataTransfer();
+                    dt.setData('text/plain', text);
+                    cm.dispatchEvent(new InputEvent('beforeinput', {
+                        inputType: 'insertFromPaste',
+                        data: text,
+                        dataTransfer: dt,
+                        bubbles: true,
+                        cancelable: true
+                    }));
+                } catch (e) { /* 忽略 */ }
+                /* ② 再试 insertText */
                 try {
                     cm.dispatchEvent(new InputEvent('beforeinput', {
                         inputType: 'insertText', data: text, bubbles: true, cancelable: true
