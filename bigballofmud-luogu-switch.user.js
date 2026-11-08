@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.73
+// @version      20261027.74
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1935,6 +1935,24 @@
     }
 
     /* 首次使用：让用户填 key */
+    /* 同步复制：navigator.clipboard.writeText 在异步回调（无手势）里常被拒，
+       execCommand('copy') 配合临时 textarea 更可靠。 */
+    function aiCopy(text) {
+        try {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '1');
+            ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+            (document.body || document.documentElement).appendChild(ta);
+            ta.select();
+            ta.setSelectionRange(0, ta.value.length);
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            if (ta.parentNode) ta.parentNode.removeChild(ta);
+            return ok;
+        } catch (e) { return false; }
+    }
+
     function aiAskKey() {
         var cur = lsGet(AI_KEY_STORE, '');
         /* 已经有 key 就直接用，不再每次都弹框确认 */
@@ -1976,9 +1994,19 @@
                 return;
             }
             var md = aiCompose(r.text, r.model);
-            if (!aiInsert(md)) {
-                try { navigator.clipboard.writeText(md); } catch (e) { /* 忽略 */ }
-                window.alert('没有找到编辑器输入框，内容已复制到剪贴板，请手动粘贴。');
+            /* ★ 先无条件复制：CodeMirror 对外部写入很挑，写不进去时至少还有剪贴板可用 */
+            var copied = aiCopy(md);
+            var inserted = aiInsert(md);
+            if (!inserted) {
+                btn.textContent = copied ? '已复制，请粘贴' : '生成完成（未能写入）';
+                btn.title = copied
+                    ? 'CodeMirror 拒绝写入，内容已在剪贴板，请在编辑器里 Ctrl+V'
+                    : '内容已生成但写不进编辑器，且复制失败；可到控制台查看 window.__slAiLast';
+                try { window.__slAiLast = md; } catch (e) { /* 忽略 */ }
+                setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 5000);
+            } else if (copied) {
+                btn.textContent = '已生成';
+                setTimeout(function () { btn.textContent = old; }, 2000);
             }
         });
     }
