@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.76
+// @version      20261027.77
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1739,18 +1739,9 @@
 
     function aiPad(n) { return (n < 10 ? '0' : '') + n; }
 
-    /* 徽标：内联 SVG → data URI（洛谷 CSP 的 img-src 含 data:，可直接显示） */
-    var AI_LOGO_URL = (function () {
-        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56">' +
-            '<rect width="220" height="56" rx="14" fill="#4D6BFE"/>' +
-            '<circle cx="34" cy="28" r="12" fill="#ffffff" opacity="0.22"/>' +
-            '<path d="M28 28c0-3.3 2.7-6 6-6 3 0 5.4 2 5.9 4.7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>' +
-            '<text x="58" y="36" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="24" font-weight="700" fill="#ffffff">DeepSeek</text>' +
-            '</svg>';
-        try {
-            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
-        } catch (e) { return ''; }
-    })();
+    /* 徽标：洛谷的 Markdown 渲染器不接受 data: URI（预览里直接裂图），
+       所以用官网 favicon 这个确定可达的 https 地址。 */
+    var AI_LOGO_URL = 'https://www.deepseek.com/favicon.ico';
 
     function aiModel() { return lsGet(AI_MODEL_STORE, 'deepseek-chat'); }
 
@@ -1844,13 +1835,15 @@
         });
     }
 
-    /* 拼最终 md：徽标（居中）→ 分割线 → 模型/时间 → 分割线 → 正文 */
+    /* 拼最终 md：徽标 → 分割线 → 模型/时间 → 分割线 → 正文。
+       不用 :::align{center}（洛谷预览里不生效，提交后也未必认），
+       改成「图片 + 粗体文字」单行；图片在洛谷里默认居中显示。 */
     function aiCompose(text, model) {
         var head = '';
         if (AI_LOGO_URL) {
-            head += ':::align{center}\n![DeepSeek](' + AI_LOGO_URL + ')\n:::\n\n';
+            head += '![' + 'DeepSeek' + '](' + AI_LOGO_URL + ')  **DeepSeek**\n\n';
         } else {
-            head += ':::align{center}\n**DeepSeek**\n:::\n\n';
+            head += '**DeepSeek**\n\n';
         }
         head += '---\n\n模型：' + (model || aiModel()) + '\n\n时间：' + aiNow() + '\n\n---\n\n';
         return head + text;
