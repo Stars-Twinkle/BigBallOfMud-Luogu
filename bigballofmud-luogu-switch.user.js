@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.74
+// @version      20261027.75
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -591,23 +591,25 @@
     /* ②-b AI：DeepSeek 的 Key（只存本地）与模型。 */
     function buildAiKeyRow() {
         var row = settingsRow('AI Key');
-        var btn = settingsButton(lsGet(AI_KEY_STORE, '') ? '已设置' : '设置');
-        btn.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var cur = lsGet(AI_KEY_STORE, '');
-            var v = window.prompt('输入 DeepSeek API Key（只保存在本地 localStorage，不会写进脚本）', cur);
-            if (v === null) return;
-            v = v.trim();
+        /* 不用 window.prompt：Chrome 在用户点过几次「阻止此页面的更多对话框」之后，
+           prompt 会**静默返回 null**，于是永远设不上 Key、按钮也毫无反应。 */
+        var input = document.createElement('input');
+        input.type = 'password';
+        input.placeholder = 'sk-…';
+        input.value = lsGet(AI_KEY_STORE, '');
+        input.style.cssText = 'width:118px;padding:4px 8px;border-radius:8px;' +
+            'border:1px solid var(--lg-border);background:light-dark(rgba(255,255,255,.7),rgba(255,255,255,.08));' +
+            'color:var(--lg-text);font:inherit;outline:none';
+        input.addEventListener('change', function () {
+            var v = (input.value || '').trim();
             if (v) {
                 lsSet(AI_KEY_STORE, v);
-                btn.textContent = '已设置';
             } else {
-                try { localStorage.removeItem(AI_KEY_STORE); } catch (e2) { /* 忽略 */ }
-                btn.textContent = '设置';
+                try { localStorage.removeItem(AI_KEY_STORE); } catch (e) { /* 忽略 */ }
             }
         });
-        row.appendChild(btn);
+        input.addEventListener('click', function (e) { e.stopPropagation(); });
+        row.appendChild(input);
         return row;
     }
 
@@ -1868,70 +1870,52 @@
     }
 
     /* 写入编辑器：优先 textarea，其次 CodeMirror 的 .cm-content */
+    /* 写入编辑器，返回 Promise<boolean>（true = 内容真的进去了）。
+       CodeMirror 6 的 contenteditable 是 plaintext-only，execCommand 常被忽略，
+       所以以「textContent 里有没有这一段」作为唯一判据。 */
     function aiInsert(text) {
-        var ta = document.querySelector('textarea');
-        if (ta && !ta.closest('.cm-editor')) {
-            ta.focus();
-            ta.value = text;
-            ta.dispatchEvent(new Event('input', { bubbles: true }));
-            ta.dispatchEvent(new Event('change', { bubbles: true }));
-            return true;
-        }
-        var cm = document.querySelector('.cm-content');
-        if (!cm) return false;
-        /* CodeMirror 6 的 contenteditable 是 plaintext-only，execCommand('insertText') 常被忽略；
-           它真正监听的是 beforeinput / input。所以这里直接派发这两个事件：
-           beforeinput 带 inputType=insertText 与 data，CodeMirror 会把它当成用户输入写进 state。 */
-        try { cm.focus(); } catch (e) { /* 忽略 */ }
-        setTimeout(function () {
-            var before = cm.textContent || '';
-            try {
-                var sel = window.getSelection();
-                if (sel) {
-                    var range = document.createRange();
-                    range.selectNodeContents(cm);
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                }
-            } catch (e) { /* 忽略 */ }
-            var fired = false;
-            try {
-                cm.dispatchEvent(new InputEvent('beforeinput', {
-                    inputType: 'insertText',
-                    data: text,
-                    bubbles: true,
-                    cancelable: true
-                }));
-                fired = true;
-            } catch (e) { /* 忽略 */ }
-            if (fired) {
+        return new Promise(function (resolve) {
+            var ta = document.querySelector('textarea');
+            if (ta && !ta.closest('.cm-editor')) {
                 try {
-                    cm.dispatchEvent(new InputEvent('input', {
-                        inputType: 'insertText',
-                        data: text,
-                        bubbles: true
+                    ta.focus();
+                    ta.value = text;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.dispatchEvent(new Event('change', { bubbles: true }));
+                    resolve(true);
+                    return;
+                } catch (e) { /* 继续 */ }
+            }
+            var cm = document.querySelector('.cm-content');
+            if (!cm) { resolve(false); return; }
+            var probe = text.slice(0, 12);
+            try { cm.focus(); } catch (e) { /* 忽略 */ }
+            setTimeout(function () {
+                try {
+                    var sel = window.getSelection();
+                    if (sel) {
+                        var range = document.createRange();
+                        range.selectNodeContents(cm);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                } catch (e) { /* 忽略 */ }
+                /* ① beforeinput（CodeMirror 当成用户输入） */
+                try {
+                    cm.dispatchEvent(new InputEvent('beforeinput', {
+                        inputType: 'insertText', data: text, bubbles: true, cancelable: true
                     }));
                 } catch (e) { /* 忽略 */ }
-            }
-            setTimeout(function () {
-                var after = cm.textContent || '';
-                if (after === before || after.indexOf(text.slice(0, 12)) < 0) {
-                    /* 还是没进去：退回 execCommand，最后才直接赋值 */
+                setTimeout(function () {
+                    if ((cm.textContent || '').indexOf(probe) >= 0) { resolve(true); return; }
+                    /* ② execCommand */
                     try { document.execCommand('insertText', false, text); } catch (e) { /* 忽略 */ }
                     setTimeout(function () {
-                        var last = cm.textContent || '';
-                        if (last.indexOf(text.slice(0, 12)) < 0) {
-                            /* 不碰 CodeMirror 的 DOM（写 textContent 会打乱它的内部结构），
-                               只把内容放进剪贴板，让用户自己 Ctrl+V。 */
-                            try {
-                                navigator.clipboard.writeText(text);
-                                if (window.__slDebug) console.warn('[bom] AI 内容已复制，请手动粘贴');
-                            } catch (e2) { /* 忽略 */ }
-                        }
+                        resolve((cm.textContent || '').indexOf(probe) >= 0);
                     }, 120);
-                }
-            }, 120);
-        }, 60);
+                }, 120);
+            }, 60);
+        });
     }
 
     /* 首次使用：让用户填 key */
@@ -1954,19 +1938,17 @@
     }
 
     function aiAskKey() {
-        var cur = lsGet(AI_KEY_STORE, '');
-        /* 已经有 key 就直接用，不再每次都弹框确认 */
-        if (cur) return true;
-        var v = window.prompt('输入 DeepSeek API Key（只存在本地 localStorage，不会写进脚本）', '');
-        if (v === null) return false;
-        v = v.trim();
-        if (!v) return false;
-        lsSet(AI_KEY_STORE, v);
-        return true;
+        /* 只检查，不弹窗：没配 Key 时由按钮显示「请设置 Key」（齿轮 → AI Key 里填） */
+        return !!lsGet(AI_KEY_STORE, '');
     }
 
     function aiButtonRun(btn) {
-        if (!aiAskKey()) return;
+        if (!aiAskKey()) {
+            btn.textContent = '请设置 Key';
+            btn.title = '到「插件设置 → AI Key」里填 DeepSeek API Key';
+            setTimeout(function () { btn.textContent = 'AI 生成'; btn.title = 'AI 生成'; }, 3000);
+            return;
+        }
         var old = btn.textContent;
         btn.disabled = true;
         btn.textContent = '生成中…';
@@ -1996,18 +1978,21 @@
             var md = aiCompose(r.text, r.model);
             /* ★ 先无条件复制：CodeMirror 对外部写入很挑，写不进去时至少还有剪贴板可用 */
             var copied = aiCopy(md);
-            var inserted = aiInsert(md);
-            if (!inserted) {
-                btn.textContent = copied ? '已复制，请粘贴' : '生成完成（未能写入）';
-                btn.title = copied
-                    ? 'CodeMirror 拒绝写入，内容已在剪贴板，请在编辑器里 Ctrl+V'
-                    : '内容已生成但写不进编辑器，且复制失败；可到控制台查看 window.__slAiLast';
-                try { window.__slAiLast = md; } catch (e) { /* 忽略 */ }
-                setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 5000);
-            } else if (copied) {
-                btn.textContent = '已生成';
-                setTimeout(function () { btn.textContent = old; }, 2000);
-            }
+            aiInsert(md).then(function (inserted) {
+                btn.disabled = false;
+                if (!inserted) {
+                    btn.textContent = copied ? '已复制，请粘贴' : '生成完成（未能写入）';
+                    btn.title = copied
+                        ? 'CodeMirror 拒绝写入，内容已在剪贴板，请在编辑器里 Ctrl+V'
+                        : '内容已生成但写不进编辑器，且复制失败；控制台执行 copy(__slAiLast) 可取出';
+                    try { window.__slAiLast = md; } catch (e) { /* 忽略 */ }
+                    setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 6000);
+                } else {
+                    btn.textContent = copied ? '已生成' : '已写入';
+                    btn.title = 'AI 生成';
+                    setTimeout(function () { btn.textContent = old; }, 2000);
+                }
+            });
         });
     }
 
