@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.80
+// @version      20261027.81
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1835,15 +1835,15 @@
         });
     }
 
-    /* 拼最终 md：徽标 → 分割线 → 模型/时间 → 分割线 → 正文。
-       不用 :::align{center}（洛谷预览里不生效，提交后也未必认），
-       改成「图片 + 粗体文字」单行；图片在洛谷里默认居中显示。 */
+    /* 拼最终 md：居中徽标 → 分割线 → 模型/时间 → 分割线 → 正文。 */
     function aiCompose(text, model) {
         var head = '';
+        /* 洛谷手册：用 :::align{center} 包裹的内容居中显示（部分元素不支持，
+           所以只把徽标包进去，分割线与正文放在外面）。图片本身已带 deepseek 字样。 */
         if (AI_LOGO_URL) {
-            head += '![' + 'DeepSeek' + '](' + AI_LOGO_URL + ')  **DeepSeek**\n\n';
+            head += ':::align{center}\n![' + 'DeepSeek' + '](' + AI_LOGO_URL + ')\n:::\n\n';
         } else {
-            head += '**DeepSeek**\n\n';
+            head += ':::align{center}\n**DeepSeek**\n:::\n\n';
         }
         head += '---\n\n模型：' + (model || aiModel()) + '\n\n时间：' + aiNow() + '\n\n---\n\n';
         return head + text;
