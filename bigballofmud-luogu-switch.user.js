@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.67
+// @version      20261027.68
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1834,7 +1834,7 @@
     /* 写入编辑器：优先 textarea，其次 CodeMirror 的 .cm-content */
     function aiInsert(text) {
         var ta = document.querySelector('textarea');
-        if (ta) {
+        if (ta && !ta.closest('.cm-editor')) {
             ta.focus();
             ta.value = text;
             ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1844,12 +1844,26 @@
         var cm = document.querySelector('.cm-content');
         if (cm) {
             cm.focus();
+            /* CodeMirror 6 有自己的 state，execCommand 常常写不进去；
+               但它监听 paste —— 造一个 ClipboardEvent 最可靠。 */
+            try {
+                var dt = new DataTransfer();
+                dt.setData('text/plain', text);
+                var ev = new ClipboardEvent('paste', {
+                    clipboardData: dt, bubbles: true, cancelable: true
+                });
+                cm.dispatchEvent(ev);
+                return true;
+            } catch (e) { /* 继续尝试下一条 */ }
             try {
                 if (document.execCommand('insertText', false, text)) return true;
-            } catch (e) { /* 忽略 */ }
-            cm.textContent = text;
-            cm.dispatchEvent(new Event('input', { bubbles: true }));
-            return true;
+            } catch (e2) { /* 忽略 */ }
+            try {
+                cm.textContent = text;
+                cm.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+                return true;
+            } catch (e3) { /* 忽略 */ }
+            return false;
         }
         return false;
     }
@@ -1934,7 +1948,16 @@
                     e.stopPropagation();
                     aiButtonRun(btn);
                 });
-                if (b.parentNode) b.parentNode.insertBefore(btn, b);
+                /* ★ 不能直接 insertBefore：父容器常是 justify-content:space-between 的 flex，
+                   插进去会被推到最左边。包一层 inline-flex 让两个按钮贴在一起。 */
+                if (b.parentNode) {
+                    var wrap = document.createElement('span');
+                    wrap.setAttribute('data-sl-ai-wrap', '1');
+                    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:8px;flex:0 0 auto';
+                    b.parentNode.insertBefore(wrap, b);
+                    wrap.appendChild(btn);
+                    wrap.appendChild(b);
+                }
                 return;
             }
         } catch (e) { /* 忽略 */ }
