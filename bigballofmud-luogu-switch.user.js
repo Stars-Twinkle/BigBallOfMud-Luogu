@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.58
+// @version      20261027.59
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1283,6 +1283,8 @@
        ====================================================================== */
     var RF_PAD = 64;
     var RF_MAX_AREA = 490000;
+    var RF_MIN_SIDE = 56;         // 短边小于这个值不做折射（看不出来，纯成本）
+    var RF_MIN_AREA = 20000;      // 面积小于这个值也不做（≈140×140）
     var RF_AMOUNT_FIXED = 22;     // 位移固定 22px（WebLiquidGlass 默认值）
     var RF_AMOUNT_RATIO = 0.40;   // 但不超过短边的 40%（按比例算，小的自然更小）
     var RF_AMOUNT_MIN = 4;
@@ -1496,7 +1498,10 @@
             if (!el || el.__slRf) return null;
             var rect = el.getBoundingClientRect();
             var w = Math.round(rect.width), h = Math.round(rect.height);
-            if (w < 12 || h < 12) return null;
+            /* ★ 只给「看得出折射」的面加：短边 < 48px 的小按钮/标签弯折看不出来，
+               但每个都要一条每帧重光栅化的滤镜链 —— 面数是滚动帧率的硬预算。 */
+            if (w < RF_MIN_SIDE || h < RF_MIN_SIDE) return null;
+            if (w * h < RF_MIN_AREA) return null;
             if (w * h > RF_MAX_AREA) return null;
             if (rfBlocked(el)) return null;
             var cs = getComputedStyle(el);
@@ -1656,7 +1661,15 @@
             }
             if (!queue.length) return;
             clearTimeout(timer);
-            timer = setTimeout(flush, 300);
+            /* 滚动时虚拟列表几乎每帧都在插节点，而 flush 里要 getBoundingClientRect
+           （强制布局）——放到空闲时段跑，别和滚动抢主线程。 */
+        timer = setTimeout(function () {
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(flush, { timeout: 1200 });
+            } else {
+                flush();
+            }
+        }, 300);
         });
         try {
             mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
