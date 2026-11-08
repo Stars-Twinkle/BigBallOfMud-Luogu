@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.75
+// @version      20261027.76
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -19,6 +19,7 @@
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
+// @grant        GM_setClipboard
 // @connect      music.163.com
 // @connect      music.126.net
 // @connect      y.qq.com
@@ -1922,6 +1923,21 @@
     /* 同步复制：navigator.clipboard.writeText 在异步回调（无手势）里常被拒，
        execCommand('copy') 配合临时 textarea 更可靠。 */
     function aiCopy(text) {
+        /* ★ 这个方法是在 aiAsk().then() 里调用的 —— 已经脱离用户点击的手势链，
+           此时 execCommand('copy') 与 navigator.clipboard 都会被浏览器静默拒绝。
+           GM_setClipboard 由油猴直接写系统剪贴板，不挑手势，所以放第一位。 */
+        try {
+            if (typeof GM_setClipboard === 'function') {
+                GM_setClipboard(text, 'text');
+                return true;
+            }
+        } catch (e) { /* 继续尝试 */ }
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (e) { /* 继续尝试 */ }
         try {
             var ta = document.createElement('textarea');
             ta.value = text;
