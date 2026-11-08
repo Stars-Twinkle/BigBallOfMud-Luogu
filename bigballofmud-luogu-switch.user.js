@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.71
+// @version      20261027.72
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1885,12 +1885,12 @@
                     setTimeout(function () {
                         var last = cm.textContent || '';
                         if (last.indexOf(text.slice(0, 12)) < 0) {
+                            /* 不碰 CodeMirror 的 DOM（写 textContent 会打乱它的内部结构），
+                               只把内容放进剪贴板，让用户自己 Ctrl+V。 */
                             try {
-                                cm.textContent = text;
-                                cm.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+                                navigator.clipboard.writeText(text);
+                                if (window.__slDebug) console.warn('[bom] AI 内容已复制，请手动粘贴');
                             } catch (e2) { /* 忽略 */ }
-                            /* 兜底也失败就复制到剪贴板，让用户自己粘 */
-                            try { navigator.clipboard.writeText(text); } catch (e3) { /* 忽略 */ }
                         }
                     }, 120);
                 }
@@ -1978,15 +1978,14 @@
                     e.stopPropagation();
                     aiButtonRun(btn);
                 });
-                /* ★ 不能直接 insertBefore：父容器常是 justify-content:space-between 的 flex，
-                   插进去会被推到最左边。包一层 inline-flex 让两个按钮贴在一起。 */
+                /* ★ 绝对不能把「发表」挪出原容器（包 wrap 会触发 Vue 的 patch 冲突，
+                   整个编辑器组件会被卸载，用户就「编辑器不见了」）。
+                   所以只插按钮，再用 margin-left:auto 把它推到右侧、紧贴发表。 */
                 if (b.parentNode) {
-                    var wrap = document.createElement('span');
-                    wrap.setAttribute('data-sl-ai-wrap', '1');
-                    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:8px;flex:0 0 auto';
-                    b.parentNode.insertBefore(wrap, b);
-                    wrap.appendChild(btn);
-                    wrap.appendChild(b);
+                    btn.style.marginLeft = 'auto';
+                    btn.style.marginRight = '8px';
+                    btn.style.flex = '0 0 auto';
+                    b.parentNode.insertBefore(btn, b);
                 }
                 return;
             }
