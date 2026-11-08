@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.64
+// @version      20261027.65
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1677,6 +1677,213 @@
 
 
 
+
+    /* ======================================================================
+       AI 回复生成（DeepSeek）
+       ----------------------------------------------------------------------
+       讨论版 / 回复编辑器「发表」按钮左侧加一个「AI 生成」：
+       读当前讨论的标题与正文作上下文，调 DeepSeek 生成 Markdown 回复，
+       按洛谷语法拼上徽标、模型与时间，再写回编辑器。
+
+       API key 只存 localStorage（sl-ai-key），**不写进脚本**；
+       模型名存 sl-ai-model，默认 deepseek-chat。
+       ====================================================================== */
+    var AI_KEY_STORE = 'sl-ai-key';
+    var AI_MODEL_STORE = 'sl-ai-model';
+    var AI_ENDPOINT = 'https://api.deepseek.com/chat/completions';
+
+    function aiPad(n) { return (n < 10 ? '0' : '') + n; }
+
+    /* 徽标：内联 SVG → data URI（洛谷 CSP 的 img-src 含 data:，可直接显示） */
+    var AI_LOGO_URL = (function () {
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56">' +
+            '<rect width="220" height="56" rx="14" fill="#4D6BFE"/>' +
+            '<circle cx="34" cy="28" r="12" fill="#ffffff" opacity="0.22"/>' +
+            '<path d="M28 28c0-3.3 2.7-6 6-6 3 0 5.4 2 5.9 4.7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>' +
+            '<text x="58" y="36" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="24" font-weight="700" fill="#ffffff">DeepSeek</text>' +
+            '</svg>';
+        try {
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        } catch (e) { return ''; }
+    })();
+
+    function aiModel() { return lsGet(AI_MODEL_STORE, 'deepseek-chat'); }
+
+    function aiNow() {
+        var d = new Date();
+        return d.getFullYear() + '-' + aiPad(d.getMonth() + 1) + '-' + aiPad(d.getDate()) +
+            ' ' + aiPad(d.getHours()) + ':' + aiPad(d.getMinutes());
+    }
+
+    /* 调 DeepSeek。返回 Promise<{ok, text} | {ok:false, err}> */
+    function aiAsk(messages) {
+        return new Promise(function (resolve) {
+            var key = lsGet(AI_KEY_STORE, '');
+            if (!key) { resolve({ ok: false, err: 'nokey' }); return; }
+            var payload = JSON.stringify({
+                model: aiModel(),
+                messages: messages,
+                stream: false,
+                temperature: 0.7
+            });
+            try {
+                var req = GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: AI_ENDPOINT,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + key
+                    },
+                    data: payload,
+                    timeout: 60000,
+                    onload: function (res) {
+                        try {
+                            if (res.status !== 200) {
+                                var msg = '';
+                                try {
+                                    var e = JSON.parse(res.responseText);
+                                    msg = (e.error && e.error.message) || '';
+                                } catch (e2) { /* 忽略 */ }
+                                resolve({ ok: false, err: 'HTTP ' + res.status + (msg ? '：' + msg : '') });
+                                return;
+                            }
+                            var j = JSON.parse(res.responseText);
+                            var text = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+                            resolve({ ok: true, text: text.trim(), model: (j.model || aiModel()) });
+                        } catch (e) {
+                            resolve({ ok: false, err: '解析响应失败' });
+                        }
+                    },
+                    onerror: function () { resolve({ ok: false, err: '网络错误' }); },
+                    ontimeout: function () { resolve({ ok: false, err: '请求超时' }); }
+                });
+            } catch (e) {
+                resolve({ ok: false, err: '请求失败：' + (e && e.message) });
+            }
+        });
+    }
+
+    /* 拼最终 md：徽标（居中）→ 分割线 → 模型/时间 → 分割线 → 正文 */
+    function aiCompose(text, model) {
+        var head = '';
+        if (AI_LOGO_URL) {
+            head += ':::align{center}\n![DeepSeek](' + AI_LOGO_URL + ')\n:::\n\n';
+        } else {
+            head += ':::align{center}\n**DeepSeek**\n:::\n\n';
+        }
+        head += '---\n\n模型：' + (model || aiModel()) + '\n\n时间：' + aiNow() + '\n\n---\n\n';
+        return head + text;
+    }
+
+    /* 读当前讨论的上下文（标题 + 正文），给模型当输入 */
+    function aiContext() {
+        var parts = [];
+        try {
+            var h = document.querySelector('.l-card .header h1, .am-article-title, h1');
+            if (h) parts.push('标题：' + h.textContent.trim());
+            var body = document.querySelector('.lfe-marked, .am-article-bd, .markdown-body');
+            if (body) parts.push('内容：' + body.textContent.trim().slice(0, 3000));
+            var title = document.title || '';
+            if (parts.length === 0 && title) parts.push('页面标题：' + title);
+        } catch (e) { /* 忽略 */ }
+        return parts.join('\n');
+    }
+
+    /* 写入编辑器：优先 textarea，其次 CodeMirror 的 .cm-content */
+    function aiInsert(text) {
+        var ta = document.querySelector('textarea');
+        if (ta) {
+            ta.focus();
+            ta.value = text;
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            ta.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        }
+        var cm = document.querySelector('.cm-content');
+        if (cm) {
+            cm.focus();
+            try {
+                if (document.execCommand('insertText', false, text)) return true;
+            } catch (e) { /* 忽略 */ }
+            cm.textContent = text;
+            cm.dispatchEvent(new Event('input', { bubbles: true }));
+            return true;
+        }
+        return false;
+    }
+
+    /* 首次使用：让用户填 key */
+    function aiAskKey() {
+        var cur = lsGet(AI_KEY_STORE, '');
+        var v = window.prompt('输入 DeepSeek API Key（只存在本地 localStorage，不会写进脚本）', cur);
+        if (v === null) return false;
+        v = v.trim();
+        if (!v) return false;
+        lsSet(AI_KEY_STORE, v);
+        return true;
+    }
+
+    function aiButtonRun(btn) {
+        if (!aiAskKey()) return;
+        var old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '生成中…';
+        var ctx = aiContext();
+        var messages = [
+            {
+                role: 'system',
+                content: '你是洛谷社区的热心用户。请用简体中文写一条 Markdown 格式的回复，' +
+                    '直接给出正文（不要复述要求、不要加签名）。排版用洛谷支持的语法：' +
+                    '段落之间空行、代码块用 ``` 包裹并标注语言、行内代码用反引号、' +
+                    '列表用 - 或 1.、表格用 | 语法。避免使用原始 HTML 标签。'
+            },
+            { role: 'user', content: ctx ? ('这是我正在看的讨论：\n' + ctx + '\n\n请针对它写一条回复。') : '请写一条通用的、友好的技术讨论回复。' }
+        ];
+        aiAsk(messages).then(function (r) {
+            btn.disabled = false;
+            btn.textContent = old;
+            if (!r.ok) {
+                if (r.err === 'nokey') { window.alert('还没设置 API Key'); return; }
+                window.alert('生成失败：' + r.err);
+                return;
+            }
+            var md = aiCompose(r.text, r.model);
+            if (!aiInsert(md)) {
+                try { navigator.clipboard.writeText(md); } catch (e) { /* 忽略 */ }
+                window.alert('没有找到编辑器输入框，内容已复制到剪贴板，请手动粘贴。');
+            }
+        });
+    }
+
+    /* 在「发表」按钮左边注入「AI 生成」 */
+    function aiEnsureButton() {
+        try {
+            var nodes = document.querySelectorAll('button, a, div[role="button"]');
+            for (var i = 0; i < nodes.length; i++) {
+                var b = nodes[i];
+                if (b.__slAiHost) continue;
+                var txt = (b.textContent || '').trim();
+                if (txt !== '发表' && txt !== '发布' && txt !== '提交') continue;
+                if (b.closest('[data-sl-ai-btn]')) continue;
+                b.__slAiHost = true;
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('data-sl-ai-btn', '1');
+                btn.textContent = 'AI 生成';
+                btn.className = b.className || '';
+                btn.style.cssText = (b.getAttribute('style') || '') +
+                    ';margin-right:8px;background:#4D6BFE;border-color:#4D6BFE;color:#fff';
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    aiButtonRun(btn);
+                });
+                if (b.parentNode) b.parentNode.insertBefore(btn, b);
+                return;
+            }
+        } catch (e) { /* 忽略 */ }
+    }
+
     /* ======================================================================
        音乐播放器
        ----------------------------------------------------------------------
@@ -1953,6 +2160,14 @@
         if (isMain && CONFIG.showSettings) {
             ensureSettingsButton();
             setInterval(ensureSettingsButton, 1000);
+        }
+
+        /* AI 回复按钮：讨论/回复编辑器出现时注入到「发表」左边 */
+        if (isMain) {
+            try {
+                aiEnsureButton();
+                setInterval(aiEnsureButton, 1000);
+            } catch (e) { /* 忽略 */ }
         }
 
         // 对比度守卫只跑主站：它会按计算值改内联色，网校那套 DOM 没做过验证，不介入。
