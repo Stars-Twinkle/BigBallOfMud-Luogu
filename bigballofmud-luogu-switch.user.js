@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.79
+// @version      20261027.80
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1741,7 +1741,7 @@
 
     /* 徽标：洛谷的 Markdown 渲染器不接受 data: URI（预览里直接裂图），
        所以用一张可外链的 https 图片（用户上传到图床的 DeepSeek 官方 logo）。 */
-    var AI_LOGO_URL = 'https://free.picui.cn/free/1385/2026/11/08/6af04d671c534.png';
+    var AI_LOGO_URL = 'https://free.picui.cn/free/1385/2026/11/08/6af04da7b883f.png';
 
     function aiModel() { return lsGet(AI_MODEL_STORE, 'deepseek-chat'); }
 
