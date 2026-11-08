@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.69
+// @version      20261027.70
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1843,10 +1843,14 @@
         }
         var cm = document.querySelector('.cm-content');
         if (!cm) return false;
-        /* ★ 关键：点按钮时焦点在按钮上，CodeMirror 的 paste 处理器只认编辑器内的焦点与选区。
-           所以先聚焦、把选区铺满整个编辑区，等一帧让 state 跟上，再派发 paste。 */
+        /* ★ 点按钮时焦点在按钮上；CodeMirror 只认编辑器内的焦点与选区。
+           这里的顺序是：先聚焦 → 选中全部 → execCommand('insertText')。
+           为什么不用派发 paste：dispatchEvent 即使毫无效果**也不会抛异常**，
+           拿不到"到底写没写进去"的信号，之前就是被它骗了。
+           execCommand 会触发 beforeinput/input，CodeMirror 监听这两个，能进 state。 */
         try { cm.focus(); } catch (e) { /* 忽略 */ }
         setTimeout(function () {
+            var before = cm.textContent || '';
             try {
                 var sel = window.getSelection();
                 if (sel) {
@@ -1856,26 +1860,21 @@
                     sel.addRange(range);
                 }
             } catch (e) { /* 忽略 */ }
-            var ok = false;
+            var inserted = false;
             try {
-                var dt = new DataTransfer();
-                dt.setData('text/plain', text);
-                cm.dispatchEvent(new ClipboardEvent('paste', {
-                    clipboardData: dt, bubbles: true, cancelable: true
-                }));
-                ok = true;
-            } catch (e) { /* 忽略 */ }
-            if (!ok) {
-                try { document.execCommand('insertText', false, text); ok = true; } catch (e2) { /* 忽略 */ }
-            }
-            if (!ok) {
-                try {
-                    cm.textContent = text;
-                    cm.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
-                } catch (e3) { /* 忽略 */ }
-            }
+                inserted = document.execCommand('insertText', false, text);
+            } catch (e) { inserted = false; }
+            setTimeout(function () {
+                /* 校验：内容真的变了才算成功；没变就退回直接赋值 */
+                var after = cm.textContent || '';
+                if (after === before || after.indexOf(text.slice(0, 12)) < 0) {
+                    try {
+                        cm.textContent = text;
+                        cm.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+                    } catch (e) { /* 忽略 */ }
+                }
+            }, 120);
         }, 60);
-        return true;
     }
 
     /* 首次使用：让用户填 key */
