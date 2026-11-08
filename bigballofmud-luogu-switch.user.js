@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.65
+// @version      20261027.66
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -587,6 +587,45 @@
         return row;
     }
 
+    /* ②-b AI：DeepSeek 的 Key（只存本地）与模型。 */
+    function buildAiKeyRow() {
+        var row = settingsRow('AI Key');
+        var btn = settingsButton(lsGet(AI_KEY_STORE, '') ? '已设置' : '设置');
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var cur = lsGet(AI_KEY_STORE, '');
+            var v = window.prompt('输入 DeepSeek API Key（只保存在本地 localStorage，不会写进脚本）', cur);
+            if (v === null) return;
+            v = v.trim();
+            if (v) {
+                lsSet(AI_KEY_STORE, v);
+                btn.textContent = '已设置';
+            } else {
+                try { localStorage.removeItem(AI_KEY_STORE); } catch (e2) { /* 忽略 */ }
+                btn.textContent = '设置';
+            }
+        });
+        row.appendChild(btn);
+        return row;
+    }
+
+    function buildAiModelRow() {
+        var models = ['deepseek-chat', 'deepseek-reasoner'];
+        var row = settingsRow('AI 模型');
+        var btn = settingsButton(aiModel());
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var i = models.indexOf(aiModel());
+            var next = models[(i + 1) % models.length];
+            lsSet(AI_MODEL_STORE, next);
+            btn.textContent = next;
+        });
+        row.appendChild(btn);
+        return row;
+    }
+
     /* ③ 音乐库：打开播放器的库面板（跨上下文读 unsafeWindow）。 */
     function buildLibraryRow() {
         var row = settingsRow('音乐库');
@@ -684,6 +723,8 @@
         p.appendChild(buildModeRow());
         p.appendChild(buildRefractRow());
         p.appendChild(buildAutoResumeRow());
+        p.appendChild(buildAiKeyRow());
+        p.appendChild(buildAiModelRow());
         p.appendChild(buildLibraryRow());
         var about = buildAboutRow(p);
         p.appendChild(about.row);
