@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.83
+// @version      20261027.84
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -2182,8 +2182,9 @@
                     btn.style.marginLeft = 'auto';
                     btn.style.marginRight = '8px';
                     btn.style.flex = '0 0 auto';
+                    /* 顺序：识别验证码 → AI 生成 → 发表 */
                     b.parentNode.insertBefore(btn, b);
-                    if (b.parentNode) b.parentNode.insertBefore(captchaBtn, b);
+                    if (b.parentNode) b.parentNode.insertBefore(captchaBtn, btn);
                 }
                 return;
             }
