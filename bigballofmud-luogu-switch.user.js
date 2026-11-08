@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.86
+// @version      20261027.87
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -2057,18 +2057,37 @@
                     input.dispatchEvent(new Event('change', { bubbles: true }));
                     try { console.log('[bom] 验证码识别结果:', code); } catch (e) { /* 忽略 */ }
                 }
-                fetch(AI_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-                    body: body
-                }).then(function (r) { return r.text(); }).then(function (txt) {
+                function onResp(txt) {
                     try {
                         var j = JSON.parse(txt);
                         if (j.error) { window.alert('识别失败：' + (j.error.message || '')); return; }
                         var c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
                         apply(c);
                     } catch (e) { window.alert('识别响应解析失败'); }
-                }).catch(function () { window.alert('识别请求失败（网络）'); });
+                }
+                function viaGM() {
+                    if (typeof GM_xmlhttpRequest !== 'function') {
+                        window.alert('识别请求失败（网络，且 GM 不可用）');
+                        return;
+                    }
+                    GM_xmlhttpRequest({
+                        method: 'POST',
+                        url: AI_ENDPOINT,
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                        data: body,
+                        timeout: 60000,
+                        onload: function (res) { onResp(res.responseText || ''); },
+                        onerror: function () { window.alert('识别请求失败（GM 网络错误）'); },
+                        ontimeout: function () { window.alert('识别请求超时'); }
+                    });
+                }
+                /* fetch 被 CORS 拦住时会 catch，再走 GM 回退 */
+                fetch(AI_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                    body: body
+                }).then(function (r) { return r.text(); }).then(function (txt) { onResp(txt); })
+                  .catch(function () { viaGM(); });
             });
         }, 600);
     }
