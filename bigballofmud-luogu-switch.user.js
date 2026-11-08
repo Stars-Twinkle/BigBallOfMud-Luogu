@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.84
+// @version      20261027.85
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -615,7 +615,7 @@
     }
 
     function buildAiModelRow() {
-        var models = ['deepseek-chat', 'deepseek-reasoner'];
+        var models = ['deepseek-flash', 'deepseek-chat', 'deepseek-reasoner'];
         var row = settingsRow('AI 模型');
         var btn = settingsButton(aiModel());
         btn.addEventListener('click', function (e) {
@@ -1743,7 +1743,7 @@
        所以用一张可外链的 https 图片（用户上传到图床的 DeepSeek 官方 logo）。 */
     var AI_LOGO_URL = 'https://free.picui.cn/free/1385/2026/11/08/6af04da7b883f.png';
 
-    function aiModel() { return lsGet(AI_MODEL_STORE, 'deepseek-chat'); }
+    function aiModel() { return lsGet(AI_MODEL_STORE, 'deepseek-flash'); }
 
     function aiNow() {
         var d = new Date();
