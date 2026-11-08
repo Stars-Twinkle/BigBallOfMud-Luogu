@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.82
+// @version      20261027.83
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1963,6 +1963,116 @@
         return !!lsGet(AI_KEY_STORE, '');
     }
 
+
+    /* ── 图形验证码：自动取图 → 视觉模型识别 → 回填 ─────────────────────────
+       洛谷的验证码要点击输入框才加载。流程：
+       1) 找到 placeholder 含「验证码」的输入框，点一下；
+       2) 等图片出现，取离它最近的 img/canvas（40~320px 宽）；
+       3) 转成 data URL（canvas 画一遍，跨域污染就用 fetch + FileReader 兜底）；
+       4) 用多模态格式发给 deepseek-flash；
+       5) 把识别结果写回输入框并派发 input 事件。 */
+    function aiCaptchaInput() {
+        var inputs = document.querySelectorAll('input');
+        for (var i = 0; i < inputs.length; i++) {
+            var ph = inputs[i].getAttribute('placeholder') || '';
+            if (ph.indexOf('验证码') >= 0) return inputs[i];
+        }
+        return null;
+    }
+
+    /* 取输入框附近的验证码图片，返回 { el, rect } */
+    function aiCaptchaImage(input) {
+        var ir = input.getBoundingClientRect();
+        var best = null, bestD = Infinity;
+        var nodes = document.querySelectorAll('img, canvas');
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var r = n.getBoundingClientRect();
+            if (r.width < 40 || r.height < 16 || r.width > 320) continue;
+            var dx = Math.abs(r.left - ir.right);
+            var dy = Math.abs((r.top + r.height / 2) - (ir.top + ir.height / 2));
+            var d = dx + dy;
+            if (d < bestD) { bestD = d; best = n; }
+        }
+        return best;
+    }
+
+    /* img / canvas → data URL */
+    function aiNodeToDataUrl(node) {
+        return new Promise(function (resolve) {
+            try {
+                if (node.tagName === 'CANVAS') {
+                    try { resolve(node.toDataURL('image/png')); return; } catch (e) { /* 污染 */ }
+                    resolve(null); return;
+                }
+                var cv = document.createElement('canvas');
+                cv.width = node.naturalWidth || node.width;
+                cv.height = node.naturalHeight || node.height;
+                var ctx = cv.getContext('2d');
+                ctx.drawImage(node, 0, 0);
+                try { resolve(cv.toDataURL('image/png')); return; } catch (e) { /* 跨域污染 */ }
+                /* 兜底：fetch 图片再转 base64（同源或允许 CORS 时可用） */
+                fetch(node.src, { credentials: 'include' })
+                    .then(function (r) { return r.blob(); })
+                    .then(function (b) {
+                        var fr = new FileReader();
+                        fr.onload = function () { resolve(String(fr.result || '')); };
+                        fr.onerror = function () { resolve(null); };
+                        fr.readAsDataURL(b);
+                    })
+                    .catch(function () { resolve(null); });
+            } catch (e) { resolve(null); }
+        });
+    }
+
+    function aiCaptcha() {
+        var input = aiCaptchaInput();
+        if (!input) { window.alert('没找到验证码输入框'); return; }
+        /* 1) 点一下，触发验证码加载 */
+        try { input.click(); input.focus(); } catch (e) { /* 忽略 */ }
+        setTimeout(function () {
+            var img = aiCaptchaImage(input);
+            if (!img) { window.alert('点了输入框还是没看到验证码图片'); return; }
+            aiNodeToDataUrl(img).then(function (dataUrl) {
+                if (!dataUrl) { window.alert('验证码图片取不到（可能被跨域保护）'); return; }
+                var key = lsGet(AI_KEY_STORE, '');
+                if (!key) { window.alert('没配 API Key'); return; }
+                var body = JSON.stringify({
+                    model: aiModel(),
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: '这是一张验证码图片，请只输出图中的字符，不要解释、不要加引号或标点。' },
+                            { type: 'image_url', image_url: { url: dataUrl } }
+                        ]
+                    }],
+                    temperature: 0,
+                    stream: false
+                });
+                function apply(text) {
+                    var code = String(text || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 12);
+                    if (!code) { window.alert('模型没识别出字符'); return; }
+                    input.value = code;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                    try { console.log('[bom] 验证码识别结果:', code); } catch (e) { /* 忽略 */ }
+                }
+                fetch(AI_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+                    body: body
+                }).then(function (r) { return r.text(); }).then(function (txt) {
+                    try {
+                        var j = JSON.parse(txt);
+                        if (j.error) { window.alert('识别失败：' + (j.error.message || '')); return; }
+                        var c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+                        apply(c);
+                    } catch (e) { window.alert('识别响应解析失败'); }
+                }).catch(function () { window.alert('识别请求失败（网络）'); });
+            });
+        }, 600);
+    }
+
     function aiButtonRun(btn) {
         if (!aiAskKey()) {
             btn.textContent = '请设置 Key';
@@ -2052,6 +2162,19 @@
                     e.stopPropagation();
                     aiButtonRun(btn);
                 });
+
+                /* 验证码助手：点它就去识别并回填 */
+                var captchaBtn = document.createElement('button');
+                captchaBtn.type = 'button';
+                captchaBtn.setAttribute('data-sl-ai-captcha', '1');
+                captchaBtn.textContent = '识别验证码';
+                captchaBtn.className = btn.className || '';
+                captchaBtn.style.cssText = 'margin-right:8px;flex:0 0 auto;font-size:12px';
+                captchaBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    aiCaptcha();
+                });
                 /* ★ 绝对不能把「发表」挪出原容器（包 wrap 会触发 Vue 的 patch 冲突，
                    整个编辑器组件会被卸载，用户就「编辑器不见了」）。
                    所以只插按钮，再用 margin-left:auto 把它推到右侧、紧贴发表。 */
@@ -2060,6 +2183,7 @@
                     btn.style.marginRight = '8px';
                     btn.style.flex = '0 0 auto';
                     b.parentNode.insertBefore(btn, b);
+                    if (b.parentNode) b.parentNode.insertBefore(captchaBtn, b);
                 }
                 return;
             }
