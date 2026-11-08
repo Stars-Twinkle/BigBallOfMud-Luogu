@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.72
+// @version      20261027.73
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1757,51 +1757,87 @@
             ' ' + aiPad(d.getHours()) + ':' + aiPad(d.getMinutes());
     }
 
-    /* 调 DeepSeek。返回 Promise<{ok, text} | {ok:false, err}> */
+    /* 调 DeepSeek。返回 Promise<{ok, text, model} | {ok:false, err}> */
     function aiAsk(messages) {
         return new Promise(function (resolve) {
             var key = lsGet(AI_KEY_STORE, '');
             if (!key) { resolve({ ok: false, err: 'nokey' }); return; }
-            var payload = JSON.stringify({
+            var body = JSON.stringify({
                 model: aiModel(),
                 messages: messages,
                 stream: false,
                 temperature: 0.7
             });
-            try {
-                var req = GM_xmlhttpRequest({
+            var settled = false;
+            function done(v) {
+                if (settled) return;
+                settled = true;
+                resolve(v);
+            }
+            function parse(status, text) {
+                if (status !== 200) {
+                    var msg = '';
+                    try { var e = JSON.parse(text); msg = (e.error && e.error.message) || ''; } catch (e2) { /* 忽略 */ }
+                    done({ ok: false, err: 'HTTP ' + status + (msg ? '：' + msg : '') });
+                    return;
+                }
+                try {
+                    var j = JSON.parse(text);
+                    var content = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+                    done({ ok: true, text: content.trim(), model: j.model || aiModel() });
+                } catch (e) {
+                    done({ ok: false, err: '响应解析失败' });
+                }
+            }
+
+            /* ① 先走 fetch：api.deepseek.com 允许跨域，不需要 @connect，
+                  也能避开「油猴没重新解析 @connect」这类问题。 */
+            function viaFetch() {
+                if (typeof fetch !== 'function') { viaGM(); return; }
+                var t = setTimeout(function () { viaGM(); }, 20000);
+                fetch(AI_ENDPOINT, {
                     method: 'POST',
-                    url: AI_ENDPOINT,
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + key
                     },
-                    data: payload,
-                    timeout: 60000,
-                    onload: function (res) {
-                        try {
-                            if (res.status !== 200) {
-                                var msg = '';
-                                try {
-                                    var e = JSON.parse(res.responseText);
-                                    msg = (e.error && e.error.message) || '';
-                                } catch (e2) { /* 忽略 */ }
-                                resolve({ ok: false, err: 'HTTP ' + res.status + (msg ? '：' + msg : '') });
-                                return;
-                            }
-                            var j = JSON.parse(res.responseText);
-                            var text = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
-                            resolve({ ok: true, text: text.trim(), model: (j.model || aiModel()) });
-                        } catch (e) {
-                            resolve({ ok: false, err: '解析响应失败' });
-                        }
-                    },
-                    onerror: function () { resolve({ ok: false, err: '网络错误' }); },
-                    ontimeout: function () { resolve({ ok: false, err: '请求超时' }); }
+                    body: body
+                }).then(function (r) {
+                    return r.text().then(function (txt) {
+                        clearTimeout(t);
+                        if (settled) return;
+                        parse(r.status, txt);
+                    });
+                }).catch(function () {
+                    clearTimeout(t);
+                    if (!settled) viaGM();
                 });
-            } catch (e) {
-                resolve({ ok: false, err: '请求失败：' + (e && e.message) });
             }
+
+            /* ② 回落 GM_xmlhttpRequest（需要 @connect 生效） */
+            function viaGM() {
+                if (settled) return;
+                if (typeof GM_xmlhttpRequest !== 'function') { done({ ok: false, err: '网络请求不可用' }); return; }
+                try {
+                    GM_xmlhttpRequest({
+                        method: 'POST',
+                        url: AI_ENDPOINT,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + key
+                        },
+                        data: body,
+                        timeout: 60000,
+                        onload: function (res) { parse(res.status, res.responseText || ''); },
+                        onerror: function () { done({ ok: false, err: '网络错误（GM 也被拒）' }); },
+                        ontimeout: function () { done({ ok: false, err: '请求超时' }); }
+                    });
+                } catch (e) {
+                    done({ ok: false, err: '请求失败：' + (e && e.message) });
+                }
+            }
+
+            viaFetch();
         });
     }
 
@@ -1931,8 +1967,12 @@
             btn.disabled = false;
             btn.textContent = old;
             if (!r.ok) {
-                if (r.err === 'nokey') { window.alert('还没设置 API Key'); return; }
-                window.alert('生成失败：' + r.err);
+                var msg = r.err === 'nokey' ? '还没设置 API Key（齿轮 → AI Key）' : ('生成失败：' + r.err);
+                btn.textContent = r.err === 'nokey' ? '请设置 Key' : '生成失败';
+                btn.title = msg;
+                try { console.error('[bom] AI ' + msg); } catch (e) { /* 忽略 */ }
+                setTimeout(function () { btn.textContent = old; btn.title = 'AI 生成'; }, 4000);
+                if (r.err !== 'nokey') window.alert(msg);
                 return;
             }
             var md = aiCompose(r.text, r.model);
