@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.68
+// @version      20261027.69
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1842,30 +1842,40 @@
             return true;
         }
         var cm = document.querySelector('.cm-content');
-        if (cm) {
-            cm.focus();
-            /* CodeMirror 6 有自己的 state，execCommand 常常写不进去；
-               但它监听 paste —— 造一个 ClipboardEvent 最可靠。 */
+        if (!cm) return false;
+        /* ★ 关键：点按钮时焦点在按钮上，CodeMirror 的 paste 处理器只认编辑器内的焦点与选区。
+           所以先聚焦、把选区铺满整个编辑区，等一帧让 state 跟上，再派发 paste。 */
+        try { cm.focus(); } catch (e) { /* 忽略 */ }
+        setTimeout(function () {
+            try {
+                var sel = window.getSelection();
+                if (sel) {
+                    var range = document.createRange();
+                    range.selectNodeContents(cm);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            } catch (e) { /* 忽略 */ }
+            var ok = false;
             try {
                 var dt = new DataTransfer();
                 dt.setData('text/plain', text);
-                var ev = new ClipboardEvent('paste', {
+                cm.dispatchEvent(new ClipboardEvent('paste', {
                     clipboardData: dt, bubbles: true, cancelable: true
-                });
-                cm.dispatchEvent(ev);
-                return true;
-            } catch (e) { /* 继续尝试下一条 */ }
-            try {
-                if (document.execCommand('insertText', false, text)) return true;
-            } catch (e2) { /* 忽略 */ }
-            try {
-                cm.textContent = text;
-                cm.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
-                return true;
-            } catch (e3) { /* 忽略 */ }
-            return false;
-        }
-        return false;
+                }));
+                ok = true;
+            } catch (e) { /* 忽略 */ }
+            if (!ok) {
+                try { document.execCommand('insertText', false, text); ok = true; } catch (e2) { /* 忽略 */ }
+            }
+            if (!ok) {
+                try {
+                    cm.textContent = text;
+                    cm.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+                } catch (e3) { /* 忽略 */ }
+            }
+        }, 60);
+        return true;
     }
 
     /* 首次使用：让用户填 key */
