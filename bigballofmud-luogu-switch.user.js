@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.85
+// @version      20261027.86
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -615,7 +615,7 @@
     }
 
     function buildAiModelRow() {
-        var models = ['deepseek-flash', 'deepseek-chat', 'deepseek-reasoner'];
+        var models = ['deepseek-flash', 'deepseek-v4-pro'];
         var row = settingsRow('AI 模型');
         var btn = settingsButton(aiModel());
         btn.addEventListener('click', function (e) {
