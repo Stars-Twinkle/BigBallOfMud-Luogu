@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.91
+// @version      20261027.92
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -25,6 +25,7 @@
 // @connect      y.qq.com
 // @connect      api.bilibili.com
 // @connect      api.deepseek.com
+// @connect      raw.githubusercontent.com
 //                ↑ music.126.net 是网易云 CDN：outer/url 会 302 到
 //                  m801/m704/m804.music.126.net，篡改猴对**跳转后的域名**也要
 //                  在 @connect 里放行，否则 GM_xmlhttpRequest 直接失败（onerror）。
@@ -643,6 +644,70 @@
         return row;
     }
 
+
+    /* 检查更新：从 GitHub 拉最新脚本，比对 @version。
+       只做「发现新版本 + 给个链接」，不自动安装。 */
+    var UPDATE_URL = 'https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js';
+    var CURRENT_VERSION = (function () {
+        try { return GM_info && GM_info.script && GM_info.script.version || ''; } catch (e) { return ''; }
+    })();
+
+    function cmpVersion(a, b) {
+        var pa = String(a).split('.'), pb = String(b).split('.');
+        for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+            var x = parseInt(pa[i] || '0', 10) || 0;
+            var y = parseInt(pb[i] || '0', 10) || 0;
+            if (x !== y) return x > y ? 1 : -1;
+        }
+        return 0;
+    }
+
+    function checkUpdate(btn) {
+        var old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '检查中…';
+        var done = function (msg, isNew, ver) {
+            btn.disabled = false;
+            btn.textContent = isNew ? ('发现 ' + ver) : old;
+            btn.title = msg;
+            if (isNew) {
+                btn.onclick = function (e) {
+                    e.preventDefault();
+                    window.open('https://github.com/Stars-Twinkle/BigBallOfMud-Luogu', '_blank');
+                };
+            } else {
+                setTimeout(function () { btn.textContent = old; }, 3000);
+            }
+            try { console.log('[bom] 检查更新：' + msg); } catch (e) { /* 忽略 */ }
+        };
+        fetch(UPDATE_URL, { cache: 'no-store' }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        }).then(function (txt) {
+            var m = /\/\/\s*@version\s+(\S+)/.exec(txt || '');
+            if (!m) { done('远端脚本没有版本号', false, ''); return; }
+            var latest = m[1];
+            var cur = CURRENT_VERSION || '0';
+            if (cmpVersion(latest, cur) > 0) done('有新版本 ' + latest + '（当前 ' + cur + '）', true, latest);
+            else done('已是最新版本 ' + cur, false, '');
+        }).catch(function (e) {
+            done('检查失败：' + (e && e.message), false, '');
+        });
+    }
+
+    /* ②-d 检查更新。 */
+    function buildUpdateRow() {
+        var row = settingsRow('检查更新');
+        var btn = settingsButton('检查');
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            checkUpdate(btn);
+        });
+        row.appendChild(btn);
+        return row;
+    }
+
     /* ③ 音乐库：打开播放器的库面板（跨上下文读 unsafeWindow）。 */
     function buildLibraryRow() {
         var row = settingsRow('音乐库');
@@ -743,6 +808,7 @@
         p.appendChild(buildAiKeyRow());
         p.appendChild(buildAiModelRow());
         p.appendChild(buildNcmRow());
+        p.appendChild(buildUpdateRow());
         p.appendChild(buildLibraryRow());
         var about = buildAboutRow(p);
         p.appendChild(about.row);
