@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.94
+// @version      20261027.95
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1959,7 +1959,13 @@
             var avatar = p.avatarUrl || '';
             var nick = p.nickname || '（无昵称）';
             var uid = p.userId || '';
-            var vip = (p.vipType && p.vipType > 0) ? 'VIP' : '普通';
+            /* 网易云 vipType 的取值：
+               0 无 / 10-11 音乐包 / 100-101 黑胶 VIP / 110-111 黑胶 SVIP */
+            var vt = Number(p.vipType) || 0;
+            var vip = '普通';
+            if (vt >= 110) vip = 'SVIP';
+            else if (vt >= 100) vip = 'VIP';
+            else if (vt >= 10) vip = '音乐包';
             body.innerHTML =
                 '<div style="display:flex;align-items:center;gap:12px;color:#222">' +
                 (avatar ? '<img src="' + avatar.replace(/"/g, '&quot;') + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover">' : '') +
