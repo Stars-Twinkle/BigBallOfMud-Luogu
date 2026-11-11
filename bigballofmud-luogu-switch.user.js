@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.89
+// @version      20261027.90
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -630,6 +630,19 @@
         return row;
     }
 
+    /* ②-c 网易云：扫码登录（只保存 MUSIC_U，用于下载时带上）。 */
+    function buildNcmRow() {
+        var row = settingsRow('网易云登录');
+        var btn = settingsButton(ncmCookie() ? '已登录' : '扫码');
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            ncmStartLogin();
+        });
+        row.appendChild(btn);
+        return row;
+    }
+
     /* ③ 音乐库：打开播放器的库面板（跨上下文读 unsafeWindow）。 */
     function buildLibraryRow() {
         var row = settingsRow('音乐库');
@@ -729,6 +742,7 @@
         p.appendChild(buildAutoResumeRow());
         p.appendChild(buildAiKeyRow());
         p.appendChild(buildAiModelRow());
+        p.appendChild(buildNcmRow());
         p.appendChild(buildLibraryRow());
         var about = buildAboutRow(p);
         p.appendChild(about.row);
@@ -1749,6 +1763,128 @@
         var d = new Date();
         return d.getFullYear() + '-' + aiPad(d.getMonth() + 1) + '-' + aiPad(d.getDate()) +
             ' ' + aiPad(d.getHours()) + ':' + aiPad(d.getMinutes());
+    }
+
+
+    /* ======================================================================
+       网易云扫码登录
+       ----------------------------------------------------------------------
+       走的是网易云的公开接口（不需要开放平台资质）：
+         POST /api/login/qrcode/unikey          {type:1}  → {unikey}
+         二维码内容：https://music.163.com/login?codekey=<unikey>
+         POST /api/login/qrcode/client/login    {key, type:1}
+           code 801 待扫 / 802 已扫待确认 / 803 成功
+       803 时服务端会 Set-Cookie: MUSIC_U=…，这里是登录态的全部。
+       Cookie 只存 localStorage，用于后续下载音频时带上。
+       ====================================================================== */
+    var NCM_COOKIE_STORE = 'sl-ncm-cookie';
+    var NCM_REFERER = 'https://music.163.com/';
+
+    function ncmCookie() { return lsGet(NCM_COOKIE_STORE, ''); }
+
+    function ncmReq(method, url, body) {
+        return new Promise(function (resolve) {
+            try {
+                GM_xmlhttpRequest({
+                    method: method,
+                    url: url,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Referer': NCM_REFERER
+                    },
+                    data: body || '',
+                    timeout: 20000,
+                    onload: function (res) {
+                        resolve({ status: res.status, text: res.responseText || '', headers: res.responseHeaders || '' });
+                    },
+                    onerror: function () { resolve(null); },
+                    ontimeout: function () { resolve(null); }
+                });
+            } catch (e) { resolve(null); }
+        });
+    }
+
+    /* 从响应头里抠出 MUSIC_U */
+    function ncmExtractCookie(headers) {
+        var m = /set-cookie:[^\r\n]*MUSIC_U=([^;\r\n]+)/i.exec(headers || '');
+        if (m) return 'MUSIC_U=' + m[1];
+        /* 有些情况下合并成一行，再用宽松匹配兜一次 */
+        var m2 = /MUSIC_U=([^;\s]+)/.exec(headers || '');
+        return m2 ? 'MUSIC_U=' + m2[1] : '';
+    }
+
+    /* 弹一个居中的登录卡片，返回 { close, setText } */
+    function ncmCard() {
+        var old = document.getElementById('sl-ncm-card');
+        if (old) old.remove();
+        var box = document.createElement('div');
+        box.id = 'sl-ncm-card';
+        box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;' +
+            'width:280px;padding:18px;border-radius:16px;background:#fff;color:#222;' +
+            'box-shadow:0 12px 48px rgba(0,0,0,.28);font:14px/1.5 system-ui,sans-serif;text-align:center';
+        box.innerHTML = '<div style="font-weight:600;margin-bottom:10px">网易云扫码登录</div>' +
+            '<div id="sl-ncm-qr" style="width:200px;height:200px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:#888">加载中…</div>' +
+            '<div id="sl-ncm-tip" style="margin-top:10px;color:#666;min-height:20px">正在获取二维码</div>' +
+            '<button id="sl-ncm-close" style="margin-top:12px;padding:6px 16px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer">关闭</button>';
+        document.body.appendChild(box);
+        var tip = box.querySelector('#sl-ncm-tip');
+        var qr = box.querySelector('#sl-ncm-qr');
+        function close() { try { box.remove(); } catch (e) { /* 忽略 */ } }
+        box.querySelector('#sl-ncm-close').addEventListener('click', close);
+        return {
+            box: box, qr: qr, tip: tip,
+            close: close,
+            text: function (t) { tip.textContent = t; }
+        };
+    }
+
+    var ncmPolling = false;
+
+    function ncmStartLogin() {
+        if (ncmPolling) return;
+        var ui = ncmCard();
+        ncmReq('POST', 'https://music.163.com/api/login/qrcode/unikey', 'type=1').then(function (r) {
+            if (!r || r.status !== 200) { ui.text('获取二维码失败（网络）'); return; }
+            var j = null;
+            try { j = JSON.parse(r.text); } catch (e) { /* 忽略 */ }
+            var key = j && (j.unikey || (j.data && j.data.unikey));
+            if (!key) { ui.text('接口没返回 unikey'); return; }
+
+            var content = 'https://music.163.com/login?codekey=' + encodeURIComponent(key);
+            ui.qr.innerHTML = '<img alt="二维码" style="width:200px;height:200px" ' +
+                'src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(content) + '">';
+            ui.text('用网易云 App 扫码');
+
+            ncmPolling = true;
+            var tries = 0;
+            function poll() {
+                if (!document.getElementById('sl-ncm-card')) { ncmPolling = false; return; }
+                if (tries++ > 90) { ui.text('二维码已过期，请重新打开'); ncmPolling = false; return; }
+                ncmReq('POST', 'https://music.163.com/api/login/qrcode/client/login',
+                    'key=' + encodeURIComponent(key) + '&type=1').then(function (res) {
+                    var d = null;
+                    try { d = JSON.parse(res.text); } catch (e) { /* 忽略 */ }
+                    var code = d && d.code;
+                    if (code === 803) {
+                        var ck = ncmExtractCookie(res.headers);
+                        if (ck) {
+                            lsSet(NCM_COOKIE_STORE, ck);
+                            ui.text('登录成功');
+                            try { console.log('[bom] 网易云已登录'); } catch (e) { /* 忽略 */ }
+                            setTimeout(ui.close, 1200);
+                        } else {
+                            ui.text('登录成功但没拿到 Cookie，请重试');
+                        }
+                        ncmPolling = false;
+                        return;
+                    }
+                    if (code === 802) ui.text('已扫码，请在手机上确认');
+                    else if (code === 800) { ui.text('二维码已过期'); ncmPolling = false; return; }
+                    setTimeout(poll, 2000);
+                });
+            }
+            setTimeout(poll, 2000);
+        });
     }
 
     /* 调 DeepSeek。返回 Promise<{ok, text, model} | {ok:false, err}> */
