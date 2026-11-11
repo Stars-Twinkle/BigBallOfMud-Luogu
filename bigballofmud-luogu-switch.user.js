@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.93
+// @version      20261027.94
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -634,11 +634,13 @@
     /* ②-c 网易云：扫码登录（只保存 MUSIC_U，用于下载时带上）。 */
     function buildNcmRow() {
         var row = settingsRow('网易云登录');
-        var btn = settingsButton(ncmCookie() ? '已登录' : '扫码');
+        var logged = !!ncmCookie();
+        var btn = settingsButton(logged ? '查看账号' : '扫码');
         btn.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            ncmStartLogin();
+            if (ncmCookie()) ncmShowAccount();
+            else ncmStartLogin();
         });
         row.appendChild(btn);
         return row;
@@ -1912,6 +1914,60 @@
             close: close,
             text: function (t) { tip.textContent = t; }
         };
+    }
+
+
+    /* 取当前登录账号（需要 MUSIC_U）。失败返回 null。 */
+    function ncmFetchAccount() {
+        var ck = ncmCookie();
+        if (!ck) return Promise.resolve(null);
+        return ncmReq('GET', 'https://music.163.com/api/nuser/account/get?cookie=' + encodeURIComponent(ck), '').then(function (r) {
+            if (!r || r.status !== 200) return null;
+            try {
+                var j = JSON.parse(r.text);
+                return (j && (j.profile || (j.data && j.data.profile))) || null;
+            } catch (e) { return null; }
+        });
+    }
+
+    /* 账号信息弹窗。 */
+    function ncmShowAccount() {
+        var old = document.getElementById('sl-ncm-account');
+        if (old) { old.remove(); return; }
+        var box = document.createElement('div');
+        box.id = 'sl-ncm-account';
+        box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;' +
+            'width:300px;padding:18px;border-radius:16px;background:#fff;color:#222;' +
+            'box-shadow:0 12px 48px rgba(0,0,0,.28);font:14px/1.6 system-ui,sans-serif';
+        box.innerHTML = '<div style="font-weight:600;margin-bottom:12px">网易云账号</div>' +
+            '<div id="sl-ncm-acc-body" style="color:#888">读取中…</div>' +
+            '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">' +
+            '<button id="sl-ncm-logout" style="padding:6px 14px;border-radius:8px;border:1px solid #f3c2c2;background:#fff5f5;color:#c33;cursor:pointer">退出登录</button>' +
+            '<button id="sl-ncm-acc-close" style="padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer">关闭</button>' +
+            '</div>';
+        document.body.appendChild(box);
+        box.querySelector('#sl-ncm-acc-close').addEventListener('click', function () { box.remove(); });
+        box.querySelector('#sl-ncm-logout').addEventListener('click', function () {
+            try { localStorage.removeItem(NCM_COOKIE_STORE); } catch (e) { /* 忽略 */ }
+            slLog('ui', '网易云已退出登录');
+            box.remove();
+        });
+
+        var body = box.querySelector('#sl-ncm-acc-body');
+        ncmFetchAccount().then(function (p) {
+            if (!p) { body.innerHTML = '读不到账号信息（Cookie 可能已失效）'; return; }
+            var avatar = p.avatarUrl || '';
+            var nick = p.nickname || '（无昵称）';
+            var uid = p.userId || '';
+            var vip = (p.vipType && p.vipType > 0) ? 'VIP' : '普通';
+            body.innerHTML =
+                '<div style="display:flex;align-items:center;gap:12px;color:#222">' +
+                (avatar ? '<img src="' + avatar.replace(/"/g, '&quot;') + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover">' : '') +
+                '<div><div style="font-weight:600">' + String(nick).replace(/</g, '&lt;') + '</div>' +
+                '<div style="color:#888;font-size:12px">UID ' + uid + ' · ' + vip + '</div></div></div>' +
+                (p.signature ? '<div style="margin-top:10px;color:#666;font-size:12px">' + String(p.signature).replace(/</g, '&lt;') + '</div>' : '');
+            slLog('ui', '网易云账号信息', { uid: uid, nickname: nick });
+        });
     }
 
     var ncmPolling = false;
