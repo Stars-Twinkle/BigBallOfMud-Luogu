@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.96
+// @version      20261027.98
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -26,6 +26,7 @@
 // @connect      api.bilibili.com
 // @connect      api.deepseek.com
 // @connect      raw.githubusercontent.com
+// @connect      cdn.jsdelivr.net
 //                ↑ music.126.net 是网易云 CDN：outer/url 会 302 到
 //                  m801/m704/m804.music.126.net，篡改猴对**跳转后的域名**也要
 //                  在 @connect 里放行，否则 GM_xmlhttpRequest 直接失败（onerror）。
@@ -649,7 +650,11 @@
 
     /* 检查更新：从 GitHub 拉最新脚本，比对 @version。
        只做「发现新版本 + 给个链接」，不自动安装。 */
-    var UPDATE_URL = 'https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js';
+    /* raw.githubusercontent.com 在国内经常不通，优先走 jsDelivr 的 GitHub 镜像。 */
+    var UPDATE_URLS = [
+        'https://cdn.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js',
+        'https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js'
+    ];
     var CURRENT_VERSION = (function () {
         try { return GM_info && GM_info.script && GM_info.script.version || ''; } catch (e) { return ''; }
     })();
@@ -682,10 +687,16 @@
             }
             try { console.log('[bom] 检查更新：' + msg); } catch (e) { /* 忽略 */ }
         };
-        fetch(UPDATE_URL, { cache: 'no-store' }).then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.text();
-        }).then(function (txt) {
+        var tryIdx = 0;
+        function tryNext() {
+            if (tryIdx >= UPDATE_URLS.length) throw new Error('所有更新源都不可用');
+            var u = UPDATE_URLS[tryIdx++];
+            return fetch(u, { cache: 'no-store' }).then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            }).catch(function () { return tryNext(); });
+        }
+        tryNext().then(function (txt) {
             var m = /\/\/\s*@version\s+(\S+)/.exec(txt || '');
             if (!m) { done('远端脚本没有版本号', false, ''); return; }
             var latest = m[1];
@@ -1860,16 +1871,20 @@
     /* 播放器是独立的 IIFE，通过这个函数拿登录态（没有登录时返回空串）。 */
     try { window.__slNcmCookie = ncmCookie; } catch (e) { /* 忽略 */ }
 
-    function ncmReq(method, url, body) {
+    function ncmReq(method, url, body, extraHeaders) {
         return new Promise(function (resolve) {
             try {
+                var h = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Referer': NCM_REFERER
+                };
+                if (extraHeaders) {
+                    Object.keys(extraHeaders).forEach(function (k) { h[k] = extraHeaders[k]; });
+                }
                 GM_xmlhttpRequest({
                     method: method,
                     url: url,
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Referer': NCM_REFERER
-                    },
+                    headers: h,
                     data: body || '',
                     timeout: 20000,
                     onload: function (res) {
@@ -1921,7 +1936,8 @@
     function ncmFetchAccount() {
         var ck = ncmCookie();
         if (!ck) return Promise.resolve(null);
-        return ncmReq('GET', 'https://music.163.com/api/nuser/account/get?cookie=' + encodeURIComponent(ck), '').then(function (r) {
+        /* 这个接口只认 Cookie 请求头，?cookie= 参数无效。 */
+        return ncmReq('GET', 'https://music.163.com/api/nuser/account/get', '', { 'Cookie': ck }).then(function (r) {
             if (!r || r.status !== 200) return null;
             try {
                 var j = JSON.parse(r.text);
@@ -1935,7 +1951,7 @@
         var ck = ncmCookie();
         if (!ck || !uid) return Promise.resolve([]);
         return ncmReq('GET', 'https://music.163.com/api/user/playlist?uid=' + encodeURIComponent(uid) +
-            '&limit=20&offset=0&cookie=' + encodeURIComponent(ck), '').then(function (r) {
+            '&limit=20&offset=0', '', { 'Cookie': ck }).then(function (r) {
             if (!r || r.status !== 200) return [];
             try { return (JSON.parse(r.text) || {}).playlist || []; } catch (e) { return []; }
         });
