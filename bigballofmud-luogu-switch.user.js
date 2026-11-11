@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.98
+// @version      20261027.99
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -20,6 +20,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // @grant        GM_setClipboard
+// @grant        GM_cookie
 // @connect      music.163.com
 // @connect      music.126.net
 // @connect      y.qq.com
@@ -1868,6 +1869,28 @@
     var NCM_REFERER = 'https://music.163.com/';
 
     function ncmCookie() { return lsGet(NCM_COOKIE_STORE, ''); }
+
+    /* ★ Cookie 是浏览器禁止脚本设置的请求头：GM_xmlhttpRequest 里写 headers.Cookie
+       会被静默丢掉。所以用 GM_cookie 把它写进浏览器（music.163.com 域），
+       之后同域请求会自动携带。 */
+    function ncmSyncCookieToBrowser() {
+        var ck = ncmCookie();
+        if (!ck) return;
+        var m = /MUSIC_U=([^;]+)/.exec(ck);
+        if (!m) return;
+        try {
+            if (typeof GM_cookie !== 'undefined' && GM_cookie.set) {
+                GM_cookie.set({
+                    url: 'https://music.163.com',
+                    name: 'MUSIC_U',
+                    value: m[1],
+                    path: '/',
+                    domain: '.music.163.com',
+                    secure: true
+                }, function () { /* 忽略 */ });
+            }
+        } catch (e) { /* 忽略 */ }
+    }
     /* 播放器是独立的 IIFE，通过这个函数拿登录态（没有登录时返回空串）。 */
     try { window.__slNcmCookie = ncmCookie; } catch (e) { /* 忽略 */ }
 
@@ -1936,8 +1959,9 @@
     function ncmFetchAccount() {
         var ck = ncmCookie();
         if (!ck) return Promise.resolve(null);
-        /* 这个接口只认 Cookie 请求头，?cookie= 参数无效。 */
-        return ncmReq('GET', 'https://music.163.com/api/nuser/account/get', '', { 'Cookie': ck }).then(function (r) {
+        /* 先把 MUSIC_U 同步进浏览器，再请求（Cookie 头会被浏览器丢掉）。 */
+        ncmSyncCookieToBrowser();
+        return ncmReq('GET', 'https://music.163.com/api/nuser/account/get').then(function (r) {
             if (!r || r.status !== 200) return null;
             try {
                 var j = JSON.parse(r.text);
@@ -1950,8 +1974,9 @@
     function ncmFetchPlaylists(uid) {
         var ck = ncmCookie();
         if (!ck || !uid) return Promise.resolve([]);
+        ncmSyncCookieToBrowser();
         return ncmReq('GET', 'https://music.163.com/api/user/playlist?uid=' + encodeURIComponent(uid) +
-            '&limit=20&offset=0', '', { 'Cookie': ck }).then(function (r) {
+            '&limit=20&offset=0').then(function (r) {
             if (!r || r.status !== 200) return [];
             try { return (JSON.parse(r.text) || {}).playlist || []; } catch (e) { return []; }
         });
@@ -2066,6 +2091,7 @@
                         var ck = ncmExtractCookie(res.headers);
                         if (ck) {
                             lsSet(NCM_COOKIE_STORE, ck);
+                            ncmSyncCookieToBrowser();
                             slLog('ui', '网易云登录成功', { hasCookie: true });
                             ui.text('登录成功');
                             try { console.log('[bom] 网易云已登录'); } catch (e) { /* 忽略 */ }
