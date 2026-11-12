@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.101
+// @version      20261027.102
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1951,9 +1951,7 @@
         if (old) old.remove();
         var box = document.createElement('div');
         box.id = 'sl-ncm-card';
-        box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;' +
-            'width:280px;padding:18px;border-radius:16px;background:#fff;color:#222;' +
-            'box-shadow:0 12px 48px rgba(0,0,0,.28);font:14px/1.5 system-ui,sans-serif;text-align:center';
+        box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;width:300px;padding:18px;border-radius:18px;background:light-dark(rgba(255,255,255,.72),rgba(28,30,38,.72));color:var(--lg-text,#222);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border:1px solid light-dark(rgba(255,255,255,.75),rgba(255,255,255,.14));box-shadow:0 16px 48px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.45);font:14px/1.5 system-ui,sans-serif;text-align:center';
         box.innerHTML = '<div style="font-weight:600;margin-bottom:10px">网易云扫码登录</div>' +
             '<div id="sl-ncm-qr" style="width:200px;height:200px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:#888">加载中…</div>' +
             '<div id="sl-ncm-tip" style="margin-top:10px;color:#666;min-height:20px">正在获取二维码</div>' +
@@ -2004,9 +2002,7 @@
         if (old) { old.remove(); return; }
         var box = document.createElement('div');
         box.id = 'sl-ncm-account';
-        box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;' +
-            'width:300px;padding:18px;border-radius:16px;background:#fff;color:#222;' +
-            'box-shadow:0 12px 48px rgba(0,0,0,.28);font:14px/1.6 system-ui,sans-serif';
+        box.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;width:300px;padding:18px;border-radius:18px;background:light-dark(rgba(255,255,255,.72),rgba(28,30,38,.72));color:var(--lg-text,#222);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border:1px solid light-dark(rgba(255,255,255,.75),rgba(255,255,255,.14));box-shadow:0 16px 48px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.45);font:14px/1.5 system-ui,sans-serif;text-align:center'.replace('text-align:center', 'text-align:left') + ';font:14px/1.6 system-ui,sans-serif';
         box.innerHTML = '<div style="font-weight:600;margin-bottom:12px">网易云账号</div>' +
             '<div id="sl-ncm-acc-body" style="color:#888">读取中…</div>' +
             '<div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">' +
