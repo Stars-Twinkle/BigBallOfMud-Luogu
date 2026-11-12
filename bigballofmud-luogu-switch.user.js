@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.99
+// @version      20261027.100
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -688,14 +688,28 @@
             }
             try { console.log('[bom] 检查更新：' + msg); } catch (e) { /* 忽略 */ }
         };
+        /* ★ 用 GM_xmlhttpRequest 而不是 fetch：
+           raw.githubusercontent.com 网络是通的，但它不带 CORS 头，
+           从 luogu.com.cn 发起的 fetch 会被浏览器拦掉（表现为「拉取失败」）。 */
         var tryIdx = 0;
         function tryNext() {
-            if (tryIdx >= UPDATE_URLS.length) throw new Error('所有更新源都不可用');
-            var u = UPDATE_URLS[tryIdx++];
-            return fetch(u, { cache: 'no-store' }).then(function (r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.text();
-            }).catch(function () { return tryNext(); });
+            return new Promise(function (resolve, reject) {
+                if (tryIdx >= UPDATE_URLS.length) { reject(new Error('所有更新源都不可用')); return; }
+                var u = UPDATE_URLS[tryIdx++];
+                try {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url: u,
+                        timeout: 15000,
+                        onload: function (res) {
+                            if (res.status !== 200) { tryNext().then(resolve, reject); return; }
+                            resolve(res.responseText || '');
+                        },
+                        onerror: function () { tryNext().then(resolve, reject); },
+                        ontimeout: function () { tryNext().then(resolve, reject); }
+                    });
+                } catch (e) { tryNext().then(resolve, reject); }
+            });
         }
         tryNext().then(function (txt) {
             var m = /\/\/\s*@version\s+(\S+)/.exec(txt || '');
