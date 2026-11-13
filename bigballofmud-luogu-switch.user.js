@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.112
+// @version      20261027.113
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -1032,10 +1032,25 @@
         if (CONFIG.guardSkipColorChip &&
             el.closest('.am-badge, [class*="lg-bg-"], [class*="lcolor-bg-"]')) return false;
 
-        /* ★ 侧栏与顶栏是半透明玻璃面，effectiveBg() 只能拿到它的底色近似值，
-           在深色下会把"其实够亮"的字判成不够对比，改成灰（rgb(153,153,153)）。
-           这些区域的外观由 CSS 主题负责，守卫不介入。 */
-        if (el.closest('.lside, .rside, .user-nav, nav.sidebar, .top-bar')) return false;
+        /* ★ 侧栏与顶栏是半透明玻璃面，effectiveBg() 拿不准它的实际底色：
+           按对比度去算会把字改成灰（rgb(153,153,153)），
+           完全不管又会露出洛谷写死的**黑色**（深色下看不清）。
+           所以这些区域不算对比度，深色下直接给亮色。 */
+        if (el.closest('.lside, .rside, .user-nav, nav.sidebar, .top-bar')) {
+            var themeNow = '';
+            try { themeNow = document.documentElement.getAttribute('data-sl-theme') || ''; } catch (e) { /* 忽略 */ }
+            var isDarkNow = themeNow === 'dark' ||
+                (themeNow !== 'light' && !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches));
+            if (!isDarkNow) return false;
+            var svgSide = el.namespaceURI === 'http://www.w3.org/2000/svg';
+            var propSide = svgSide ? 'fill' : 'color';
+            var fgSide = parseColor(svgSide ? cs.fill : cs.color);
+            if (fgSide && luminance(fgSide) > 0.45) return false;   /* 本来就够亮 */
+            el.style.setProperty(propSide, '#e7eaee', 'important');
+            el.setAttribute('data-sl-fixed', '1');
+            el.setAttribute('data-sl-prop', propSide);
+            return true;
+        }
         if (parseFloat(cs.opacity) < 0.15) return false;
 
         var svg = isSvgText(el);
