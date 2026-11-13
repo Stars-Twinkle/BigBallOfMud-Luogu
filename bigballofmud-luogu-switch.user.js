@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.106
+// @version      20261027.107
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -1945,7 +1945,32 @@
         });
     }
 
-    /* 从响应头里抠出 MUSIC_U */
+    /* 从浏览器读 MUSIC_U。
+       ★ 为什么不用响应头：Set-Cookie 属于 forbidden response header，
+       GM_xmlhttpRequest 的 responseHeaders 里根本不会有它。
+       但扫码轮询的请求走的是浏览器网络栈，服务端给的 Set-Cookie 会被浏览器自动收下，
+       所以直接问浏览器要。 */
+    function ncmReadCookieFromBrowser() {
+        return new Promise(function (resolve) {
+            try {
+                if (typeof GM_cookie === 'undefined' || !GM_cookie.list) { resolve(''); return; }
+                GM_cookie.list({ domain: '.music.163.com' }, function (cookies) {
+                    try {
+                        var arr = cookies || [];
+                        for (var i = 0; i < arr.length; i++) {
+                            if (arr[i] && arr[i].name === 'MUSIC_U' && arr[i].value) {
+                                resolve('MUSIC_U=' + arr[i].value);
+                                return;
+                            }
+                        }
+                        resolve('');
+                    } catch (e) { resolve(''); }
+                });
+            } catch (e) { resolve(''); }
+        });
+    }
+
+    /* 从响应头里抠出 MUSIC_U（保留兜底，虽然通常拿不到） */
     function ncmExtractCookie(headers) {
         var m = /set-cookie:[^\r\n]*MUSIC_U=([^;\r\n]+)/i.exec(headers || '');
         if (m) return 'MUSIC_U=' + m[1];
@@ -2109,17 +2134,19 @@
                     try { d = JSON.parse(res.text); } catch (e) { /* 忽略 */ }
                     var code = d && d.code;
                     if (code === 803) {
-                        var ck = ncmExtractCookie(res.headers);
-                        if (ck) {
-                            lsSet(NCM_COOKIE_STORE, ck);
-                            ncmSyncCookieToBrowser();
-                            slLog('ui', '网易云登录成功', { hasCookie: true });
-                            ui.text('登录成功');
-                            try { console.log('[bom] 网易云已登录'); } catch (e) { /* 忽略 */ }
-                            setTimeout(ui.close, 1200);
-                        } else {
-                            ui.text('登录成功但没拿到 Cookie，请重试');
-                        }
+                        /* 优先从浏览器读（响应头里没有 Set-Cookie）；读不到再用响应头兜底 */
+                        ncmReadCookieFromBrowser().then(function (ck) {
+                            if (!ck) ck = ncmExtractCookie(res.headers);
+                            if (ck) {
+                                lsSet(NCM_COOKIE_STORE, ck);
+                                slLog('ui', '网易云登录成功', { hasCookie: true, from: 'browser' });
+                                ui.text('登录成功');
+                                setTimeout(ui.close, 1200);
+                            } else {
+                                slLog('ui', '扫码成功但读不到 Cookie');
+                                ui.text('扫码成功，但读不到 Cookie（GM_cookie 权限？）');
+                            }
+                        });
                         ncmPolling = false;
                         return;
                     }
