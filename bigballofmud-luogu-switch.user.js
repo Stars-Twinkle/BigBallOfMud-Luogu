@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.105
+// @version      20261027.106
 // @updateURL    https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
@@ -28,6 +28,9 @@
 // @connect      api.deepseek.com
 // @connect      raw.githubusercontent.com
 // @connect      cdn.jsdelivr.net
+// @connect      gcore.jsdelivr.net
+// @connect      raw.kkgithub.com
+// @connect      testingcf.jsdelivr.net
 //                ↑ music.126.net 是网易云 CDN：outer/url 会 302 到
 //                  m801/m704/m804.music.126.net，篡改猴对**跳转后的域名**也要
 //                  在 @connect 里放行，否则 GM_xmlhttpRequest 直接失败（onerror）。
@@ -652,9 +655,13 @@
     /* 检查更新：从 GitHub 拉最新脚本，比对 @version。
        只做「发现新版本 + 给个链接」，不自动安装。 */
     /* raw.githubusercontent.com 在国内经常不通，优先走 jsDelivr 的 GitHub 镜像。 */
+    /* 实测（本机）：testingcf 1.7s / kkgithub 0.7s / gcore 2.4s / fastly 5.8s，
+       cdn.jsdelivr 与 raw.githubusercontent 都会超时。按速度排。 */
     var UPDATE_URLS = [
-        'https://cdn.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js',
-        'https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js'
+        'https://testingcf.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js',
+        'https://raw.kkgithub.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js',
+        'https://gcore.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js',
+        'https://cdn.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js'
     ];
     var CURRENT_VERSION = (function () {
         try { return GM_info && GM_info.script && GM_info.script.version || ''; } catch (e) { return ''; }
