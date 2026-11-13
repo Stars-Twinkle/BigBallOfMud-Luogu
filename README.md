@@ -13,7 +13,7 @@
 
 | 要装的东西 | 装到哪 | 点这里安装 |
 |---|---|---|
-| **全部内容（样式 + 配色开关 + 对比度守卫）** | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)** |
+| **全部内容（样式 + 配色开关 + 对比度守卫）** | [Tampermonkey](https://www.tampermonkey.net/) | **[⬇ 安装脚本](https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js)** |
 
 先装 [Tampermonkey](https://www.tampermonkey.net/)，再点脚本那个安装链接 —— 管理器会自己弹出安装界面，确认即可。
 **装完就生效**，不需要动洛谷的任何设置。
@@ -31,7 +31,7 @@
 
 | 文件 | 装到哪 | 怎么用 |
 |---|---|---|
-| [`bigballofmud-luogu-switch.user.js`](bigballofmud-luogu-switch.user.js) | **Tampermonkey**（油猴）| **装它就行**，约 675 KB，里面包含：① 完整样式（按域名分主站 / 网校两组注入）② 顶栏三态配色开关 ③ 深色下的对比度守卫 ④ **真实的边缘折射**（SDF 位移图 + `feDisplacementMap`）⑤ `data-sl-theme` 属性（供属性驱动的规则使用）⑥ **音乐播放器**（只在主站注入）|
+| [`bigballofmud-luogu-switch.user.js`](bigballofmud-luogu-switch.user.js) | **Tampermonkey**（油猴）| **装它就行**，约 835 KB，里面包含：① 完整样式（按域名分主站 / 网校两组注入）② 顶栏三态配色开关 ③ 深色下的对比度守卫 ④ **真实的边缘折射**（SDF 位移图 + `feDisplacementMap`）⑤ `data-sl-theme` 属性（供属性驱动的规则使用）⑥ **音乐播放器**（只在主站注入，含扫码登录网易云）⑦ **AI 回复生成**（讨论版「发表」左边，DeepSeek）⑧ **检查更新**（GitHub Pages 直连）|
 
 > 仓库里没有 `.user.css` 了 —— 样式已经打包进脚本，用户侧只需要装那一个 `.user.js`。
 > 想改样式的人：直接改脚本里内嵌的 `CSS_MAIN` / `CSS_SCHOOL` 字符串（`var CSS_MAIN = "…"` 那一行）。
@@ -47,7 +47,7 @@
 **方式 A：点安装链接（推荐，方便以后更新）**
 
 1. 装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 点 **[⬇ 安装脚本](https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js)**
+2. 点 **[⬇ 安装脚本](https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js)**
    → 篡改猴弹出安装页 → 确认
 
 **方式 B：手动粘贴**
@@ -89,6 +89,47 @@
 - **洛谷网校**（`class.luogu.com.cn`）：首页、播放页（课堂）、学习中心的侧栏 / 顶栏 / 播放区 /
   控制条 / 聊天面板与输入框 / 课程卡 / 分类卡 / 页脚 / 标签栏，都按各自前端产物逐条适配，
   深浅色与玻璃一致；「学习体系」那张大图抠掉底板后由玻璃承载
+
+---
+
+## AI 回复生成
+
+讨论版 / 回复编辑器「发表」左边有一颗 **AI 生成**，调用 DeepSeek 写 Markdown 回复。
+
+- **Key 只存本地**：设置面板 → `AI Key`，写 `localStorage['sl-ai-key']`，不写进脚本
+- **模型**：`AI 模型` 在 `deepseek-flash` / `deepseek-v4-pro` 之间切换（默认 flash，因为它支持图像理解）
+- **输出格式**：
+
+  ```markdown
+  :::align{center}
+  ![DeepSeek](https://free.picui.cn/free/1385/2026/11/08/6af04da7b883f.png)
+  :::
+
+  ---
+
+  模型：deepseek-flash
+
+  时间：2026-11-13 23:20
+
+  ---
+
+  正文
+  ```
+
+- **写入方式**：洛谷的 CodeMirror 6 拒绝外部写入，所以内容会**复制到剪贴板**，你按 `Ctrl+V` 粘贴
+
+旁边的 **识别验证码** 会把图形验证码交给视觉模型（必须用 `deepseek-flash`），识别结果直接回填。
+
+---
+
+## 网易云登录
+
+音乐库面板底栏有 **网易云：登录**。
+
+- 走网易云公开的扫码接口（`/api/login/qrcode/unikey` + `/client/login`），不需要开放平台资质
+- 扫码成功后用 `GM_cookie` 从浏览器读出 `MUSIC_U`，存 `localStorage['sl-ncm-cookie']`
+- 登录后：账号卡片显示昵称 / UID / VIP 等级，并列出「我的歌单」，可一键导入
+- 下载音频时带上 cookie 能提高可用率（对 VIP 歌曲有效）
 
 ---
 
