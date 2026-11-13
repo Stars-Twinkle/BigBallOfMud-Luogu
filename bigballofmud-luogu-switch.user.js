@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.108
-// @updateURL    https://raw.kkgithub.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
-// @downloadURL  https://raw.kkgithub.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js
-//               ↑ 换成 kkgithub：实测 0.7s 且无 CDN 缓存。
-//                 jsDelivr 的 @main 有最长 12 小时缓存，刚推的版本拿不到。
+// @version      20261027.109
+// @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
+// @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
+//               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
+//                 无 CDN 缓存、Content-Type 正确、国内可达。
+//                 kkgithub 的证书 2026-08-16 已过期，raw.githubusercontent 国内超时，均不可用。
 // @homepageURL  https://github.com/Stars-Twinkle/BigBallOfMud-Luogu
 //                ↑ 更新走仓库 raw。篡改猴的"检查更新"默认每 24 小时一次，
 //                  发现 @version 变大就自动装上（本项目的 publish.ps1 每次发布自动 +0.01）。
@@ -29,6 +30,7 @@
 // @connect      api.bilibili.com
 // @connect      api.deepseek.com
 // @connect      raw.githubusercontent.com
+// @connect      stars-twinkle.github.io
 // @connect      cdn.jsdelivr.net
 // @connect      gcore.jsdelivr.net
 // @connect      raw.kkgithub.com
@@ -660,10 +662,10 @@
     /* 实测（本机）：testingcf 1.7s / kkgithub 0.7s / gcore 2.4s / fastly 5.8s，
        cdn.jsdelivr 与 raw.githubusercontent 都会超时。按速度排。 */
     var UPDATE_URLS = [
+        'https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js',
         'https://testingcf.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js',
-        'https://raw.kkgithub.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js',
         'https://gcore.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js',
-        'https://cdn.jsdelivr.net/gh/Stars-Twinkle/BigBallOfMud-Luogu@main/bigballofmud-luogu-switch.user.js'
+        'https://raw.githubusercontent.com/Stars-Twinkle/BigBallOfMud-Luogu/main/bigballofmud-luogu-switch.user.js'
     ];
     var CURRENT_VERSION = (function () {
         try { return GM_info && GM_info.script && GM_info.script.version || ''; } catch (e) { return ''; }
