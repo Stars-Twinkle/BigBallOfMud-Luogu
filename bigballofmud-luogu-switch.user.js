@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.111
+// @version      20261027.112
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -690,9 +690,10 @@
             btn.textContent = isNew ? ('发现 ' + ver) : old;
             btn.title = msg;
             if (isNew) {
+                /* 直接开安装链接：TM 会弹安装/更新页，不用再手动找 GitHub。 */
                 btn.onclick = function (e) {
                     e.preventDefault();
-                    window.open('https://github.com/Stars-Twinkle/BigBallOfMud-Luogu', '_blank');
+                    window.open('https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js', '_blank');
                 };
             } else {
                 setTimeout(function () { btn.textContent = old; }, 3000);
@@ -1030,6 +1031,11 @@
         //   用 closest 一次覆盖"徽章本身 + 它内部的文字节点"。
         if (CONFIG.guardSkipColorChip &&
             el.closest('.am-badge, [class*="lg-bg-"], [class*="lcolor-bg-"]')) return false;
+
+        /* ★ 侧栏与顶栏是半透明玻璃面，effectiveBg() 只能拿到它的底色近似值，
+           在深色下会把"其实够亮"的字判成不够对比，改成灰（rgb(153,153,153)）。
+           这些区域的外观由 CSS 主题负责，守卫不介入。 */
+        if (el.closest('.lside, .rside, .user-nav, nav.sidebar, .top-bar')) return false;
         if (parseFloat(cs.opacity) < 0.15) return false;
 
         var svg = isSvgText(el);
