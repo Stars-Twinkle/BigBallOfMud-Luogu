@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.115
+// @version      20261027.116
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -1949,7 +1949,9 @@
             try {
                 var h = {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Referer': NCM_REFERER
+                    'Referer': NCM_REFERER,
+                    'Origin': 'https://music.163.com',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0'
                 };
                 if (extraHeaders) {
                     Object.keys(extraHeaders).forEach(function (k) { h[k] = extraHeaders[k]; });
@@ -1957,6 +1959,9 @@
                 GM_xmlhttpRequest({
                     method: method,
                     url: url,
+                    /* ★ 显式要求带上浏览器 cookie：GM_xmlhttpRequest 在某些版本里
+                       默认不带，导致登录态读不到（账号接口一直「读不到账号信息」）。 */
+                    anonymous: false,
                     headers: h,
                     data: body || '',
                     timeout: 20000,
