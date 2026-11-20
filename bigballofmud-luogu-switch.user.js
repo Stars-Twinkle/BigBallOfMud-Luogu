@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.129
+// @version      20261027.130
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -602,7 +602,7 @@
         var seg = document.createElement('div');
         seg.style.cssText = 'display:flex;gap:2px;padding:2px;border-radius:9px;' +
             'background:light-dark(rgba(15,23,42,.06),rgba(255,255,255,.06))';
-        var modes = [['auto', '自动'], ['dark', '深色'], ['light', '浅色']];
+        var modes = [['native', '跟随洛谷'], ['auto', '自动'], ['dark', '深色'], ['light', '浅色']];
         modes.forEach(function (m) {
             var b = document.createElement('button');
             b.type = 'button';
