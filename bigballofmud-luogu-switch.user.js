@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.130
+// @version      20261027.131
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -1528,8 +1528,15 @@ var CSS_MAIN = "\n\n:root {\n    color-scheme: light dark;\n    color-scheme: li
     var rfSeq = 0;
     var rfCanvas = null;
 
+    /* ★ 折射默认关闭（用户：「先把折射移除，有点问题」）。
+       想临时开回来：localStorage.setItem('sl-refract-on', '1') 然后刷新；
+       想彻底关：localStorage.removeItem('sl-refract-on')。
+       设置面板里的开关仍然有效（关 → 立刻撤掉所有 url() 滤镜）。 */
     function rfEnabled() {
-        try { return localStorage.getItem('sl-refract-off') !== '1'; } catch (e) { return true; }
+        try {
+            if (localStorage.getItem('sl-refract-off') === '1') return false;
+            return localStorage.getItem('sl-refract-on') === '1';
+        } catch (e) { return false; }
     }
 
     /* 圆角矩形 SDF：<0 内部，=0 边界，>0 外部。
