@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.127
+// @version      20261027.128
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -455,12 +455,28 @@
        ★ 只认「不在我们自己按钮内部」的 pen-swirl，避免误伤。 */
     function hideLegacyAppearance() {
         if (!isMain) return;
+        /* ★ 条件化（用户要求「别硬改」）：
+           · 非「跟随洛谷」模式：洛谷那支画笔的两项（收缩导航 / 毛玻璃）都被本样式接管了，
+             继续藏起来，避免和插件设置重复；
+           · 「跟随洛谷」模式：颜色全交回洛谷了，**必须**把画笔放出来，
+             否则用户没法在洛谷那边切深色。 */
+        var native = getMode() === 'native';
         var svgs = document.querySelectorAll('svg.fa-pen-swirl, svg[data-icon="pen-swirl"]');
         for (var i = 0; i < svgs.length; i++) {
             var s = svgs[i];
             if (s.closest('[data-sl-theme-toggle]') || s.closest('[data-sl-settings]')) continue;
             var host = s.closest('button') || s.closest('a') || s.parentElement;
-            if (host && host.style && host.style.display !== 'none') host.style.display = 'none';
+            if (!host || !host.style) continue;
+            if (native) {
+                /* 只撤销**我们自己**藏的那一次（带标记），不碰洛谷自己的显示逻辑 */
+                if (host.getAttribute('data-sl-hid') === '1') {
+                    host.style.display = '';
+                    host.removeAttribute('data-sl-hid');
+                }
+            } else if (host.style.display !== 'none') {
+                host.style.display = 'none';
+                host.setAttribute('data-sl-hid', '1');
+            }
         }
     }
 
