@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.126
+// @version      20261027.127
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -385,7 +385,9 @@
     }
 
     function ensureButton() {
-        if (!CONFIG.showToggle) return;
+        /* ★ 「跟随洛谷」模式下强制显示按钮：
+           颜色全交回洛谷了，按钮再藏起来用户就没办法切回脚本的模式。 */
+        if (!CONFIG.showToggle && getMode() !== 'native') return;
 
         // —— 网校：侧边栏（学习下面）或顶栏（客服左边），两套布局都覆盖 ——
         if (isSchool) {
