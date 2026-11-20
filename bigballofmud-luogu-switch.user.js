@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.132
+// @version      20261027.133
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -611,7 +611,7 @@
             b.textContent = m[1];
             b.setAttribute('data-sl-set-mode', m[0]);
             b.style.cssText = 'border:0;background:transparent;color:var(--lg-text-weak);font:inherit;' +
-                'padding:4px 10px;border-radius:7px;cursor:pointer;' +
+                'padding:4px 7px;border-radius:7px;cursor:pointer;white-space:nowrap' +
                 'transition:background .18s,color .18s,box-shadow .18s';
             b.addEventListener('click', function () { setModeFromPanel(m[0]); });
             seg.appendChild(b);
@@ -874,7 +874,7 @@
         p.setAttribute('data-sl-settings-panel', '1');
         p.style.cssText = [
             'position:fixed', 'z-index:2147483000', 'display:none',
-            'width:248px', 'padding:12px 14px', 'border-radius:16px',
+            'width:302px', 'padding:12px 14px', 'border-radius:16px',
             'background:light-dark(rgba(248,250,253,.86),rgba(20,24,30,.86))',
             '-webkit-backdrop-filter:blur(18px) saturate(140%)',
             'backdrop-filter:blur(18px) saturate(140%)',
