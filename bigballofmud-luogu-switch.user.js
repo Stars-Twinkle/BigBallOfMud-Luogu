@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       BigBallOfMud Luogu
 // @namespace    bigballofmud-luogu
-// @version      20261027.133
+// @version      20261027.134
 // @updateURL    https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 // @downloadURL  https://stars-twinkle.github.io/BigBallOfMud-Luogu/bigballofmud-luogu-switch.user.js
 //               ↑ GitHub Pages（项目 Pages，/BigBallOfMud-Luogu/ 子路径，与个人主页不冲突）：
@@ -997,6 +997,12 @@
        ====================================================================== */
     function switchMode(apply) {
         if (!root) { apply(); return; }
+        /* ★ 先撤掉守卫上一轮写的内联色：
+           那些颜色是 `!important` 的固定值，不参与过渡，
+           切换瞬间会"跳"一下（用户：「切换的时候好奇怪」）。
+           撤销后它们会按新的 data-sl-theme 走 CSS 过渡，
+           过渡结束再由 runGuard() 重新按最终颜色修。 */
+        try { resetGuardMarks(); } catch (e) { /* 忽略 */ }
         root.classList.add('sl-theme-switching');
         apply();
         var ms = switchDurationMs();
